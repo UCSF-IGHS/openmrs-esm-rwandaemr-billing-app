@@ -163,7 +163,7 @@ const InvoiceTable: React.FC = () => {
         </span>
       </div>
       <div>
-        <GlobalBillHeader />
+        <GlobalBillHeader insuranceCardNo={params.insuranceCardNo || ''} />
       </div>
       <div className={styles.invoiceContainer}>
         <DataTable headers={tableHeaders} isSortable rows={tableRows} size={responsiveSize} useZebraStyles>

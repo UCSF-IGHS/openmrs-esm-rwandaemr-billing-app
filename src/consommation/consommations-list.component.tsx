@@ -25,7 +25,8 @@ const ConsommationsList: React.FC = () => {
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const location = useLocation();
-  const { insuranceCardNo } = location.state || {};
+
+  const insuranceCardNo = consommations?.results?.[0]?.patientBill?.policyIdNumber || 'Missing';
 
   useEffect(() => {
     const fetchConsommations = async () => {
@@ -62,8 +63,8 @@ const ConsommationsList: React.FC = () => {
     { key: 'status', header: t('status', 'Status') },
   ];
 
-  const rows = useMemo(() => 
-    consommations?.results?.map((item, index) => ({
+  const rows = useMemo(() => {
+    const mappedRows = consommations?.results?.map((item, index) => ({
       id: item.consommationId?.toString(),
       index: index + 1,
       createdDate: item.createdDate ? new Date(item.createdDate).toLocaleString() : '-',
@@ -76,18 +77,20 @@ const ConsommationsList: React.FC = () => {
       patientDue: Number(item.patientBill?.amount ?? 0).toFixed(2),
       paidAmount: Number(item.patientBill?.payments?.[0]?.amountPaid ?? 0).toFixed(2),
       status: item.patientBill?.status || 'N/A',
-    })), [consommations?.results]);
+    }));
+    return mappedRows;
+  }, [consommations?.results]);
 
   const handleRowClick = (row) => {
-    navigate(`/consommation/${row.id}`, { 
-      state: { insuranceCardNo }
+    navigate(`/consommation/${row.id}`, {
+      state: { insuranceCardNo },
     });
   };
 
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <GlobalBillHeader />
+        <GlobalBillHeader insuranceCardNo={insuranceCardNo} />
         <DataTableSkeleton headers={headers} rowCount={5} />
       </div>
     );
@@ -95,9 +98,11 @@ const ConsommationsList: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      <GlobalBillHeader />
+      <GlobalBillHeader insuranceCardNo={insuranceCardNo} />
       <div className={styles.tableHeader}>
-        <h4>{t('consommationsList', 'Consommations List for Global Bill')} #{globalBillId}</h4>
+        <h4>
+          {t('consommationsList', 'Consommations List for Global Bill')} #{globalBillId}
+        </h4>
       </div>
       <DataTable rows={rows} headers={headers} size={responsiveSize} useZebraStyles>
         {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (

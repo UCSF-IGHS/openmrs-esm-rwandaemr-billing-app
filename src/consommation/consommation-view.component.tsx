@@ -87,13 +87,17 @@ const ConsommationView: React.FC = () => {
       <div>
         <span className={styles.pageTitle}>{t('consommationDetails', 'Patient Bill Payment')}</span>
       </div>
-      <GlobalBillHeader />
+      <GlobalBillHeader insuranceCardNo={insuranceCardNo} />
       {consommation && (
         <div className={styles.billDetails}>
-          <h2>{t('consommationNumber', 'Consommation #')}: {consommation.consommationId}</h2>
-          <p>{t('department', 'Department')}: {consommation.department.name}</p>
-          <BillItemsTable 
-            items={consommation.billItems} 
+          <h2>
+            {t('consommationNumber', 'Consommation #')}: {consommation.consommationId}
+          </h2>
+          <p>
+            {t('department', 'Department')}: {consommation.department.name}
+          </p>
+          <BillItemsTable
+            items={consommation.billItems}
             insuranceRate={(consommation.insuranceBill.amount / consommation.patientBill.amount) * 100 || 0}
           />
         </div>

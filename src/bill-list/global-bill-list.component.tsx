@@ -1,12 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useLocation } from 'react-router-dom';
-import { 
-  SkeletonText, 
-  InlineLoading, 
-  InlineNotification,
-  Tile 
-} from '@carbon/react';
+import { SkeletonText, InlineLoading, InlineNotification, Tile } from '@carbon/react';
 import Card from './card.component';
 import styles from './global-bill-list.scss';
 import { fetchGlobalBillsByInsuranceCard } from '../api/billing';
@@ -15,9 +10,12 @@ interface LocationState {
   insuranceCardNo?: string;
 }
 
-const GlobalBillHeader: React.FC = () => {
+interface GlobalBillHeaderProps {
+  insuranceCardNo: string;
+}
+
+const GlobalBillHeader: React.FC<GlobalBillHeaderProps> = ({ insuranceCardNo }) => {
   const { t } = useTranslation();
-  const { insuranceCardNo } = useParams();
   const location = useLocation();
   const locationState = location.state as LocationState;
 
@@ -136,13 +134,7 @@ const GlobalBillHeader: React.FC = () => {
   if (error) {
     return (
       <div className={styles.sectionContainer}>
-        <InlineNotification
-          kind="error"
-          title={t('error', 'Error')}
-          subtitle={error}
-          hideCloseButton
-          lowContrast
-        />
+        <InlineNotification kind="error" title={t('error', 'Error')} subtitle={error} hideCloseButton lowContrast />
       </div>
     );
   }

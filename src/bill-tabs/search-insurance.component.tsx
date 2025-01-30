@@ -152,11 +152,7 @@ const SearchInsurance: React.FC = () => {
               onChange={(e) => setInsuranceCardNumber(e.target.value)}
               size="lg"
             />
-            <Button
-              onClick={() => handleSearch('insurance')}
-              disabled={loading}
-              kind="primary"
-            >
+            <Button onClick={() => handleSearch('insurance')} disabled={loading} kind="primary">
               {t('search', 'Search')}
             </Button>
           </div>
@@ -164,13 +160,7 @@ const SearchInsurance: React.FC = () => {
       </Form>
 
       {loading && (
-        <DataTableSkeleton
-          columnCount={7}
-          rowCount={5}
-          headers={[]}
-          showHeader={false}
-          showToolbar={false}
-        />
+        <DataTableSkeleton columnCount={7} rowCount={5} headers={[]} showHeader={false} showToolbar={false} />
       )}
       {errorMessage && <div className={styles.error}>{errorMessage}</div>}
       {renderResultsTable()}
