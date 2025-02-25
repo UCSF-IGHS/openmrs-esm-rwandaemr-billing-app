@@ -2,7 +2,7 @@
   "name": "@ohri/esm-rwandaemr-billing-app",
   "version": "4.0.0",
   "license": "MPL-2.0",
-  "description": "An OpenMRS microfrontend app for RwandaEMR billing",
+  "description": "An OpenMRS microfrontend app for RwandaEMR billing feature",
   "browser": "dist/openmrs-esm-rwandaemr-billing-app.js",
   "main": "src/index.ts",
   "source": true,
