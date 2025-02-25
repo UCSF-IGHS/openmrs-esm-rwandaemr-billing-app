@@ -60,7 +60,6 @@ jobs:
         run: |
           echo "Bumping patch version for main branch..."
           git pull origin main
-          yarn plugin import version
           yarn version patch
           NEW_VERSION=$(node -p "require('./package.json').version")-pre.${{ github.run_number }}
           echo "Version bumped to: $NEW_VERSION"
