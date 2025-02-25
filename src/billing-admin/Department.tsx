@@ -27,6 +27,22 @@ interface DepartmentProps {
   title?: string;
 }
 
+const loadDepartments = async (setDepartments, setError, showToast, t, setIsLoading) => {
+  try {
+    const data = await getDepartments();
+    setDepartments(data);
+  } catch (error) {
+    setError(error);
+    showToast({
+      title: t('departmentLoadError', 'Error loading departments'),
+      kind: 'error',
+      description: error.message,
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 const Department: React.FC<DepartmentProps> = ({ showAddButton = true, title }) => {
   const { t } = useTranslation();
   const defaultPageSize = 10;
@@ -43,24 +59,8 @@ const Department: React.FC<DepartmentProps> = ({ showAddButton = true, title }) 
   ];
 
   useEffect(() => {
-    loadDepartments();
-  }, []);
-
-  const loadDepartments = async () => {
-    try {
-      const data = await getDepartments();
-      setDepartments(data);
-    } catch (error) {
-      setError(error);
-      showToast({
-        title: t('departmentLoadError', 'Error loading departments'),
-        kind: 'error',
-        description: error.message,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    loadDepartments(setDepartments, setError, showToast, t, setIsLoading);
+  }, [t]); // Only depend on variables that are stable
 
   const filteredDepartments = useMemo(() => {
     if (!searchTerm) return departments;

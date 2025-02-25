@@ -114,7 +114,7 @@ const InvoiceTable: React.FC = () => {
           ),
         };
       }) ?? [],
-    [filteredLineItems, defaultCurrency, showEditBillButton, t],
+    [filteredLineItems, t],
   );
 
   const handleRowClick = useCallback(

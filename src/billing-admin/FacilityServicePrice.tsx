@@ -1,31 +1,46 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  DataTable,
-  Table,
-  TableHead,
-  TableRow,
-  TableHeader,
-  TableBody,
-  TableCell,
   Button,
   ButtonSet,
+  DataTable,
   DataTableSkeleton,
-  Tag,
-  TableToolbarContent,
   Layer,
   Search,
+  Table,
+  TableBody,
+  TableCell,
   TableContainer,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableToolbarContent,
+  Tag,
 } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
 import { showToast, usePagination } from '@openmrs/esm-framework';
-import { getFacilityServicePrices, type FacilityServicePrice as FacilityServicePriceType } from '../api/billing';
+import { type FacilityServicePrice as FacilityServicePriceType, getFacilityServicePrices } from '../api/billing';
 import styles from './FacilityServicePrice.scss';
-import { Edit, Add } from '@carbon/react/icons';
-import BackButton from '../components/back-button';
+import { Add, Edit } from '@carbon/react/icons';
 
 interface FacilityServicePriceProps {
   showAddButton?: boolean;
 }
+
+const loadFacilityServices = async (setFacilityServices, setError, showToast, t, setIsLoading) => {
+  try {
+    const response = await getFacilityServicePrices(0, 100); // Fetch more items at once since we'll handle pagination client-side
+    setFacilityServices(response.results);
+  } catch (error) {
+    setError(error);
+    showToast({
+      title: t('facilityServiceLoadError', 'Error loading facility services'),
+      kind: 'error',
+      description: error.message,
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
 const FacilityServicePrice: React.FC<FacilityServicePriceProps> = ({ showAddButton = true }) => {
   const { t } = useTranslation();
@@ -47,24 +62,8 @@ const FacilityServicePrice: React.FC<FacilityServicePriceProps> = ({ showAddButt
   ];
 
   useEffect(() => {
-    loadFacilityServices();
-  }, []);
-
-  const loadFacilityServices = async () => {
-    try {
-      const response = await getFacilityServicePrices(0, 100); // Fetch more items at once since we'll handle pagination client-side
-      setFacilityServices(response.results);
-    } catch (error) {
-      setError(error);
-      showToast({
-        title: t('facilityServiceLoadError', 'Error loading facility services'),
-        kind: 'error',
-        description: error.message,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    loadFacilityServices(setFacilityServices, setError, showToast, t, setIsLoading);
+  }, [t]);
 
   const filteredServices = useMemo(() => {
     return facilityServices.filter(
