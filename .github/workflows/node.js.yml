@@ -50,11 +50,17 @@ jobs:
         with:
           node-version: "18.x"
           registry-url: "https://registry.npmjs.org"
+
       - run: yarn install --immutable
+
+      - name: Build
+        run: yarn turbo run build --color --concurrency=5
+
       - name: Git Config
         run: |
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Bump Patch Version and Publish
         shell: bash
         run: |
