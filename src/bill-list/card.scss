@@ -1,0 +1,59 @@
+@use '@carbon/colors';
+@use '@carbon/layout';
+@use '@carbon/type';
+@use '@carbon/themes';
+@use '@openmrs/esm-styleguide/src/vars' as *;
+
+.card {
+  height: 100%;
+  background-color: $ui-01;
+  border: 1px solid $ui-03;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background-color: $ui-01;
+  }
+}
+
+.header {
+  @include type.type-style('heading-compact-02');
+  display: flex;
+  align-items: center;
+  gap: layout.$spacing-03;
+  color: $text-02;
+  border-bottom: 1px solid $ui-03;
+
+  svg {
+    fill: $interactive-01;
+  }
+}
+
+.detailsList {
+  margin: 0;
+  padding: 0;
+}
+
+.detailItem {
+  display: flex;
+  justify-content: space-between;
+  
+  dt {
+    @include type.type-style('body-compact-01');
+    color: $text-02;
+    flex: 1;
+  }
+  
+  dd {
+    @include type.type-style('body-compact-01');
+    margin: 0;
+    text-align: right;
+    flex: 1;
+    font-weight: 600;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}

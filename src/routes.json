@@ -6,25 +6,31 @@
   },
   "extensions": [
     {
-      "name": "Red box",
-      "component": "redBox",
-      "slot": "Boxes"
+      "component": "billingDashboardLink",
+      "name": "billing-home-left-panel-link",
+      "slot": "homepage-dashboard-slot",
+      "meta": {
+        "name": "billing",
+        "title": "Billing",
+        "slot": "billing-app-slot",
+        "isFolder": true
+      }
     },
-    {
-      "name": "Blue box",
-      "component": "blueBox",
-      "slot": "Boxes"
-    },
-        {
-      "name": "Brand box",
-      "component": "blueBox",
-      "slot": "Boxes"
-    }
-  ],
-  "pages": [
     {
       "component": "root",
-      "route": "root"
+      "name": "billing-root",
+      "slot": "billing-app-slot"
+    },
+    {
+      "slot": "system-admin-page-card-link-slot",
+      "component": "billableServicesCardLink",
+      "name": "billable-services-admin-card-link"
+    }
+  ],
+   "pages": [
+    {
+      "component": "billingAdminHome",
+      "route":"billing-admin"
     }
   ]
 }
