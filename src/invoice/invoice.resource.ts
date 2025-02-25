@@ -1,7 +1,7 @@
 import { formatDate, openmrsFetch, parseDate } from '@openmrs/esm-framework';
 import useSWR from 'swr';
 import isEmpty from 'lodash-es/isEmpty';
-import { Bill, MappedBill } from '../types';
+import { type Bill, type MappedBill } from '../types';
 
 export const usePatientBill = (policyId: string) => {
   const url = `/ws/rest/v1/mohbilling/globalBill?ipCardNumber=${policyId}&v=full`;
