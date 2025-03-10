@@ -59,16 +59,21 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   const usePatientData = Boolean(patientUuid);
   const useInsuranceData = Boolean(insuranceCardNo) && !usePatientData;
   
-  const lineItems = usePatientData ? patientBillResponse.bills : 
-                   useInsuranceData ? insuranceBillResponse.bills : [];
+  const lineItems = useMemo(() => 
+    usePatientData ? patientBillResponse.bills : 
+    useInsuranceData ? insuranceBillResponse.bills : [],
+  [usePatientData, patientBillResponse.bills, useInsuranceData, insuranceBillResponse.bills]);
+  
   const isLoading = usePatientData ? patientBillResponse.isLoading : 
                    useInsuranceData ? insuranceBillResponse.isLoading : false;
   const error = usePatientData ? patientBillResponse.error : 
                useInsuranceData ? insuranceBillResponse.error : null;
   const isValidating = usePatientData ? patientBillResponse.isValidating : 
                       useInsuranceData ? insuranceBillResponse.isValidating : false;
-  const mutate = usePatientData ? patientBillResponse.mutate : 
-                useInsuranceData ? insuranceBillResponse.mutate : () => {};
+  const mutate = useMemo(() => 
+    usePatientData ? patientBillResponse.mutate : 
+    useInsuranceData ? insuranceBillResponse.mutate : () => {},
+  [usePatientData, patientBillResponse.mutate, useInsuranceData, insuranceBillResponse.mutate]);
   
   // State for calculator modal
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
@@ -141,7 +146,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
           paymentStatus: item.paymentStatus || ''
         };
       }).filter(Boolean) ?? [],
-    [filteredLineItems, t],
+    [filteredLineItems],
   );
 
   const handleRowSelection = (row: typeof DataTableRow, checked: boolean) => {
