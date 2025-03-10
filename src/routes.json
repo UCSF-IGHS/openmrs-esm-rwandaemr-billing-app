@@ -4,33 +4,38 @@
     "fhir2": ">=1.2",
     "webservices.rest": "^2.24.0"
   },
+  "pages": [
+   {
+     "component": "billingAdminHome",
+     "route":"rwanda-billing-admin"
+   }
+ ],
   "extensions": [
-    {
-      "component": "billingDashboardLink",
-      "name": "billing-home-left-panel-link",
-      "slot": "homepage-dashboard-slot",
-      "meta": {
-        "name": "billing",
-        "title": "Billing",
-        "slot": "billing-app-slot",
-        "isFolder": true
-      }
-    },
     {
       "component": "root",
       "name": "billing-root",
-      "slot": "billing-app-slot"
+      "slot": "rwanda-billing-slot"
     },
     {
-      "slot": "system-admin-page-card-link-slot",
-      "component": "billableServicesCardLink",
-      "name": "billable-services-admin-card-link"
+      "name": "billing-summary-dashboard-link",
+      "component": "billingSummaryDashboardLink",
+      "slot": "patient-chart-dashboard-slot",
+      "order": 11,
+      "meta": {
+        "columns": 1,
+        "columnSpan": 1,
+        "slot": "patient-chart-billing-dashboard-slot",
+        "path": "billing-listing"
+      }
+    },
+    {
+      "name": "billing-patient-summary",
+      "component": "billingPatientSummary",
+      "slot": "patient-chart-billing-dashboard-slot",
+      "meta": {
+        "columnSpan": 1
+      }
     }
   ],
-   "pages": [
-    {
-      "component": "billingAdminHome",
-      "route":"billing-admin"
-    }
-  ]
+  "workspaces": []
 }
