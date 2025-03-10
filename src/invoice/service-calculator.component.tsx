@@ -75,7 +75,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
     fetchDepartments();
   }, []);
   
-  const fetchServicesForDepartment = async (departmentId: string) => {
+  const fetchServicesForDepartment = useCallback(async (departmentId: string) => {
     if (!departmentId) return;
     
     if (departmentServices[departmentId]) return;
@@ -102,13 +102,13 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
     } finally {
       setIsLoadingServices(false);
     }
-  };
+  }, [departmentServices, departments]);
   
   useEffect(() => {
     if (departmentUuid) {
       fetchServicesForDepartment(departmentUuid);
     }
-  }, [departmentUuid]);
+  }, [departmentUuid, fetchServicesForDepartment]);
   
   const getServicesForDepartment = (departmentUuid: string) => {
     return departmentServices[departmentUuid] || [];

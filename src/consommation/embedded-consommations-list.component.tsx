@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -69,7 +69,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
 
-  const fetchConsommations = async () => {
+  const fetchConsommations = useCallback(async () => {
     if (!globalBillId) return;
     
     setIsLoading(true);
@@ -85,11 +85,11 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
-
+  }, [globalBillId, t]);
+  
   useEffect(() => {
     fetchConsommations();
-  }, [globalBillId, t]);
+  }, [fetchConsommations]);
 
   const headers = [
     { key: 'select', header: '' },
@@ -746,7 +746,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
                       </tr>
                       <tr>
                         <td colSpan={6}>
-                          <strong>{t('totalUnpaidAmount', 'Total Unpaid Amount')}</strong>
+                          <strong>{t('totalAmountToPay', 'Total Amount to be paid')}</strong>
                         </td>
                         <td colSpan={2}>
                           <strong>
