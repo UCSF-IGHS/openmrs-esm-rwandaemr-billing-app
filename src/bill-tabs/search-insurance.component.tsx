@@ -18,7 +18,7 @@ import {
 } from '@carbon/react';
 import { fetchGlobalBillsByInsuranceCard } from '../api/billing';
 import styles from './search-bill-header-cards.scss';
-import { debounce } from 'lodash';
+import debounce from 'lodash/debounce';
 
 // Define TypeScript types
 type SearchResultItem = {
