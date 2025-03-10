@@ -4,6 +4,8 @@ import { useConfig } from '@openmrs/esm-framework';
 import { Config } from './config-schema';
 import Billing from './billing.component';
 
+jest.mock('./images/payments-desk-icon.svg', () => 'svg-mock');
+
 jest.mock('./header/BillingHeader', () => ({
   __esModule: true,
   default: () => <div data-testid="billing-header">Billing Header</div>,
@@ -16,6 +18,6 @@ it('renders the billing landing page', () => {
   mockUseConfig.mockReturnValue(config);
 
   render(<Billing />);
-
-  expect(screen.getByTestId('billing-header')).toBeInTheDocument();
+  expect(screen.getByText('Billing')).toBeInTheDocument();
+  expect(document.getElementById('billing-component-instance')).toBeInTheDocument();
 });
