@@ -1,27 +1,26 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  DataTable,
-  Table,
-  TableHead,
-  TableRow,
-  TableHeader,
-  TableBody,
-  TableCell,
   Button,
+  DataTable,
   DataTableSkeleton,
-  TableToolbarContent,
   Layer,
-  Search,
-  TableContainer,
   OverflowMenu,
   OverflowMenuItem,
+  Search,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableToolbarContent,
 } from '@carbon/react';
 import { Add } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { showToast, usePagination } from '@openmrs/esm-framework';
 import { getServices, type HopService } from '../api/billing';
 import styles from './Service.scss';
-import BackButton from '../components/back-button';
 
 interface ServiceProps {
   showAddButton?: boolean;
@@ -65,6 +64,22 @@ const ServiceActions: React.FC<ServiceActionsProps> = ({ service, responsiveSize
   );
 };
 
+const loadServices = async (setServices, setError, showToast, t, setIsLoading) => {
+  try {
+    const data = await getServices();
+    setServices(data);
+  } catch (error) {
+    setError(error);
+    showToast({
+      title: t('serviceLoadError', 'Error loading services'),
+      kind: 'error',
+      description: error.message,
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 const Service: React.FC<ServiceProps> = ({ showAddButton = true }) => {
   const { t } = useTranslation();
   const defaultPageSize = 10;
@@ -81,24 +96,8 @@ const Service: React.FC<ServiceProps> = ({ showAddButton = true }) => {
   ];
 
   useEffect(() => {
-    loadServices();
-  }, []);
-
-  const loadServices = async () => {
-    try {
-      const data = await getServices();
-      setServices(data);
-    } catch (error) {
-      setError(error);
-      showToast({
-        title: t('serviceLoadError', 'Error loading services'),
-        kind: 'error',
-        description: error.message,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    loadServices(setServices, setError, showToast, t, setIsLoading);
+  }, [t]);
 
   const filteredServices = useMemo(() => {
     if (!searchTerm) return services;

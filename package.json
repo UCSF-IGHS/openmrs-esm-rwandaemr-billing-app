@@ -1,8 +1,8 @@
 {
-  "name": "@openmrs/esm-rwandaemr-billing-app",
+  "name": "@ohri/esm-rwandaemr-billing-app",
   "version": "4.0.0",
   "license": "MPL-2.0",
-  "description": "An OpenMRS seed application for building microfrontends",
+  "description": "An OpenMRS microfrontend app for RwandaEMR billing feature",
   "browser": "dist/openmrs-esm-rwandaemr-billing-app.js",
   "main": "src/index.ts",
   "source": true,
@@ -30,14 +30,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openmrs/openmrs-esm-template-app.git"
+    "url": "git+https://github.com/UCSF-IGHS/openmrs-esm-rwandaemr-billing-app.git"
   },
-  "homepage": "https://github.com/openmrs/openmrs-esm-template-app#readme",
+  "homepage": "https://github.com/UCSF-IGHS/openmrs-esm-rwandaemr-billing-app#readme",
   "publishConfig": {
     "access": "public"
   },
   "bugs": {
-    "url": "https://github.com/openmrs/openmrs-esm-template-app/issues"
+    "url": "https://github.com/UCSF-IGHS/openmrs-esm-rwandaemr-billing-app/issues"
   },
   "dependencies": {
     "@carbon/react": "^1.68.0",

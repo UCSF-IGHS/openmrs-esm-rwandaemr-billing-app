@@ -1,29 +1,28 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Button,
   DataTable,
+  DataTableSkeleton,
+  Form,
+  Layer,
+  Modal,
+  NumberInput,
+  Search,
   Table,
-  TableHead,
-  TableRow,
-  TableHeader,
   TableBody,
   TableCell,
-  Button,
-  DataTableSkeleton,
-  TableToolbarContent,
-  Layer,
-  Search,
   TableContainer,
-  Modal,
-  Form,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableToolbarContent,
   TextInput,
-  NumberInput,
 } from '@carbon/react';
 import { Add, Edit, TrashCan } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { showToast, usePagination } from '@openmrs/esm-framework';
 import { getThirdParties, type ThirdParty as ThirdPartyType } from '../api/billing';
 import styles from './ThirdParty.scss';
-import BackButton from '../components/back-button';
 
 interface ThirdPartyProps {
   showAddButton?: boolean;
@@ -33,6 +32,22 @@ interface ThirdPartyFormData {
   name: string;
   rate: number;
 }
+
+const loadThirdParties = async (setThirdParties, setError, showToast, t, setIsLoading) => {
+  try {
+    const data = await getThirdParties();
+    setThirdParties(data);
+  } catch (error) {
+    setError(error);
+    showToast({
+      title: t('thirdPartyLoadError', 'Error loading third parties'),
+      kind: 'error',
+      description: error.message,
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
 const ThirdParty: React.FC<ThirdPartyProps> = ({ showAddButton = true }) => {
   const { t } = useTranslation();
@@ -53,24 +68,8 @@ const ThirdParty: React.FC<ThirdPartyProps> = ({ showAddButton = true }) => {
   ];
 
   useEffect(() => {
-    loadThirdParties();
-  }, []);
-
-  const loadThirdParties = async () => {
-    try {
-      const data = await getThirdParties();
-      setThirdParties(data);
-    } catch (error) {
-      setError(error);
-      showToast({
-        title: t('thirdPartyLoadError', 'Error loading third parties'),
-        kind: 'error',
-        description: error.message,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    loadThirdParties(setThirdParties, setError, showToast, t, setIsLoading);
+  }, [t]);
 
   const filteredThirdParties = useMemo(() => {
     if (!searchTerm) return thirdParties;

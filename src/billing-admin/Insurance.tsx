@@ -1,27 +1,26 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  DataTable,
-  Table,
-  TableHead,
-  TableRow,
-  TableHeader,
-  TableBody,
-  TableCell,
   Button,
+  DataTable,
   DataTableSkeleton,
-  TableToolbarContent,
   Layer,
-  Search,
-  TableContainer,
   OverflowMenu,
   OverflowMenuItem,
+  Search,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableToolbarContent,
 } from '@carbon/react';
 import { Add } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { showToast, usePagination } from '@openmrs/esm-framework';
 import { getInsurances, type Insurance as InsuranceType } from '../api/billing';
 import styles from './Insurance.scss';
-import BackButton from '../components/back-button';
 
 interface InsuranceProps {
   showAddButton?: boolean;
@@ -74,6 +73,22 @@ const InsuranceActions: React.FC<InsuranceActionsProps> = ({ insurance, responsi
   );
 };
 
+const loadInsurances = async (setInsurances, setError, showToast, t, setIsLoading) => {
+  try {
+    const data = await getInsurances();
+    setInsurances(data);
+  } catch (error) {
+    setError(error);
+    showToast({
+      title: t('insuranceLoadError', 'Error loading insurances'),
+      kind: 'error',
+      description: error.message,
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 const Insurance: React.FC<InsuranceProps> = ({ showAddButton = true }) => {
   const { t } = useTranslation();
   const defaultPageSize = 10;
@@ -94,24 +109,8 @@ const Insurance: React.FC<InsuranceProps> = ({ showAddButton = true }) => {
   ];
 
   useEffect(() => {
-    loadInsurances();
-  }, []);
-
-  const loadInsurances = async () => {
-    try {
-      const data = await getInsurances();
-      setInsurances(data);
-    } catch (error) {
-      setError(error);
-      showToast({
-        title: t('insuranceLoadError', 'Error loading insurances'),
-        kind: 'error',
-        description: error.message,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    loadInsurances(setInsurances, setError, showToast, t, setIsLoading);
+  }, [t]);
 
   const filteredInsurances = useMemo(() => {
     if (!searchTerm) return insurances;
