@@ -353,23 +353,22 @@ $disabled-03: #8d8d8d !default;
   font-size: 0.875rem;
 }
 
-.itemPaid {
-  background-color: #24a148; /* Green color for paid items */
-  color: white;
-  padding: 2px 6px;
+.statusBadge {
+  display: inline-block;
+  padding: 4px 8px;
   border-radius: 4px;
+  color: white;
+  font-weight: bold;
 }
 
-.itemPartiallyPaid {
-  background-color: #ff8c00; /* Orange color for partially paid items */
-  color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
+.paidStatus {
+  background-color: #09852c;
 }
 
-.itemUnpaid {
-  background-color: #da1e28; /* Red color for unpaid items */
-  color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
+.partiallyPaidStatus {
+  background-color: #ff8c00;
+}
+
+.unpaidStatus {
+  background-color: #c00811;
 }

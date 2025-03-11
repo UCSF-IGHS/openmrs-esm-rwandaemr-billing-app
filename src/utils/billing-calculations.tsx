@@ -6,14 +6,16 @@
 import { type ConsommationItem } from '../types';
 
 /**
- * Determines if an item is fully paid
+ * Enhanced isItemPaid function with more robust payment status detection
  * @param {ConsommationItem} item - The item to check
  * @returns {boolean} True if the item is fully paid
  */
 export const isItemPaid = (item: ConsommationItem): boolean => {
+  // PRIMARY check: Check if payment amount equals or exceeds the total
   const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+  const paidAmount = item.paidAmount || 0;
   
-  if (item.paidAmount !== undefined && item.paidAmount >= itemTotal) {
+  if (paidAmount >= itemTotal) {
     return true;
   }
 
@@ -21,20 +23,11 @@ export const isItemPaid = (item: ConsommationItem): boolean => {
     return true;
   }
   
-  if (item.remainingAmount !== undefined && item.remainingAmount <= 0) {
-    return true;
-  }
-
-  if (item.paidQuantity !== undefined && item.quantity !== undefined &&
-      item.paidQuantity >= item.quantity) {
-    return true;
-  }
-  
   return false;
 };
 
 /**
- * Determines if an item is partially paid
+ * Enhanced isItemPartiallyPaid function with more robust detection
  * @param {ConsommationItem} item - The item to check
  * @returns {boolean} True if the item is partially paid
  */
@@ -50,7 +43,16 @@ export const isItemPartiallyPaid = (item: ConsommationItem): boolean => {
   const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
   const paidAmount = item.paidAmount || 0;
   
-  return paidAmount > 0 && paidAmount < itemTotal;
+  if (paidAmount > 0 && paidAmount < itemTotal) {
+    return true;
+  }
+  
+  if (item.paidQuantity !== undefined && item.paidQuantity > 0 && 
+      item.quantity !== undefined && item.paidQuantity < item.quantity) {
+    return true;
+  }
+  
+  return false;
 };
 
 /**
