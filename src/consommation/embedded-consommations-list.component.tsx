@@ -65,10 +65,14 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
   const [receivedCash, setReceivedCash] = useState('');
   const [payWithDeposit, setPayWithDeposit] = useState(false);
   const [payWithCash, setPayWithCash] = useState(true);
+
+  // Client-side payment tracking
+  const [clientSidePaidItems, setClientSidePaidItems] = useState<Record<string, boolean>>({});
   
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
 
+  // Fetch consommations list
   const fetchConsommations = useCallback(async () => {
     if (!globalBillId) return;
     
@@ -91,6 +95,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     fetchConsommations();
   }, [fetchConsommations]);
 
+  // Table headers
   const headers = [
     { key: 'select', header: '' },
     { key: 'index', header: '#' },
@@ -106,6 +111,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     { key: 'status', header: t('status', 'Status') },
   ];
 
+  // Generate table rows data
   const rows = useMemo<RowData[]>(() => 
     consommations?.results?.map((item, index) => ({
       id: item.consommationId?.toString() || '',
@@ -124,60 +130,225 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       rawPaidAmount: Number(item.patientBill?.payments?.[0]?.amountPaid ?? 0),
     })) || [], [consommations?.results, insuranceCardNo]);
 
+  // Handle row click
   const handleRowClick = (row: RowData) => {
     if (onConsommationClick && row.id) {
       onConsommationClick(row.id);
     }
   };
 
-  // Helper function to get translated status text
-  const getItemStatusText = (item: ConsommationItem): string => {
-    if (isItemPaid(item)) {
+  // Payment reconciliation function
+
+  const reconcilePaymentsWithItems = useCallback((consommationData) => {
+    if (!consommationData || !consommationData.patientBill || !consommationData.patientBill.payments || !consommationData.billItems) {
+      return consommationData.billItems || [];
+    }
+
+    const itemPriceMap = {};
+    consommationData.billItems.forEach(item => {
+      const price = item.unitPrice * (item.quantity || 1);
+      const key = `${price.toFixed(2)}`;
+      if (!itemPriceMap[key]) {
+        itemPriceMap[key] = [];
+      }
+      itemPriceMap[key].push({
+        item,
+        paid: item.paid || false,
+        originalRef: item
+      });
+    });
+  
+    consommationData.patientBill.payments.forEach(payment => {
+      const amountPaid = payment.amountPaid || 0;
+      const exactMatch = itemPriceMap[amountPaid.toFixed(2)];
+      
+      if (exactMatch && exactMatch.length > 0) {
+        const unpaidItem = exactMatch.find(entry => !entry.paid);
+        if (unpaidItem) {
+          unpaidItem.paid = true;
+          unpaidItem.originalRef.paid = true;
+          unpaidItem.originalRef.paidQuantity = unpaidItem.originalRef.quantity || 1;
+        }
+      }
+    });
+    
+    return consommationData.billItems;
+  }, []);
+
+  const checkSessionStorageForPayments = useCallback((items) => {
+    if (!items || !Array.isArray(items)) return items;
+    
+    return items.map(item => {
+      if (!item.patientServiceBillId) return item;
+      
+      const paymentKey = `payment_${item.patientServiceBillId}`;
+      try {
+        const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
+        if (storedPayment.paid || storedPayment.paidAmount > 0) {
+          // If the API says the item is paid, trust that over session storage
+          if (item.paid) return item;
+          
+          const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+          const paidAmount = Math.max(storedPayment.paidAmount || 0, item.paidAmount || 0);
+          const remainingAmount = Math.max(0, itemTotal - paidAmount);
+          
+          return {
+            ...item,
+            paid: storedPayment.paid || paidAmount >= itemTotal,
+            partiallyPaid: (!storedPayment.paid && paidAmount > 0),
+            paidAmount: paidAmount,
+            remainingAmount: remainingAmount
+          };
+        }
+      } catch (e) {
+        console.warn('Error reading from sessionStorage:', e);
+      }
+      
+      return item;
+    });
+  }, []);
+
+  // Get accurate status text
+  const getAccurateStatusText = (item) => {
+    // First check if the item has session storage payment
+    const paymentKey = `payment_${item.patientServiceBillId}`;
+    try {
+      const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
+      if (storedPayment.paid) {
+        return t('paid', 'Paid');
+      } else if (storedPayment.paidAmount > 0) {
+        return t('partiallyPaid', 'Partially Paid');
+      }
+    } catch (e) {
+      // Ignore session storage errors
+    }
+    
+    // Then check the item itself
+    if (item.paid === true) {
       return t('paid', 'Paid');
-    } else if (isItemPartiallyPaid(item)) {
+    }
+    
+    const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+    const paidAmount = item.paidAmount || 0;
+    
+    if (paidAmount >= itemTotal) {
+      return t('paid', 'Paid');
+    } else if (paidAmount > 0) {
       return t('partiallyPaid', 'Partially Paid');
+    }
+    
+    return t('unpaid', 'Unpaid');
+  };
+
+  // Check if item is actually paid (considering all sources)
+  const isActuallyPaid = (item: ConsommationItem): boolean => {
+    // Check client-side tracking first
+    if (item.patientServiceBillId && clientSidePaidItems[item.patientServiceBillId]) {
+      return true;
+    }
+    
+    // Check session storage
+    try {
+      const paymentKey = `payment_${item.patientServiceBillId}`;
+      const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
+      if (storedPayment.paid) {
+        return true;
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+    
+    // Then check server-reported status
+    return isItemPaid(item);
+  };
+
+  // Helper function to get color class based on status
+  const getStatusColorClass = (item: ConsommationItem): string => {
+    const status = getAccurateStatusText(item);
+    if (status === t('paid', 'Paid')) {
+      return styles.paidStatus;
+    } else if (status === t('partiallyPaid', 'Partially Paid')) {
+      return styles.partiallyPaidStatus;
     } else {
-      return t('unpaid', 'Unpaid');
+      return styles.unpaidStatus;
     }
   };
 
-  const fetchConsommationItems = async (consommationId: string) => {
+  // Refresh consommation data
+  const refreshConsommationData = async () => {
+    try {
+      // First refresh the overall consommations list 
+      await fetchConsommations();
+      
+      // Then refresh the items for the selected consommation if any
+      if (selectedRows.length > 0) {
+        await fetchConsommationItems(selectedRows[0]);
+      }
+    } catch (error) {
+      console.error('Error refreshing data after payment:', error);
+      showToast({
+        title: t('refreshError', 'Refresh Error'),
+        description: t('errorRefreshingData', 'Error refreshing data after payment. The payment was processed, but displayed information may not be up to date.'),
+        kind: 'error',
+      });
+    }
+  };
+
+  // Enhanced fetch consommation items with reconciliation
+  const fetchConsommationItems = useCallback(async (consommationId: string) => {
     try {
       setIsLoadingItems(true);
       const fullConsommationData = await getConsommationById(consommationId);
       
+      // Reconcile payments with items before processing
+      const reconciledItems = reconcilePaymentsWithItems(fullConsommationData);
+      
+      // Continue with API call to get consommation items 
       const items = await getConsommationItems(consommationId);
       
-      const hasPayments = fullConsommationData.patientBill?.payments && fullConsommationData.patientBill.payments.length > 0;
-      
-      if (hasPayments) {
-        const totalPaid = fullConsommationData.patientBill.payments.reduce(
-          (sum, payment) => sum + (payment.amountPaid || 0), 0
-        );
-        
-        const updatedItems = items.map(item => {
-          const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+      // Map API returned items to match the reconciled status
+      const enhancedItems = items.map(item => {
+        // Find the corresponding billItem from the full consommation data
+        const billItem = reconciledItems.find(bi => {
+          // Match by patientServiceBillId from the links
+          if (item.patientServiceBillId && bi.links) {
+            const billItemId = bi.links.find(link => link.resourceAlias === 'patientServiceBill')?.uri;
+            if (billItemId) {
+              const idMatch = billItemId.match(/\/patientServiceBill\/(\d+)/);
+              return idMatch && idMatch[1] && parseInt(idMatch[1]) === item.patientServiceBillId;
+            }
+          }
           
-          const paidAmount = item.paidQuantity ? item.paidQuantity * (item.unitPrice || 0) : (item.paid ? itemTotal : 0);
-          
-          const remainingAmount = Math.max(0, itemTotal - paidAmount);
-          
-          const isFullyPaid = paidAmount >= itemTotal;
-          const isPartiallyPaid = !isFullyPaid && paidAmount > 0;
-          
-          return {
-            ...item,
-            paidAmount: paidAmount,
-            remainingAmount: remainingAmount,
-            paid: isFullyPaid,
-            partiallyPaid: isPartiallyPaid
-          };
+          // Fallback match by hopService name and price
+          return bi.hopService?.name === item.itemName && 
+                 Math.abs(bi.unitPrice - (item.unitPrice || 0)) < 0.01;
         });
         
-        setSelectedConsommationItems(updatedItems || []);
-      } else {
-        setSelectedConsommationItems(items || []);
-      }
+        const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+        
+        // Use reconciled paid status if available, otherwise use the API status
+        const isPaid = billItem ? billItem.paid : item.paid;
+        
+        // If the item is marked as paid, set the paidAmount to the total
+        const paidAmount = isPaid ? itemTotal : (item.paidAmount || 0);
+        
+        const remainingAmount = Math.max(0, itemTotal - paidAmount);
+        const isPartiallyPaid = !isPaid && paidAmount > 0;
+        
+        return {
+          ...item,
+          paidAmount: paidAmount,
+          remainingAmount: remainingAmount,
+          paid: isPaid,
+          partiallyPaid: isPartiallyPaid,
+          // Ensure paidQuantity is set appropriately
+          paidQuantity: isPaid ? (item.quantity || 1) : (item.paidQuantity || 0)
+        };
+      });
+  
+      // Apply session storage enhancements
+      const sessionStorageEnhancedItems = checkSessionStorageForPayments(enhancedItems);
+      setSelectedConsommationItems(sessionStorageEnhancedItems || []);
     } catch (error) {
       console.error('Failed to fetch consommation items:', error);
       showToast({
@@ -189,8 +360,15 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     } finally {
       setIsLoadingItems(false);
     }
-  };
+  }, [t, reconcilePaymentsWithItems, checkSessionStorageForPayments]);
 
+  useEffect(() => {
+    if (selectedRows.length > 0) {
+      fetchConsommationItems(selectedRows[0]);
+    }
+  }, [selectedRows, fetchConsommationItems]);
+
+  // Toggle row selection
   const toggleRowSelection = async (rowId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     
@@ -212,15 +390,17 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     }
   };
 
+  // Handle select all button
   const handleSelectAll = (event: React.MouseEvent) => {
     event.stopPropagation();
     setSelectedRows([]);
     setSelectedConsommationItems([]);
   };
 
+  // Toggle selection of individual items
   const toggleItemSelection = (index: number) => {
     const item = selectedConsommationItems[index];
-    if (!isItemPaid(item)) {
+    if (!isActuallyPaid(item)) {
       setSelectedConsommationItems(prevItems => {
         const newItems = [...prevItems];
         newItems[index] = { 
@@ -232,12 +412,14 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     }
   };
 
+  // Open payment modal
   const openPaymentModal = () => {
     const totalDueForSelected = calculateTotalDueForSelected(rows, selectedRows);
     setPaymentAmount(totalDueForSelected.toString());
     setIsPaymentModalOpen(true);
   };
 
+  // Close payment modal
   const closePaymentModal = () => {
     setIsPaymentModalOpen(false);
     setPaymentAmount('');
@@ -249,6 +431,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     setPayWithCash(true);
   };
 
+  // Handle payment submission
   const handlePaymentSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsSubmitting(true);
@@ -287,7 +470,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
         throw new Error(t('noBillId', 'Could not retrieve patient bill ID'));
       }
       
-      const selectedItems = selectedConsommationItems.filter(item => item.selected === true && !isItemPaid(item));
+      const selectedItems = selectedConsommationItems.filter(item => item.selected === true && !isActuallyPaid(item));
       
       if (selectedItems.length === 0) {
         throw new Error(t('noItemsSelected', 'No billable items selected'));
@@ -330,8 +513,6 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
           const itemToPartiallyPay = unpaidItems[0];
           
           // Calculate what portion of the item we can pay
-          // IMPORTANT: We need to round to a whole number for API compatibility
-          // Instead of a partial payment, we'll pay for a whole quantity if possible
           const itemQuantity = itemToPartiallyPay.quantity || 1;
           const itemUnitPrice = itemToPartiallyPay.unitPrice || 0;
           
@@ -344,8 +525,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
               });
             }
           } else {
-            // If we can't pay whole units, then pay for the entire item
-            // API requires integers, so we'll pay for the whole item or nothing
+            // If we can't pay whole units, pay for the entire item
             paidItems.push({
               billItem: { patientServiceBillId: itemToPartiallyPay.patientServiceBillId },
               paidQty: 1  // Always send integer quantities
@@ -364,7 +544,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
         amountPaid: amountPaidAsFloat,
         patientBill: { 
           patientBillId: fullConsommationData.patientBill.patientBillId,
-          creator: collectorUuid  // Add creator with collector UUID
+          creator: collectorUuid
         },
         dateReceived: new Date().toISOString(),
         collector: { uuid: collectorUuid },
@@ -374,6 +554,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       try {
         const paymentResponse = await submitBillPayment(paymentPayload);
         
+        // Update UI immediately and save to session storage
         setSelectedConsommationItems(prevItems => 
           prevItems.map(item => {
             const paidItem = paidItems.find(pi => pi.billItem.patientServiceBillId === item.patientServiceBillId);
@@ -384,20 +565,47 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
             const additionalPaidAmount = paidItem.paidQty * (item.unitPrice || 0);
             const newPaidAmount = previousPaidAmount + additionalPaidAmount;
             const newRemainingAmount = Math.max(0, itemTotal - newPaidAmount);
-            const isNowFullyPaid = newRemainingAmount <= 0;
+            
+            const isNowFullyPaid = newPaidAmount >= itemTotal || newRemainingAmount <= 0;
+            const isNowPartiallyPaid = !isNowFullyPaid && newPaidAmount > 0;
+            
+            // Store payment in sessionStorage for persistence
+            const paymentKey = `payment_${item.patientServiceBillId}`;
+            try {
+              const existingPaymentData = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
+              const updatedPaymentData = {
+                ...existingPaymentData,
+                paid: isNowFullyPaid,
+                partiallyPaid: isNowPartiallyPaid,
+                paidAmount: newPaidAmount,
+                timestamp: new Date().toISOString()
+              };
+              sessionStorage.setItem(paymentKey, JSON.stringify(updatedPaymentData));
+            } catch (e) {
+              console.warn('Failed to save payment to sessionStorage:', e);
+            }
+            
+            // Also update client-side tracking
+            if (isNowFullyPaid) {
+              setClientSidePaidItems(prev => ({
+                ...prev,
+                [item.patientServiceBillId]: true
+              }));
+            }
             
             return {
               ...item,
               paidAmount: newPaidAmount,
               remainingAmount: newRemainingAmount,
               paid: isNowFullyPaid,
-              partiallyPaid: !isNowFullyPaid && newPaidAmount > 0,
+              partiallyPaid: isNowPartiallyPaid,
               paidQuantity: (item.paidQuantity || 0) + paidItem.paidQty,
-              selected: false
+              selected: false // Deselect the item after payment
             };
           })
         );
-  
+      
+        // Show success message
         showToast({
           title: t('paymentSuccess', 'Payment Successful'),
           description: t('paymentProcessed', 'Payment has been processed successfully'),
@@ -405,12 +613,15 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
         });
         closePaymentModal();
         
-        await fetchConsommations();
+        // Refresh data after a short delay
+        setTimeout(async () => {
+          await fetchConsommations();
+          
+          if (selectedRows.length > 0) {
+            await fetchConsommationItems(selectedRows[0]);
+          }
+        }, 500);
         
-        if (selectedRows.length > 0) {
-          await fetchConsommationItems(selectedRows[0]);
-        }
-  
       } catch (paymentError) {
         console.error('Payment API error:', paymentError);
         throw new Error(t('paymentFailed', 'Payment processing failed. Please try again.'));
@@ -423,367 +634,365 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className={styles.container}>
-        <DataTableSkeleton headers={headers} rowCount={5} />
-      </div>
-    );
-  }
-
-  const rowsWithCheckboxes = rows.map(row => {
-    const isSelected = selectedRows.includes(row.id);
-    const anyRowSelected = selectedRows.length > 0;
-    const isDisabled = anyRowSelected && !isSelected;
-    
-    return {
-      ...row,
-      select: (
-        <Checkbox 
-          id={`row-select-${row.id}`}
-          checked={isSelected}
-          onChange={(e: any) => toggleRowSelection(row.id, e)}
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-          labelText=""
-          disabled={isDisabled}
-        />
-      )
-    };
-  });
-
+// Loading state
+if (isLoading) {
   return (
     <div className={styles.container}>
-      <div className={styles.tableHeader}>
-        <h4>
-          {t('consommationsList', 'Consommations List for Global Bill')} #{globalBillId}
-        </h4>
-      </div>
-      {rows && rows.length > 0 ? (
-        <>
-          <DataTable rows={rowsWithCheckboxes} headers={headers} size={responsiveSize} useZebraStyles useStaticWidth>
-            {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
-              <Table {...getTableProps()} className={styles.table} useStaticWidth>
-                <TableHead>
-                  <TableRow>
-                    {headers.map((header) => (
-                      <TableHeader key={header.key} {...getHeaderProps({ header })}>
-                        {header.key === 'select' ? (
-                          <Checkbox
-                            id="select-all-rows"
-                            checked={false}
-                            indeterminate={selectedRows.length > 0}
-                            onChange={(e: any) => handleSelectAll(e)}
-                            labelText=""
-                            disabled={selectedRows.length > 0}
-                          />
-                        ) : (
-                          header.header
-                        )}
-                      </TableHeader>
+      <DataTableSkeleton headers={headers} rowCount={5} />
+    </div>
+  );
+}
+
+// Prepare rows with checkboxes
+const rowsWithCheckboxes = rows.map(row => {
+  const isSelected = selectedRows.includes(row.id);
+  const anyRowSelected = selectedRows.length > 0;
+  const isDisabled = anyRowSelected && !isSelected;
+  
+  return {
+    ...row,
+    select: (
+      <Checkbox 
+        id={`row-select-${row.id}`}
+        checked={isSelected}
+        onChange={(e: any) => toggleRowSelection(row.id, e)}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        labelText=""
+        disabled={isDisabled}
+      />
+    )
+  };
+});
+
+// SINGLE return statement containing everything
+return (
+  <div className={styles.container}>
+    <div className={styles.tableHeader}>
+      <h4>
+        {t('consommationsList', 'Consommations List for Global Bill')} #{globalBillId}
+      </h4>
+    </div>
+    {rows && rows.length > 0 ? (
+      <>
+        <DataTable rows={rowsWithCheckboxes} headers={headers} size={responsiveSize} useZebraStyles useStaticWidth>
+          {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
+            <Table {...getTableProps()} className={styles.table} useStaticWidth>
+              <TableHead>
+                <TableRow>
+                  {headers.map((header) => (
+                    <TableHeader key={header.key} {...getHeaderProps({ header })}>
+                      {header.key === 'select' ? (
+                        <Checkbox
+                          id="select-all-rows"
+                          checked={false}
+                          indeterminate={selectedRows.length > 0}
+                          onChange={(e: any) => handleSelectAll(e)}
+                          labelText=""
+                          disabled={selectedRows.length > 0}
+                        />
+                      ) : (
+                        header.header
+                      )}
+                    </TableHeader>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    {...getRowProps({ row })}
+                    onClick={() => handleRowClick(row)}
+                    className={styles.clickableRow}
+                  >
+                    {row.cells.map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        onClick={cell.info.header === 'select' ? (e: any) => e.stopPropagation() : undefined}
+                      >
+                        {cell.value}
+                      </TableCell>
                     ))}
                   </TableRow>
-                </TableHead>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      {...getRowProps({ row })}
-                      onClick={() => handleRowClick(row)}
-                      className={styles.clickableRow}
-                    >
-                      {row.cells.map((cell) => (
-                        <TableCell
-                          key={cell.id}
-                          onClick={cell.info.header === 'select' ? (e: any) => e.stopPropagation() : undefined}
-                        >
-                          {cell.value}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </DataTable>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DataTable>
 
-          <div className={styles.actionsContainer}>
-            <div className={styles.totals}>
-              <p>
-                {t('totalDueAmount', 'Total Due Amount')}: {(consommations?.totalDueAmount ?? 0).toFixed(2)}
-              </p>
-              <p>
-                {t('totalPaidAmount', 'Total Paid Amount')}: {(consommations?.totalPaidAmount ?? 0).toFixed(2)}
-              </p>
-            </div>
-
-            <div className={styles.paymentActions}>
-              <p className={styles.selectedSummary}>
-                {selectedRows.length > 0
-                  ? t('selectedItemsAmount', 'Selected Items Due: {{amount}}', {
-                      amount: calculateTotalDueForSelected(rows, selectedRows).toFixed(2),
-                    })
-                  : t('noItemsSelected', 'No items selected')}
-              </p>
-              <Button kind="primary" disabled={selectedRows.length === 0} onClick={openPaymentModal}>
-                {t('paySelected', 'Pay Selected')}
-              </Button>
-            </div>
+        <div className={styles.actionsContainer}>
+          <div className={styles.totals}>
+            <p>
+              {t('totalDueAmount', 'Total Due Amount')}: {(consommations?.totalDueAmount ?? 0).toFixed(2)}
+            </p>
+            <p>
+              {t('totalPaidAmount', 'Total Paid Amount')}: {(consommations?.totalPaidAmount ?? 0).toFixed(2)}
+            </p>
           </div>
 
-          <Modal
-            open={isPaymentModalOpen}
-            modalHeading={t('paymentForm', 'Payment Form')}
-            primaryButtonText={t('confirmPayment', 'Confirm Payment')}
-            secondaryButtonText={t('cancel', 'Cancel')}
-            onRequestClose={closePaymentModal}
-            onRequestSubmit={handlePaymentSubmit}
-            primaryButtonDisabled={
-              isSubmitting ||
-              selectedConsommationItems.filter((item) => item.selected && !isItemPaid(item)).length === 0
-            }
-            size="md"
-          >
-            <Form>
-              {paymentError && (
-                <InlineNotification
-                  kind="error"
-                  title={t('error', 'Error')}
-                  subtitle={paymentError}
-                  className={styles.errorNotification}
-                />
-              )}
+          <div className={styles.paymentActions}>
+            <p className={styles.selectedSummary}>
+              {selectedRows.length > 0
+                ? t('selectedItemsAmount', 'Selected Items Due: {{amount}}', {
+                    amount: calculateTotalDueForSelected(rows, selectedRows).toFixed(2),
+                  })
+                : t('noItemsSelected', 'No items selected')}
+            </p>
+            <Button kind="primary" disabled={selectedRows.length === 0} onClick={openPaymentModal}>
+              {t('paySelected', 'Pay Selected')}
+            </Button>
+          </div>
+        </div>
 
-              <div className={styles.paymentFormGrid}>
-                {/* Left side - Collector & Payment Info */}
-                <div className={styles.paymentFormColumn}>
-                  <FormGroup legendText="">
-                    <div className={styles.formRow}>
-                      <div className={styles.formLabel}>{t('collector', 'Collector')}</div>
-                      <div className={styles.formInput}>
-                        <TextInput id="collector-name" value={session?.user?.display || 'Unknown'} readOnly />
-                      </div>
-                    </div>
+        {/* Modal must be inside this return statement */}
+        <Modal
+          open={isPaymentModalOpen}
+          modalHeading={t('paymentForm', 'Payment Form')}
+          primaryButtonText={t('confirmPayment', 'Confirm Payment')}
+          secondaryButtonText={t('cancel', 'Cancel')}
+          onRequestClose={closePaymentModal}
+          onRequestSubmit={handlePaymentSubmit}
+          primaryButtonDisabled={
+            isSubmitting ||
+            selectedConsommationItems.filter((item) => item.selected && !isActuallyPaid(item)).length === 0
+          }
+          size="md"
+        >
+          <Form>
+            {paymentError && (
+              <InlineNotification
+                kind="error"
+                title={t('error', 'Error')}
+                subtitle={paymentError}
+                className={styles.errorNotification}
+              />
+            )}
 
-                    <div className={styles.formRow}>
-                      <div className={styles.formLabel}>{t('receivedDate', 'Received Date')}</div>
-                      <div className={styles.formInput}>
-                        <TextInput id="received-date" type="date" value={new Date().toISOString().split('T')[0]} />
-                      </div>
+            <div className={styles.paymentFormGrid}>
+              {/* Left side - Collector & Payment Info */}
+              <div className={styles.paymentFormColumn}>
+                <FormGroup legendText="">
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('collector', 'Collector')}</div>
+                    <div className={styles.formInput}>
+                      <TextInput id="collector-name" value={session?.user?.display || 'Unknown'} readOnly />
                     </div>
+                  </div>
 
-                    <div className={styles.formRow}>
-                      <div className={styles.formLabel}>{t('payWithDeposit', 'Pay with deposit')}</div>
-                      <div className={styles.formInput}>
-                        <Checkbox
-                          id="pay-with-deposit"
-                          labelText=""
-                          checked={payWithDeposit}
-                          onChange={() => setPayWithDeposit(!payWithDeposit)}
-                        />
-                      </div>
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('receivedDate', 'Received Date')}</div>
+                    <div className={styles.formInput}>
+                      <TextInput id="received-date" type="date" value={new Date().toISOString().split('T')[0]} />
                     </div>
+                  </div>
 
-                    <div className={styles.formRow}>
-                      <div className={styles.formLabel}>{t('payWithCash', 'Pay with cash')}</div>
-                      <div className={styles.formInput}>
-                        <Checkbox
-                          id="pay-with-cash"
-                          labelText=""
-                          checked={payWithCash}
-                          onChange={() => setPayWithCash(!payWithCash)}
-                        />
-                      </div>
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('payWithDeposit', 'Pay with deposit')}</div>
+                    <div className={styles.formInput}>
+                      <Checkbox
+                        id="pay-with-deposit"
+                        labelText=""
+                        checked={payWithDeposit}
+                        onChange={() => setPayWithDeposit(!payWithDeposit)}
+                      />
                     </div>
+                  </div>
 
-                    <div className={styles.formRow}>
-                      <div className={styles.formLabel}>{t('receivedCash', 'Received Cash')}</div>
-                      <div className={styles.formInput}>
-                        <NumberInput
-                          id="received-cash"
-                          value={receivedCash}
-                          onChange={(e) => setReceivedCash(e.target.value)}
-                          min={0}
-                          step={0.01}
-                          disabled={!payWithCash}
-                        />
-                      </div>
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('payWithCash', 'Pay with cash')}</div>
+                    <div className={styles.formInput}>
+                      <Checkbox
+                        id="pay-with-cash"
+                        labelText=""
+                        checked={payWithCash}
+                        onChange={() => setPayWithCash(!payWithCash)}
+                      />
                     </div>
-                  </FormGroup>
-                </div>
+                  </div>
 
-                <div className={styles.paymentFormColumn}>
-                  <FormGroup legendText="">
-                    <div className={styles.formRow}>
-                      <div className={styles.formLabel}>{t('amountPaid', 'Amount Paid')}</div>
-                      <div className={styles.formInput}>
-                        <NumberInput
-                          id="amount-paid"
-                          value={paymentAmount}
-                          onChange={(e) => setPaymentAmount(e.target.value)}
-                          className={`${styles.amountInput} ${parseFloat(paymentAmount) > calculateSelectedItemsTotal(selectedConsommationItems) ? styles.invalidAmount : ''}`}
-                          min={0}
-                          max={calculateSelectedItemsTotal(selectedConsommationItems)}
-                          step={0.01}
-                        />
-                      </div>
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('receivedCash', 'Received Cash')}</div>
+                    <div className={styles.formInput}>
+                      <NumberInput
+                        id="received-cash"
+                        value={receivedCash}
+                        onChange={(e) => setReceivedCash(e.target.value)}
+                        min={0}
+                        step={0.01}
+                        disabled={!payWithCash}
+                      />
                     </div>
-
-                    <div className={styles.formRow}>
-                      <div className={styles.formLabel}>{t('paidByThirdParty', 'Paid by Third Party')}</div>
-                      <div className={styles.formInput}>
-                        <NumberInput id="third-party-payment" value="" min={0} step={0.01} />
-                      </div>
-                    </div>
-
-                    <div className={styles.formRow}>
-                      <div className={styles.formLabel}>{t('rest', 'Rest')}</div>
-                      <div className={styles.formInput}>
-                        <TextInput
-                          id="rest-amount"
-                          value={calculateChange(receivedCash, paymentAmount)}
-                          className={`${styles.restInput} ${parseFloat(calculateChange(receivedCash, paymentAmount)) < 0 ? styles.negativeRest : ''}`}
-                          readOnly
-                        />
-                      </div>
-                    </div>
-                  </FormGroup>
-                </div>
+                  </div>
+                </FormGroup>
               </div>
 
-              <div className={styles.selectedItemsDetails}>
-                <h5>{t('selectedConsommation', 'Selected Consommation')}</h5>
-                <table className={styles.selectedItemsTable}>
+              <div className={styles.paymentFormColumn}>
+                <FormGroup legendText="">
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('amountPaid', 'Amount Paid')}</div>
+                    <div className={styles.formInput}>
+                      <NumberInput
+                        id="amount-paid"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                        className={`${styles.amountInput} ${parseFloat(paymentAmount) > calculateSelectedItemsTotal(selectedConsommationItems) ? styles.invalidAmount : ''}`}
+                        min={0}
+                        max={calculateSelectedItemsTotal(selectedConsommationItems)}
+                        step={0.01}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('paidByThirdParty', 'Paid by Third Party')}</div>
+                    <div className={styles.formInput}>
+                      <NumberInput id="third-party-payment" value="" min={0} step={0.01} />
+                    </div>
+                  </div>
+
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('rest', 'Rest')}</div>
+                    <div className={styles.formInput}>
+                      <TextInput
+                        id="rest-amount"
+                        value={calculateChange(receivedCash, paymentAmount)}
+                        className={`${styles.restInput} ${parseFloat(calculateChange(receivedCash, paymentAmount)) < 0 ? styles.negativeRest : ''}`}
+                        readOnly
+                      />
+                    </div>
+                  </div>
+                </FormGroup>
+              </div>
+            </div>
+
+            <div className={styles.selectedItemsDetails}>
+              <h5>{t('selectedConsommation', 'Selected Consommation')}</h5>
+              <table className={styles.selectedItemsTable}>
+                <thead>
+                  <tr>
+                    <th>{t('consomId', 'Consom ID')}</th>
+                    <th>{t('service', 'Service')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows
+                    .filter((row) => selectedRows.includes(row.id))
+                    .map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.consommationId}</td>
+                        <td>{row.service}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+
+              <h5 className={styles.itemsListHeader}>{t('consommationItems', 'Consommation Items')}</h5>
+              {isLoadingItems ? (
+                <div className={styles.loadingItems}>{t('loadingItems', 'Loading items...')}</div>
+              ) : selectedConsommationItems.length > 0 ? (
+                <table className={styles.itemsTable}>
                   <thead>
                     <tr>
-                      <th>{t('consomId', 'Consom ID')}</th>
-                      <th>{t('service', 'Service')}</th>
-                      <th>{t('paidAmount', 'Amount Paid')}</th>
-                      <th>{t('patientDue', 'Amount Due')}</th>
+                      <th></th>
+                      <th>{t('serviceDate', 'Date')}</th>
+                      <th>{t('itemName', 'Item Name')}</th>
+                      <th>{t('quantity', 'Qty')}</th>
+                      <th>{t('unitPrice', 'Unit Price')}</th>
+                      <th>{t('itemTotal', 'Total')}</th>
+                      <th>{t('paidAmt', 'Paid Amount')}</th>
+                      <th>{t('status', 'Status')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows
-                      .filter((row) => selectedRows.includes(row.id))
-                      .map((row) => (
-                        <tr key={row.id}>
-                          <td>{row.consommationId}</td>
-                          <td>{row.service}</td>
-                          <td>{row.paidAmount}</td>
-                          <td>{calculateRemainingDue(row.rawPatientDue, row.rawPaidAmount)}</td>
+                    {selectedConsommationItems.map((item, index) => {
+                      const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+                      const paidAmt = item.paidAmount || 0;
+                      const isPaid = isActuallyPaid(item);
+                      const isPartiallyPaid = isItemPartiallyPaid(item);
+
+                      return (
+                        <tr key={index} className={item.selected ? styles.selectedItem : ''}>
+                          <td>
+                            <Checkbox
+                              id={`item-select-${index}`}
+                              checked={item.selected || false}
+                              onChange={() => toggleItemSelection(index)}
+                              labelText=""
+                              disabled={isPaid} // Use enhanced paid status check
+                            />
+                          </td>
+                          <td>{item.serviceDate ? new Date(item.serviceDate).toLocaleDateString() : '-'}</td>
+                          <td>{item.itemName || '-'}</td>
+                          <td>{item.quantity || '1'}</td>
+                          <td>{Number(item.unitPrice || 0).toFixed(2)}</td>
+                          <td>{Number(itemTotal).toFixed(2)}</td>
+                          <td>{Number(paidAmt).toFixed(2)}</td>
+                          <td>
+                            <span
+                              className={`${styles.statusBadge} ${
+                                getAccurateStatusText(item) === t('paid', 'Paid')
+                                  ? styles.paidStatus
+                                  : getAccurateStatusText(item) === t('partiallyPaid', 'Partially Paid')
+                                    ? styles.partiallyPaidStatus
+                                    : styles.unpaidStatus
+                              }`}
+                            >
+                              {getAccurateStatusText(item)}
+                            </span>
+                          </td>
                         </tr>
-                      ))}
+                      );
+                    })}
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={6}>
+                        <strong>{t('selectedItemsTotal', 'Selected Items Total')}</strong>
+                      </td>
+                      <td colSpan={2}>
+                        <strong>{calculateSelectedItemsTotal(selectedConsommationItems).toFixed(2)}</strong>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={6}>
+                        <strong>{t('totalAmountToPay', 'Total Amount to be paid')}</strong>
+                      </td>
+                      <td colSpan={2}>
+                        <strong>
+                          {calculateTotalRemainingAmount(selectedConsommationItems).toFixed(2)}
+                        </strong>
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
+              ) : (
+                <div className={styles.noItems}>
+                  {selectedRows.length > 0
+                    ? t('noItemsFound', 'No items found for this consommation')
+                    : t('selectConsommation', 'Select a consommation to view items')}
+                </div>
+              )}
 
-                <h5 className={styles.itemsListHeader}>{t('consommationItems', 'Consommation Items')}</h5>
-                {isLoadingItems ? (
-                  <div className={styles.loadingItems}>{t('loadingItems', 'Loading items...')}</div>
-                ) : selectedConsommationItems.length > 0 ? (
-                  <table className={styles.itemsTable}>
-                    <thead>
-                      <tr>
-                        <th></th>
-                        <th>{t('serviceDate', 'Date')}</th>
-                        <th>{t('itemName', 'Item Name')}</th>
-                        <th>{t('quantity', 'Qty')}</th>
-                        <th>{t('unitPrice', 'Unit Price')}</th>
-                        <th>{t('itemTotal', 'Total')}</th>
-                        <th>{t('paidAmt', 'Paid Amount')}</th>
-                        <th>{t('status', 'Status')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedConsommationItems.map((item, index) => {
-                        const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-                        const paidAmt = item.paidAmount || 0;
-                        const isPaid = isItemPaid(item);
-                        const isPartiallyPaid = isItemPartiallyPaid(item);
-
-                        return (
-                          <tr key={index} className={item.selected ? styles.selectedItem : ''}>
-                            <td>
-                              <Checkbox
-                                id={`item-select-${index}`}
-                                checked={item.selected || false}
-                                onChange={() => toggleItemSelection(index)}
-                                labelText=""
-                                disabled={isPaid} // Explicitly disable based on amount comparison
-                              />
-                            </td>
-                            <td>{item.serviceDate ? new Date(item.serviceDate).toLocaleDateString() : '-'}</td>
-                            <td>{item.itemName || '-'}</td>
-                            <td>{item.quantity || '1'}</td>
-                            <td>{Number(item.unitPrice || 0).toFixed(2)}</td>
-                            <td>{Number(itemTotal).toFixed(2)}</td>
-                            <td>{Number(paidAmt).toFixed(2)}</td>
-                            <td>
-                              {/* Use inline styles to ensure proper display regardless of CSS classes */}
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  padding: '4px 8px',
-                                  borderRadius: '4px',
-                                  color: 'white',
-                                  backgroundColor: isPaid ? '#24a148' : isPartiallyPaid ? '#ff8c00' : '#da1e28',
-                                  fontWeight: 'bold',
-                                }}
-                              >
-                                {getItemStatusText(item)}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr>
-                        <td colSpan={6}>
-                          <strong>{t('selectedItemsTotal', 'Selected Items Total')}</strong>
-                        </td>
-                        <td colSpan={2}>
-                          <strong>{calculateSelectedItemsTotal(selectedConsommationItems).toFixed(2)}</strong>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td colSpan={6}>
-                          <strong>{t('totalAmountToPay', 'Total Amount to be paid')}</strong>
-                        </td>
-                        <td colSpan={2}>
-                          <strong>
-                            {calculateTotalRemainingAmount(selectedConsommationItems).toFixed(2)}
-                          </strong>
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                ) : (
-                  <div className={styles.noItems}>
-                    {selectedRows.length > 0
-                      ? t('noItemsFound', 'No items found for this consommation')
-                      : t('selectConsommation', 'Select a consommation to view items')}
+              <div className={styles.paymentTotals}>
+                <div className={styles.paymentTotalRow}>
+                  <span>{t('total', 'Total to Pay')}:</span>
+                  <strong>{calculateSelectedItemsTotal(selectedConsommationItems).toFixed(2)}</strong>
+                </div>
+                {parseFloat(paymentAmount) > calculateSelectedItemsTotal(selectedConsommationItems) && (
+                  <div className={styles.paymentError}>
+                    {t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items')}
                   </div>
                 )}
-
-                <div className={styles.paymentTotals}>
-                  <div className={styles.paymentTotalRow}>
-                    <span>{t('total', 'Total to Pay')}:</span>
-                    <strong>{calculateSelectedItemsTotal(selectedConsommationItems).toFixed(2)}</strong>
-                  </div>
-                  {parseFloat(paymentAmount) > calculateSelectedItemsTotal(selectedConsommationItems) && (
-                    <div className={styles.paymentError}>
-                      {t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items')}
-                    </div>
-                  )}
-                </div>
               </div>
-            </Form>
-          </Modal>
-        </>
-      ) : (
-        <p className={styles.noData}>{t('noConsommations', 'No consommations found for this global bill')}</p>
-      )}
-    </div>
-  );
+            </div>
+          </Form>
+        </Modal>
+      </>
+    ) : (
+      <p className={styles.noData}>{t('noConsommations', 'No consommations found for this global bill')}</p>
+    )}
+  </div>
+);
 };
 
 export default EmbeddedConsommationsList;
