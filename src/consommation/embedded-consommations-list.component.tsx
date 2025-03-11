@@ -138,16 +138,15 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
   };
 
   // Payment reconciliation function
-  const reconcilePaymentsWithItems = (consommationData) => {
+
+  const reconcilePaymentsWithItems = useCallback((consommationData) => {
     if (!consommationData || !consommationData.patientBill || !consommationData.patientBill.payments || !consommationData.billItems) {
       return consommationData.billItems || [];
     }
-  
-    // Create a map of item prices to track potential matches
+
     const itemPriceMap = {};
     consommationData.billItems.forEach(item => {
       const price = item.unitPrice * (item.quantity || 1);
-      // Create a unique key for each price point to handle multiple items with same price
       const key = `${price.toFixed(2)}`;
       if (!itemPriceMap[key]) {
         itemPriceMap[key] = [];
@@ -155,19 +154,15 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       itemPriceMap[key].push({
         item,
         paid: item.paid || false,
-        // Create a reference to the original item
         originalRef: item
       });
     });
   
-    // Process each payment and try to match it to items
     consommationData.patientBill.payments.forEach(payment => {
       const amountPaid = payment.amountPaid || 0;
-      // Look for exact price matches first
       const exactMatch = itemPriceMap[amountPaid.toFixed(2)];
       
       if (exactMatch && exactMatch.length > 0) {
-        // Find the first unpaid item with this price
         const unpaidItem = exactMatch.find(entry => !entry.paid);
         if (unpaidItem) {
           unpaidItem.paid = true;
@@ -178,10 +173,9 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     });
     
     return consommationData.billItems;
-  };
+  }, []);
 
-  // Check session storage for payments
-  const checkSessionStorageForPayments = (items) => {
+  const checkSessionStorageForPayments = useCallback((items) => {
     if (!items || !Array.isArray(items)) return items;
     
     return items.map(item => {
@@ -212,7 +206,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       
       return item;
     });
-  };
+  }, []);
 
   // Get accurate status text
   const getAccurateStatusText = (item) => {
@@ -299,16 +293,9 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       });
     }
   };
-  
-  // Refresh data when selected rows change
-  useEffect(() => {
-    if (selectedRows.length > 0) {
-      fetchConsommationItems(selectedRows[0]);
-    }
-  }, [selectedRows]);
 
   // Enhanced fetch consommation items with reconciliation
-  const fetchConsommationItems = async (consommationId: string) => {
+  const fetchConsommationItems = useCallback(async (consommationId: string) => {
     try {
       setIsLoadingItems(true);
       const fullConsommationData = await getConsommationById(consommationId);
@@ -358,7 +345,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
           paidQuantity: isPaid ? (item.quantity || 1) : (item.paidQuantity || 0)
         };
       });
-
+  
       // Apply session storage enhancements
       const sessionStorageEnhancedItems = checkSessionStorageForPayments(enhancedItems);
       setSelectedConsommationItems(sessionStorageEnhancedItems || []);
@@ -373,7 +360,13 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     } finally {
       setIsLoadingItems(false);
     }
-  };
+  }, [t, reconcilePaymentsWithItems, checkSessionStorageForPayments]);
+
+  useEffect(() => {
+    if (selectedRows.length > 0) {
+      fetchConsommationItems(selectedRows[0]);
+    }
+  }, [selectedRows, fetchConsommationItems]);
 
   // Toggle row selection
   const toggleRowSelection = async (rowId: string, event: React.MouseEvent) => {
