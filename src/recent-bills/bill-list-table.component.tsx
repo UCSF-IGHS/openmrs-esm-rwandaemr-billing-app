@@ -76,13 +76,39 @@ const BillListTable: React.FC<BillListTableProps> = ({ data = DEFAULT_DUMMY_DATA
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Define headers for the bill list table
+  // Define headers for the bill list table with column width classes
   const headerData = [
-    { key: 'visitTime', header: t('visitTime', 'Visit time') },
-    { key: 'identifier', header: t('identifier', 'Identifier') },
-    { key: 'name', header: t('name', 'Name') },
-    { key: 'billedItems', header: t('billedItems', 'Billed Items') }
+    { 
+      key: 'visitTime', 
+      header: t('visitTime', 'Visit time'),
+      className: styles.visitTimeCol
+    },
+    { 
+      key: 'identifier', 
+      header: t('identifier', 'Identifier'),
+      className: styles.identifierCol
+    },
+    { 
+      key: 'name', 
+      header: t('name', 'Name'),
+      className: styles.nameCol
+    },
+    { 
+      key: 'billedItems', 
+      header: t('billedItems', 'Billed Items'),
+      className: styles.billedItemsCol
+    }
   ];
+  
+  // Format the data for better display
+  const formattedData = data.map(item => ({
+    ...item,
+    // Format elements explicitly to prevent UI issues
+    visitTime: item.visitTime,
+    identifier: item.identifier,
+    name: item.name,
+    billedItems: item.billedItems
+  }));
 
   // Handle pagination change
   const handlePaginationChange = ({ page, pageSize }) => {
@@ -99,10 +125,13 @@ const BillListTable: React.FC<BillListTableProps> = ({ data = DEFAULT_DUMMY_DATA
       
       <div className={styles.billHistoryContainer}>
         <DataTable 
-          rows={data} 
+          rows={formattedData} 
           headers={headerData} 
-          size="sm" 
+          size="lg" 
           useZebraStyles
+          isSortable={false}
+          overflowMenuOnHover={false}
+          className={styles.dataTable}
         >
           {({
             rows,
@@ -121,6 +150,7 @@ const BillListTable: React.FC<BillListTableProps> = ({ data = DEFAULT_DUMMY_DATA
                         key={header.key}
                         {...getHeaderProps({
                           header,
+                          className: header.className
                         })}
                       >
                         {header.header}
@@ -131,15 +161,23 @@ const BillListTable: React.FC<BillListTableProps> = ({ data = DEFAULT_DUMMY_DATA
                 <TableBody>
                   {rows.map((row) => (
                     <TableRow key={row.id} {...getRowProps({ row })}>
-                      {row.cells.map((cell) => (
-                        <TableCell key={cell.id} className={styles.tableCells}>
-                          {cell.info.header === 'name' ? (
-                            <a href="#" style={{ color: '#0066CC' }}>{cell.value}</a>
-                          ) : (
-                            cell.value
-                          )}
-                        </TableCell>
-                      ))}
+                      {row.cells.map((cell) => {
+                        // Find the corresponding header to get its className
+                        const headerClass = headers.find(h => h.key === cell.info.header)?.className || '';
+                        
+                        return (
+                          <TableCell 
+                            key={cell.id} 
+                            className={`${styles.tableCells} ${headerClass}`}
+                          >
+                            {cell.info.header === 'name' ? (
+                              <a href="#" className={styles.nameLink}>{cell.value}</a>
+                            ) : (
+                              cell.value
+                            )}
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   ))}
                 </TableBody>

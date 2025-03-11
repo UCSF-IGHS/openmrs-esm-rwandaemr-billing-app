@@ -7,15 +7,31 @@
   "pages": [
    {
      "component": "billingAdminHome",
-     "route":"rwanda-billing-admin"
+     "route":"billing-admin"
    }
  ],
   "extensions": [
     {
       "component": "root",
       "name": "billing-root",
-      "slot": "rwanda-billing-slot"
+      "slot": "rwanda-billing-app-slot"
     },
+    {
+      "component": "billingDashboardLink",
+      "name": "billing-home-left-panel-link",
+      "slot": "homepage-dashboard-slot",
+      "meta": {
+        "name": "billing",
+        "title": "Billing",
+        "slot": "rwanda-billing-app-slot",
+        "isFolder": true
+      }
+    },
+    {      
+      "slot": "system-admin-page-card-link-slot",
+      "component": "billableServicesCardLink",
+      "name": "billable-services-admin-card-link"
+  },
     {
       "name": "billing-summary-dashboard-link",
       "component": "billingSummaryDashboardLink",

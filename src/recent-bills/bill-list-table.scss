@@ -5,23 +5,40 @@
 
 .container {
   margin: layout.$spacing-07 0;
+  width: 100%;
 }
 
 .billHistoryContainer {
   background-color: $ui-02;
   border: 1px solid $ui-03;
-  border-bottom: none;
   width: 100%;
   margin: 0 auto;
-  max-width: 95vw;
-  padding-bottom: 0;
+  max-width: 100%;
+  padding: layout.$spacing-05;
+  overflow-x: auto;
+}
+
+.dataTable {
+  min-width: 800px;
+  
+  // Ensure that the Carbon table specific styles are overridden
+  :global(.cds--data-table-content) {
+    overflow-x: visible;
+  }
+  
+  :global(.cds--data-table-container) {
+    padding-top: 0;
+  }
 }
 
 .pagination {
   overflow: hidden;
+  margin-top: layout.$spacing-03;
 
   &:global(.cds--pagination) {
     border-top: none;
+    background-color: $ui-02;
+    width: 100%;
   }
 }
 
@@ -48,10 +65,104 @@
 
 .table {
   width: 100%;
-  table-layout: fixed; // This helps with uniform column sizing
-  border-collapse: collapse;
+  
+  // Important fixes for cell spacing
+  :global(.cds--data-table) {
+    width: 100%;
+    table-layout: fixed;
+  }
+  
+  :global(.cds--data-table--zebra) tbody tr:not(.cds--data-table--selected):nth-child(odd) td {
+    background-color: $ui-01;
+  }
+  
+  // Make sure header cells don't wrap awkwardly
+  :global(.cds--table-header-label) {
+    white-space: nowrap;
+    font-weight: 600;
+  }
+}
+
+// Column width classes with clear width constraints
+.visitTimeCol {
+  width: 140px !important;
+  
+  :global(th&) {
+    width: 140px !important;
+  }
+}
+
+.identifierCol {
+  width: 120px !important;
+  
+  :global(th&) {
+    width: 120px !important;
+  }
+}
+
+.nameCol {
+  width: 200px !important;
+  
+  :global(th&) {
+    width: 200px !important;
+  }
+}
+
+.billedItemsCol {
+  width: calc(100% - 460px) !important;
+  min-width: 200px !important;
+  
+  :global(th&) {
+    width: calc(100% - 460px) !important;
+  }
 }
 
 .tableCells {
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  padding: layout.$spacing-05 !important;
+  vertical-align: middle !important;
+  height: auto !important;
+  word-break: normal !important;
+  overflow: visible !important;
   white-space: normal !important;
+  
+  &:global(.cds--table-cell) {
+    max-width: none !important;
+    text-overflow: clip !important;
+  }
+}
+
+.nameLink {
+  color: #0066CC;
+  text-decoration: none;
+  white-space: normal;
+  word-break: break-word;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// Force table styles for nested elements
+:global(.cds--table-header) {
+  height: auto !important;
+  padding: layout.$spacing-05 !important;
+}
+
+:global(.cds--data-table td),
+:global(.cds--data-table th) {
+  border-top: 1px solid $ui-03;
+  border-bottom: 1px solid $ui-03;
+}
+
+// Responsive adjustments
+@media (max-width: 1200px) {
+  .billHistoryContainer {
+    overflow-x: auto;
+  }
+  
+  .table {
+    min-width: 800px;
+  }
 }
