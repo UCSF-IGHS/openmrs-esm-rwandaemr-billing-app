@@ -24,17 +24,18 @@ $text-02: #525252 !default;
 .tableContainer {
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
   background-color: $ui-01;
   display: flex;
   flex-direction: column;
   flex: 1;
+  overflow-x: hidden !important; /* Changed from auto to hidden */
 }
 
 /* Make table fill available space */
 .invoiceTable {
   width: 100% !important;
-  table-layout: auto;
+  table-layout: auto !important; /* Use auto layout for content-based sizing */
+  min-width: auto !important; /* Removed 1200px min-width */
 }
 
 /* Search box styling */
@@ -46,9 +47,6 @@ $text-02: #525252 !default;
 /* Table header */
 .tableHeader {
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   padding: 0 8px;
 }
 
@@ -83,74 +81,95 @@ $text-02: #525252 !default;
 
 /* Expandable content */
 .expandedContent {
-  width: 100%;
-  padding: 16px;
-}
-
-/* Force table to take full width */
-:global(.cds--data-table-container) {
   width: 100% !important;
-  min-width: 100% !important;
+  max-width: 100% !important;
+  padding: 8px !important; /* Add minimal padding for readability */
+  overflow-x: hidden !important; /* Changed from auto to hidden */
 }
 
+/* Table container styling */
+:global(.cds--data-table-container),
 :global(.cds--table-container) {
   width: 100% !important;
   min-width: 100% !important;
+  overflow-x: visible !important; /* Allow tables to fit their container */
 }
 
-:global(.cds--data-table) {
-  width: 100% !important;
-  min-width: 100% !important;
-}
-
-:global(.cds--data-table-header) {
-  width: 100% !important;
-}
-
-:global(.cds--table-header-row) {
-  width: 100% !important;
-}
-
+:global(.cds--data-table),
+:global(.cds--data-table-header),
+:global(.cds--table-header-row),
 :global(.cds--data-table-content) {
   width: 100% !important;
 }
 
-/* Adjust cell spacing */
-:global(.cds--data-table td) {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 8px !important;
-}
-
-/* Prevent column headers from wrapping */
+/* Fix truncated table headers */
 :global(.cds--table-header-label) {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  padding: 0 8px !important;
+  height: auto !important;
+  line-height: 1.2 !important;
 }
 
-/* Set minimum column widths */
+/* Add minimum height to header cells to account for wrapped text */
+:global(.cds--data-table th) {
+  height: auto !important;
+  min-height: 48px !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+/* Make all cell content visible */
+:global(.cds--data-table td) {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  height: auto !important;
+  padding: 8px !important;
+  min-width: 80px !important;
+}
+
+/* Set specific column widths */
 :global(.cds--data-table th:nth-child(1)),
 :global(.cds--data-table td:nth-child(1)) {
   width: 48px;
+  min-width: 48px !important;
 }
 
-:global(.cds--data-table th:nth-child(2)),
+:global(.cds--data-table th:nth-child(2)), /* Global Bill ID */
 :global(.cds--data-table td:nth-child(2)) {
-  width: 48px;
+  min-width: 100px !important;
 }
 
-:global(.cds--data-table th:nth-child(3)),
-:global(.cds--data-table td:nth-child(3)) {
-  width: 48px;
+:global(.cds--data-table th:nth-child(8)), /* Bill ID column */
+:global(.cds--data-table td:nth-child(8)) {
+  min-width: 180px !important; /* Reduced from 240px */
 }
 
-/* For mobile responsiveness */
-@media (max-width: 1200px) {
-  /* Allow horizontal scrolling on small screens if needed */
+/* Expanded table content */
+.expandedContent table td, 
+.expandedContent table th {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+/* Make sure expanded rows don't cause horizontal scrolling */
+:global(.cds--table-expand__content) {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* For mobile responsiveness - only add horizontal scrolling when needed */
+@media (max-width: 768px) {
   .tableContainer {
-    overflow-x: auto;
+    overflow-x: auto !important;
   }
 }
 
@@ -160,4 +179,20 @@ $text-02: #525252 !default;
   justify-content: flex-end;
   width: 100%;
   margin-bottom: 1rem;
+}
+
+/* Date columns */
+:global(.cds--data-table th:nth-child(3)), /* Date of Bill */
+:global(.cds--data-table td:nth-child(3)),
+:global(.cds--data-table th:nth-child(6)), /* Admission Date */
+:global(.cds--data-table td:nth-child(6)),
+:global(.cds--data-table th:nth-child(7)), /* Discharge Date */
+:global(.cds--data-table td:nth-child(7)) {
+  min-width: 100px !important; /* Reduced from 110px */
+}
+
+/* Policy ID column */
+:global(.cds--data-table th:nth-child(5)), 
+:global(.cds--data-table td:nth-child(5)) {
+  min-width: 100px !important; /* Reduced from 120px */
 }

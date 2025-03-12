@@ -17,6 +17,8 @@ import {
   TextInput,
   NumberInput,
   InlineNotification,
+  RadioButtonGroup,
+  RadioButton,
 } from '@carbon/react';
 import { isDesktop, showToast, useLayoutType, useSession } from '@openmrs/esm-framework';
 import { getConsommationsByGlobalBillId, getConsommationItems, getConsommationById, submitBillPayment } from '../api/billing';
@@ -65,6 +67,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
   const [receivedCash, setReceivedCash] = useState('');
   const [payWithDeposit, setPayWithDeposit] = useState(false);
   const [payWithCash, setPayWithCash] = useState(true);
+  const [deductedAmount, setDeductedAmount] = useState('');
 
   // Client-side payment tracking
   const [clientSidePaidItems, setClientSidePaidItems] = useState<Record<string, boolean>>({});
@@ -429,6 +432,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     setReceivedCash('');
     setPayWithDeposit(false);
     setPayWithCash(true);
+    setDeductedAmount('');
   };
 
   // Handle payment submission
@@ -778,7 +782,6 @@ return (
                       <TextInput id="collector-name" value={session?.user?.display || 'Unknown'} readOnly />
                     </div>
                   </div>
-
                   <div className={styles.formRow}>
                     <div className={styles.formLabel}>{t('receivedDate', 'Received Date')}</div>
                     <div className={styles.formInput}>
@@ -787,42 +790,73 @@ return (
                   </div>
 
                   <div className={styles.formRow}>
-                    <div className={styles.formLabel}>{t('payWithDeposit', 'Pay with deposit')}</div>
+                    <div className={styles.formLabel}>{t('paymentMethod', 'Payment Method')}</div>
                     <div className={styles.formInput}>
-                      <Checkbox
-                        id="pay-with-deposit"
-                        labelText=""
-                        checked={payWithDeposit}
-                        onChange={() => setPayWithDeposit(!payWithDeposit)}
-                      />
+                      <RadioButtonGroup
+                        name="payment-method-type"
+                        valueSelected={payWithDeposit ? 'deposit' : 'cash'}
+                        onChange={(value) => {
+                          setPayWithDeposit(value === 'deposit');
+                          setPayWithCash(value === 'cash');
+                        }}
+                      >
+                        <RadioButton
+                          id="pay-with-deposit"
+                          labelText={t('payWithDeposit', 'Pay with deposit')}
+                          value="deposit"
+                        />
+                        <RadioButton id="pay-with-cash" labelText={t('payWithCash', 'Pay with cash')} value="cash" />
+                      </RadioButtonGroup>
                     </div>
                   </div>
 
-                  <div className={styles.formRow}>
-                    <div className={styles.formLabel}>{t('payWithCash', 'Pay with cash')}</div>
-                    <div className={styles.formInput}>
-                      <Checkbox
-                        id="pay-with-cash"
-                        labelText=""
-                        checked={payWithCash}
-                        onChange={() => setPayWithCash(!payWithCash)}
-                      />
+                  {/* Only show the Received Cash field when Pay with Cash is selected */}
+                  {payWithCash && (
+                    <div className={styles.formRow}>
+                      <div className={styles.formLabel}>{t('receivedCash', 'Received Cash')}</div>
+                      <div className={styles.formInput}>
+                        <NumberInput
+                          id="received-cash"
+                          value={receivedCash}
+                          onChange={(e) => setReceivedCash(e.target.value)}
+                          min={0}
+                          step={0.01}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div className={styles.formRow}>
-                    <div className={styles.formLabel}>{t('receivedCash', 'Received Cash')}</div>
-                    <div className={styles.formInput}>
-                      <NumberInput
-                        id="received-cash"
-                        value={receivedCash}
-                        onChange={(e) => setReceivedCash(e.target.value)}
-                        min={0}
-                        step={0.01}
-                        disabled={!payWithCash}
-                      />
-                    </div>
-                  </div>
+                  {/* Only show Deposit fields when Pay with Deposit is selected */}
+                  {payWithDeposit && (
+                    <>
+                      <div className={styles.formRow}>
+                        <div className={styles.formLabel}>{t('deductedAmount', 'Deducted Amount')}</div>
+                        <div className={styles.formInput}>
+                          <NumberInput
+                            id="deducted-amount"
+                            value={deductedAmount}
+                            onChange={(e) => setDeductedAmount(e.target.value)}
+                            min={0}
+                            step={0.01}
+                          />
+                        </div>
+                      </div>
+                      <div className={styles.formRow}>
+                        <div className={styles.formLabel}>{t('balance', 'Balance')}</div>
+                        <div className={styles.formInput}>
+                          <NumberInput
+                            id="balance-amount"
+                            value="1100.00"
+                            min={0}
+                            step={0.01}
+                            readOnly={true}
+                            disabled={true}
+                            className={styles.disabledInput}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </FormGroup>
               </div>
 
@@ -846,7 +880,15 @@ return (
                   <div className={styles.formRow}>
                     <div className={styles.formLabel}>{t('paidByThirdParty', 'Paid by Third Party')}</div>
                     <div className={styles.formInput}>
-                      <NumberInput id="third-party-payment" value="" min={0} step={0.01} />
+                      <NumberInput
+                        id="third-party-payment"
+                        value=""
+                        min={0}
+                        step={0.01}
+                        disabled={true}
+                        readOnly={true}
+                        className={styles.disabledInput}
+                      />
                     </div>
                   </div>
 
@@ -958,9 +1000,7 @@ return (
                         <strong>{t('totalAmountToPay', 'Total Amount to be paid')}</strong>
                       </td>
                       <td colSpan={2}>
-                        <strong>
-                          {calculateTotalRemainingAmount(selectedConsommationItems).toFixed(2)}
-                        </strong>
+                        <strong>{calculateTotalRemainingAmount(selectedConsommationItems).toFixed(2)}</strong>
                       </td>
                     </tr>
                   </tfoot>
