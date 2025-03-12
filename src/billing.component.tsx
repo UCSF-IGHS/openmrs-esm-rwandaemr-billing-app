@@ -15,6 +15,7 @@ import {
 } from '@carbon/react';
 import { useSession } from '@openmrs/esm-framework';
 import { getGlobalBillSummary } from './api/billing';
+import { formatNumberCurrency } from './metrics/metrics.resources'
 
 type SearchOption = 'bill-confirmation' | 'search-insurance' | 'global-bill' | 'consommation';
 
@@ -119,19 +120,19 @@ const Billing: React.FC = () => {
             <p style={{ color: 'red' }}>{error}</p>
           ) : (
             <div className={styles.metricsCards}>
-              <div className={styles.metricCard}>
-                <h3 className={styles.metricTitle}>{t('cumulativeBills', 'Cumulative Bills')}</h3>
-                <p className={styles.metricValue}>{formatCurrency(metrics.cumulativeBills)}</p>
-              </div>
-              <div className={styles.metricCard}>
-                <h3 className={styles.metricTitle}>{t('pendingBills', 'Pending Bills')}</h3>
-                <p className={styles.metricValue}>{formatCurrency(metrics.pendingBills)}</p>
-              </div>
-              <div className={styles.metricCard}>
-                <h3 className={styles.metricTitle}>{t('paidBills', 'Paid Bills')}</h3>
-                <p className={styles.metricValue}>{formatCurrency(metrics.paidBills)}</p>
-              </div>
-            </div>
+  <div className={styles.metricCard}>
+    <h3 className={styles.metricTitle}>{t('cumulativeBills', 'Cumulative Bills')}</h3>
+    <p className={styles.metricValue}>{formatNumberCurrency(metrics.cumulativeBills)}</p>
+  </div>
+  <div className={styles.metricCard}>
+    <h3 className={styles.metricTitle}>{t('pendingBills', 'Pending Bills')}</h3>
+    <p className={styles.metricValue}>{formatNumberCurrency(metrics.pendingBills)}</p>
+  </div>
+  <div className={styles.metricCard}>
+    <h3 className={styles.metricTitle}>{t('paidBills', 'Paid Bills')}</h3>
+    <p className={styles.metricValue}>{formatNumberCurrency(metrics.paidBills)}</p>
+  </div>
+</div>
           )}
         </div>
 
