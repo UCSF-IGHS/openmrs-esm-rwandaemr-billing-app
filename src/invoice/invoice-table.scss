@@ -28,14 +28,13 @@ $text-02: #525252 !default;
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow-x: hidden !important; /* Changed from auto to hidden */
+  overflow-x: auto !important;
 }
 
-/* Make table fill available space */
 .invoiceTable {
   width: 100% !important;
-  table-layout: auto !important; /* Use auto layout for content-based sizing */
-  min-width: auto !important; /* Removed 1200px min-width */
+  table-layout: fixed !important;
+  min-width: auto !important;
 }
 
 /* Search box styling */
@@ -83,27 +82,27 @@ $text-02: #525252 !default;
 .expandedContent {
   width: 100% !important;
   max-width: 100% !important;
-  padding: 8px !important; /* Add minimal padding for readability */
-  overflow-x: hidden !important; /* Changed from auto to hidden */
+  padding: 8px !important; 
+  overflow-x: auto !important;
 }
 
-/* Table container styling */
-:global(.cds--data-table-container),
-:global(.cds--table-container) {
+/* Scope to this invoice table only using the invoiceTable class */
+.invoiceTable :global(.cds--data-table-container),
+.invoiceTable :global(.cds--table-container) {
   width: 100% !important;
   min-width: 100% !important;
-  overflow-x: visible !important; /* Allow tables to fit their container */
+  overflow-x: auto !important;
 }
 
-:global(.cds--data-table),
-:global(.cds--data-table-header),
-:global(.cds--table-header-row),
-:global(.cds--data-table-content) {
+.invoiceTable :global(.cds--data-table),
+.invoiceTable :global(.cds--data-table-header),
+.invoiceTable :global(.cds--table-header-row),
+.invoiceTable :global(.cds--data-table-content) {
   width: 100% !important;
 }
 
-/* Fix truncated table headers */
-:global(.cds--table-header-label) {
+/* Fix truncated table headers - scoped to this table */
+.invoiceTable :global(.cds--table-header-label) {
   white-space: normal !important;
   overflow: visible !important;
   text-overflow: clip !important;
@@ -112,8 +111,8 @@ $text-02: #525252 !default;
   line-height: 1.2 !important;
 }
 
-/* Add minimum height to header cells to account for wrapped text */
-:global(.cds--data-table th) {
+/* Apply to all header cells in this table */
+.invoiceTable :global(.cds--data-table th) {
   height: auto !important;
   min-height: 48px !important;
   padding-top: 8px !important;
@@ -121,33 +120,53 @@ $text-02: #525252 !default;
   white-space: normal !important;
   overflow: visible !important;
   text-overflow: clip !important;
+  vertical-align: middle !important;
 }
 
-/* Make all cell content visible */
-:global(.cds--data-table td) {
+/* Apply to all data cells in this table */
+.invoiceTable :global(.cds--data-table td) {
   white-space: normal !important;
   overflow: visible !important;
   text-overflow: clip !important;
   height: auto !important;
   padding: 8px !important;
   min-width: 80px !important;
+  vertical-align: middle !important;
 }
 
-/* Set specific column widths */
-:global(.cds--data-table th:nth-child(1)),
-:global(.cds--data-table td:nth-child(1)) {
-  width: 48px;
-  min-width: 48px !important;
+/* Make the expand button column narrow */
+.invoiceTable :global(.cds--table-expand) {
+  width: 40px !important;
+  min-width: 40px !important;
 }
 
-:global(.cds--data-table th:nth-child(2)), /* Global Bill ID */
-:global(.cds--data-table td:nth-child(2)) {
+/* Amount columns - needs right alignment */
+.invoiceTable :global(.cds--data-table td:nth-last-child(2)),
+.invoiceTable :global(.cds--data-table td:nth-last-child(3)) {
+  text-align: right !important;
+}
+
+/* Add these styles to be applied with custom classes */
+.colGlobalBillId {
   min-width: 100px !important;
 }
 
-:global(.cds--data-table th:nth-child(8)), /* Bill ID column */
-:global(.cds--data-table td:nth-child(8)) {
-  min-width: 180px !important; /* Reduced from 240px */
+.colDate {
+  min-width: 110px !important;
+}
+
+.colBillId {
+  min-width: 200px !important;
+  word-break: break-all !important; /* Critical for long IDs */
+}
+
+.colAmount {
+  min-width: 100px !important;
+  text-align: right !important;
+}
+
+.colStatus {
+  min-width: 80px !important;
 }
 
 /* Expanded table content */
@@ -159,14 +178,14 @@ $text-02: #525252 !default;
 }
 
 /* Make sure expanded rows don't cause horizontal scrolling */
-:global(.cds--table-expand__content) {
+.invoiceTable :global(.cds--table-expand__content) {
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
 }
 
-/* For mobile responsiveness - only add horizontal scrolling when needed */
+/* For mobile responsiveness */
 @media (max-width: 768px) {
   .tableContainer {
     overflow-x: auto !important;
@@ -179,20 +198,4 @@ $text-02: #525252 !default;
   justify-content: flex-end;
   width: 100%;
   margin-bottom: 1rem;
-}
-
-/* Date columns */
-:global(.cds--data-table th:nth-child(3)), /* Date of Bill */
-:global(.cds--data-table td:nth-child(3)),
-:global(.cds--data-table th:nth-child(6)), /* Admission Date */
-:global(.cds--data-table td:nth-child(6)),
-:global(.cds--data-table th:nth-child(7)), /* Discharge Date */
-:global(.cds--data-table td:nth-child(7)) {
-  min-width: 100px !important; /* Reduced from 110px */
-}
-
-/* Policy ID column */
-:global(.cds--data-table th:nth-child(5)), 
-:global(.cds--data-table td:nth-child(5)) {
-  min-width: 100px !important; /* Reduced from 120px */
 }

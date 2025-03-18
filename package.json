@@ -7,7 +7,7 @@
   "main": "src/index.ts",
   "source": true,
   "scripts": {
-    "start": "openmrs develop --backend https://rwandaemr.globalhealthapp.net --port 6789",
+    "start": "openmrs develop --backend https://rwandaemr.globalhealthapp.net --port 6789 --config-url https://rwandaemr.globalhealthapp.net/openmrs/spa/config.json",
     "serve": "webpack serve --mode=development",
     "build": "webpack --mode production",
     "analyze": "webpack --mode=production --env analyze=true",
