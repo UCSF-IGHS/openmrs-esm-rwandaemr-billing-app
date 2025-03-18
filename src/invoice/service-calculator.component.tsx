@@ -173,7 +173,10 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
         price: service.fullPrice,
         quantity,
         drugFrequency: drugFrequency || '',
-        isDrug: departmentUuid === '11',
+        isDrug: departmentUuid === '11', // Assuming department ID 11 is for drugs
+        // Add any other fields needed for the consommation API
+        serviceDate: new Date().toISOString(),
+        itemType: service.itemType || 1
       };
       
       updatedItems = [...calculatorItems, newItem];
@@ -230,8 +233,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
 
   return (
     <div className={styles.calculatorWrapper}>
-      <h2 className={styles.formTitle}>Patient Bill Calculations</h2>
-      
+
       <Tile light className={styles.formTile}>
         <Form className={styles.form}>
           <div className={styles.formGrid}>

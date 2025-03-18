@@ -32,6 +32,8 @@ import { usePatientBill, useInsuranceCardBill } from './invoice.resource';
 import GlobalBillHeader from '.././bill-list/global-bill-list.component';
 import EmbeddedConsommationsList from '../consommation/embedded-consommations-list.component';
 import ServiceCalculator from './service-calculator.component';
+import { createBillItems } from '../api/billing';
+
 
 interface InvoiceTableProps {
   patientUuid?: string;
@@ -97,6 +99,9 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   const debouncedSearchTerm = useDebounce(searchTerm);
 
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showError, setShowError] = useState(false);
 
   const filteredLineItems = useMemo(() => {
     if (!debouncedSearchTerm) {
@@ -175,19 +180,99 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     setIsSaving(false);
   }, []);
   
-  const handleCalculatorSave = useCallback(() => {
+  const handleCalculatorSave = useCallback(async () => {
     if (!calculatorItems || calculatorItems.length === 0) {
       return;
     }
     
     setIsSaving(true);
+    setErrorMessage('');
+    setShowError(false);
     
-    setTimeout(() => {
-      setIsCalculatorOpen(false);
-      setIsSaving(false);
+    try {
+      const itemsByDepartment: Record<string, any> = {};
+      
+      calculatorItems.forEach(item => {
+        if (!itemsByDepartment[item.departmentId]) {
+          itemsByDepartment[item.departmentId] = {
+            departmentId: item.departmentId,
+            departmentName: item.departmentName,
+            items: []
+          };
+        }
+        
+        itemsByDepartment[item.departmentId].items.push({
+          facilityServicePriceId: item.facilityServicePriceId,
+          quantity: item.quantity,
+          price: item.price,
+          drugFrequency: item.drugFrequency || ""
+        });
+      });
+      
+      const globalBillId = lineItems && lineItems.length > 0 ? lineItems[0].globalBillId : null;
+      
+      if (!globalBillId) {
+        throw new Error("No global bill ID found. Please create a global bill first.");
+      }
+      
+      let successCount = 0;
+      let totalItemsCreated = 0;
+      const departmentCount = Object.keys(itemsByDepartment).length;
+      const departmentResults: any[] = [];
+      
+      for (const deptId in itemsByDepartment) {
+        const dept = itemsByDepartment[deptId];
+        
+        try {
+          const result = await createBillItems(
+            globalBillId, 
+            parseInt(deptId), 
+            dept.items
+          );
+          
+          totalItemsCreated += result.count;
+          departmentResults.push({
+            departmentId: deptId,
+            departmentName: dept.departmentName,
+            itemsCreated: result.count,
+            totalItems: dept.items.length
+          });
+          
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to create bill items for department ${dept.departmentName}:`, error);
+          departmentResults.push({
+            departmentId: deptId,
+            departmentName: dept.departmentName,
+            error: error.message || "Unknown error",
+            totalItems: dept.items.length
+          });
+        }
+      }
+      
+      if (successCount === 0) {
+        const errorDetails = departmentResults
+          .filter(result => result.error)
+          .map(result => `Department ${result.departmentName}: ${result.error}`)
+          .join('; ');
+        
+        throw new Error(`Failed to create any bill items. ${errorDetails}`);
+      } else {
+        const successSummary = departmentResults
+          .filter(result => result.itemsCreated)
+          .map(result => `${result.departmentName}: ${result.itemsCreated}/${result.totalItems} items`)
+          .join(', '); 
+      }
       mutate();
-    }, 1000);
-  }, [calculatorItems, mutate]);
+      setIsCalculatorOpen(false);
+    } catch (error) {
+      console.error('Error saving bill items:', error);
+      setErrorMessage(typeof error === 'string' ? error : error.message || 'Failed to save bill items');
+      setShowError(true);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [calculatorItems, lineItems, mutate, setErrorMessage, setShowError]);
   
   const handleCalculatorUpdate = useCallback((items) => {
     setCalculatorItems(items);
@@ -279,21 +364,15 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
 
       {(patientUuid || insuranceCardNo) && (
         <div className={styles.insuranceInfoContainer}>
-          <GlobalBillHeader 
-            patientUuid={patientUuid || undefined} 
+          <GlobalBillHeader
+            patientUuid={patientUuid || undefined}
             insuranceCardNo={getPolicyIdFromFirstBill() || undefined}
           />
         </div>
       )}
 
       <div className={styles.tableContainer}>
-        <DataTable 
-          headers={tableHeaders} 
-          isSortable 
-          rows={tableRows}
-          size={isTablet ? 'lg' : 'sm'} 
-          useZebraStyles
-        >
+        <DataTable headers={tableHeaders} isSortable rows={tableRows} size={isTablet ? 'lg' : 'sm'} useZebraStyles>
           {({ rows, headers, getHeaderProps, getRowProps, getSelectionProps, getTableProps }) => (
             <TableContainer className={styles.tableBodyScroll}>
               <TableToolbarSearch
@@ -310,8 +389,8 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
                   <TableRow>
                     <TableExpandHeader />
                     {headers.map((header) => (
-                      <TableHeader 
-                        className={styles.tableHeader} 
+                      <TableHeader
+                        className={styles.tableHeader}
                         {...getHeaderProps({
                           header,
                           isSortable: header.isSortable,
@@ -346,8 +425,8 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
             </TableContainer>
           )}
         </DataTable>
-        
-        {(filteredLineItems?.length === 0 && lineItems.length > 0) && (
+
+        {filteredLineItems?.length === 0 && lineItems.length > 0 && (
           <div className={styles.filterEmptyState}>
             <Layer>
               <Tile className={styles.filterEmptyStateTile}>
@@ -359,7 +438,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
             </Layer>
           </div>
         )}
-        
+
         {paginated && lineItems.length > pageSize && (
           <Pagination
             forwardText={t('nextPage', 'Next page')}
@@ -377,7 +456,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
           />
         )}
       </div>
-      
+
       {/* Calculator Modal for when there are existing items */}
       {isCalculatorOpen && lineItems.length > 0 && (
         <Modal
@@ -391,13 +470,22 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
           preventCloseOnClickOutside
           primaryButtonDisabled={isSaving || calculatorItems.length === 0}
         >
-          <ServiceCalculator 
+          <ServiceCalculator
             patientUuid={patientUuid}
             insuranceCardNo={insuranceCardNo}
             onClose={handleCalculatorClose}
             onSave={handleCalculatorUpdate}
           />
         </Modal>
+      )}
+      {showError && (
+        <InlineNotification
+          kind="error"
+          title={t('error', 'Error')}
+          subtitle={errorMessage}
+          onCloseButtonClick={() => setShowError(false)}
+          lowContrast
+        />
       )}
     </div>
   );

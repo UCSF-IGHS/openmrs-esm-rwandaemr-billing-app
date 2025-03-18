@@ -497,3 +497,119 @@ export const submitBillPayment = async (paymentData: BillPaymentRequest): Promis
     throw error;
   }
 };
+//   globalBillId: number;
+//   departmentId: number;
+//   billItems: Array<{
+//     serviceId: number;
+//     quantity: number;
+//     unitPrice: number;
+//     drugFrequency?: string;
+//     itemType: number;
+//   }>;
+//   patientBill: {
+//     amount: number;
+//     createdDate: string;
+//     creator: string;
+//     departmentName: string;
+//     policyIdNumber: string;
+//     beneficiaryName: string;
+//     insuranceName: string;
+//   };
+//   insuranceBill: {
+//     amount: number;
+//     creator: {
+//       person: {
+//         display: string;
+//       };
+//     };
+//     createdDate: string;
+//   };
+// }
+
+// export const createConsommation = async (consommationData: ConsommationRequest): Promise<Consommation> => {
+//   try {
+//     const response = await openmrsFetch<Consommation>(`${BASE_API_URL}/consommation`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'Accept': 'application/json',
+//       },
+//       body: JSON.stringify(consommationData),
+//     });
+
+//     if (response.status >= 400) {
+//       throw new Error(`Failed to create consommation with status ${response.status}`);
+//     }
+
+//     return response.data;
+//   } catch (error) {
+//     console.error('Error creating consommation:', error);
+//     throw error;
+//   }
+// };
+
+/**
+ * Creates bill items (PatientServiceBill entities) directly
+ * 
+ * Based on the API errors and structure, it seems the consommation workflow requires:
+ * 1. Bill items to be created directly
+ * 2. These seem to be automatically associated with the appropriate global bill
+ * 
+ * @param {number} globalBillId - The global bill ID
+ * @param {number} departmentId - The department ID
+ * @param {Array} items - The bill items
+ * @returns {Promise<Object>} - Result of the operation with created items
+ */
+export const createBillItems = async (
+  globalBillId: number, 
+  departmentId: number, 
+  items: Array<any>
+): Promise<any> => {
+  try {
+    // Create bill items directly with minimal but sufficient data
+    const createdItems = [];
+    const currentDate = new Date().toISOString();
+    
+    for (const item of items) {
+      try {
+        const billItemData = {
+          // Direct reference to the required fields based on API structure
+          globalBillId: globalBillId,
+          departmentId: departmentId,
+          facilityServicePriceId: item.facilityServicePriceId,
+          quantity: item.quantity,
+          unitPrice: item.price || item.unitPrice,
+          drugFrequency: item.drugFrequency || "",
+          serviceDate: currentDate
+        };
+        
+        const response = await openmrsFetch(`${BASE_API_URL}/patientServiceBill`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(billItemData),
+        });
+        
+        createdItems.push(response.data);
+      } catch (error) {
+        console.error("Failed to create bill item:", error);
+        // Continue with next item instead of stopping
+      }
+    }
+    
+    if (createdItems.length === 0) {
+      throw new Error('Failed to create any bill items');
+    }
+    
+    return {
+      success: true,
+      count: createdItems.length,
+      totalExpected: items.length,
+      items: createdItems
+    };
+  } catch (error) {
+    console.error('Error creating bill items:', error);
+    throw error;
+  }
+};
