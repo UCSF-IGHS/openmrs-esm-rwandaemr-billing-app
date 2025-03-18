@@ -410,7 +410,9 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
                         onExpand={() => handleRowExpand(row)}
                       >
                         {row.cells.map((cell) => (
-                          <TableCell key={cell.id}>{cell.value?.content ?? cell.value}</TableCell>
+                        <TableCell key={cell.id} className={cell.info.header === 'billIdentifier' ? styles.colBillId : ''}>
+                          {cell.value?.content ?? cell.value}
+                        </TableCell>
                         ))}
                       </TableExpandRow>
                       {expandedRowId === row.id && (
