@@ -30,26 +30,26 @@
     {      
       "slot": "system-admin-page-card-link-slot",
       "component": "billableServicesCardLink",
-      "name": "billable-services-admin-card-link"
+      "name": "rwanda-billable-services-admin-card-link"
   },
     {
-      "name": "billing-summary-dashboard-link",
+      "name": "billing-rwanda-summary-dashboard-link",
       "component": "billingSummaryDashboardLink",
       "slot": "patient-chart-dashboard-slot",
       "order": 11,
       "meta": {
         "columns": 1,
         "columnSpan": 1,
-        "slot": "patient-chart-billing-dashboard-slot",
+        "slot": "patient-rwanda-chart-billing-dashboard-slot",
         "path": "billing-listing"
       }
     },
     {
-      "name": "billing-patient-summary",
+      "name": "billing-rwanda-patient-summary",
       "component": "billingPatientSummary",
-      "slot": "patient-chart-billing-dashboard-slot",
+      "slot": "patient-rwanda-chart-billing-dashboard-slot",
       "meta": {
-        "columnSpan": 1
+        "columnSpan": 4
       }
     }
   ],

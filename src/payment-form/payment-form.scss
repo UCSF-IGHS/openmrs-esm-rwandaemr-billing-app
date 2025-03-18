@@ -1,0 +1,346 @@
+@import '@openmrs/esm-styleguide/src/vars';
+
+.paymentFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.paymentFormColumn {
+  width: 100%;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: center;
+  margin-bottom: 16px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+.formLabel {
+  font-weight: 500;
+}
+
+.formInput {
+  width: 100%;
+}
+
+.radioGroup {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.radioOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  input[type="radio"] {
+    margin: 0;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+  
+  label {
+    cursor: pointer;
+    font-size: 14px;
+  }
+}
+
+.errorInput {
+  border-color: #da1e28;
+  
+  input {
+    border-color: #da1e28;
+  }
+  
+  &:after {
+    content: "!";
+    color: white;
+    background-color: #da1e28;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}
+.paymentFormGrid .paymentFormColumn .formRow .formInput .errorInput:after {
+    display: none; /* This will remove the red circle only in the specific area */
+  }
+
+.readOnlyInput {
+  background-color: $ui-03;
+  opacity: 0.7;
+  
+  input {
+    background-color: $ui-03;
+    cursor: not-allowed;
+  }
+}
+
+.selectedItemsDetails {
+  margin-top: 24px;
+}
+
+.selectedItemsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  
+  th, td {
+    padding: 8px;
+    border: 1px solid $ui-03;
+    text-align: left;
+  }
+  
+  th {
+    background-color: $ui-02;
+    font-weight: 600;
+  }
+}
+
+.itemsListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24px;
+  margin-bottom: 16px;
+}
+
+.itemsListHeader h5 {
+  margin: 0;
+}
+
+.loadingIndicator {
+  font-size: 0.85rem;
+  font-weight: normal;
+  color: #6f6f6f;
+  font-style: italic;
+}
+
+.itemsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+  
+  th, td {
+    padding: 8px;
+    border: 1px solid $ui-03;
+    text-align: left;
+  }
+  
+  th {
+    background-color: $ui-02;
+    font-weight: 600;
+  }
+  
+  tfoot {
+    background-color: $ui-02;
+    
+    td {
+      padding: 10px 8px;
+    }
+  }
+}
+
+.selectedItem {
+  background-color: $ui-01;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.paidStatus {
+  background-color: #deffde;
+  color: #24a148;
+}
+
+.partiallyPaidStatus {
+  background-color: #fff8e1;
+  color: #ff832b;
+}
+
+.unpaidStatus {
+  background-color: #ffebeb;
+  color: #da1e28;
+}
+
+.paymentTotals {
+  margin-top: 16px;
+  border-top: 1px solid $ui-03;
+  padding-top: 16px;
+}
+
+.paymentTotalRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+
+.paymentError {
+  color: #da1e28;
+  margin-top: 8px;
+}
+
+.errorNotification {
+  margin-bottom: 16px;
+}
+
+.amountInput.invalidAmount {
+  border-color: #da1e28;
+}
+
+.restInput.negativeRest {
+  color: #da1e28;
+  font-weight: 600;
+}
+
+.noItems {
+  padding: 20px;
+  text-align: center;
+  background-color: $ui-01;
+  border: 1px solid $ui-03;
+}
+
+.loadingItems {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  background-color: $ui-01;
+  border: 1px solid $ui-03;
+  text-align: center;
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 15px;
+  border: 4px solid $ui-03;
+  border-radius: 50%;
+  border-top-color: $ui-05;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Additional styles to match the design in the first image */
+.formRow .bx--form-item {
+  width: 100%;
+}
+
+.bx--modal-container {
+  max-width: 900px; /* Makes the modal wider */
+}
+
+/* Input styling to match the design */
+input[type="text"], input[type="number"], input[type="date"] {
+  height: 2.5rem;
+  border: 1px solid $ui-03;
+  width: 100%;
+  padding: 0 16px;
+}
+
+:global {
+    .cds--modal-close {
+      background: none !important;
+    }
+  }
+  
+  .successMessage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 1rem;
+  }
+  
+  .successIcon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background-color: #24a148;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+  
+  .printButton {
+    margin-top: 2rem;
+  }
+  
+  .actionsContainer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid $ui-03;
+  }
+  
+  .printReceiptButton {
+    display: flex;
+    align-items: center;
+    border: 1px solid #1c8b3b;
+    background: transparent;
+    color: #24a148;
+    padding: 0 16px;
+    height: 40px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    
+    &:hover {
+      background-color: #edf5ff;
+    }
+  }
+  
+  .sectionHeaderWithActions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    width: 100%;
+  }
+  
+  .sectionHeaderWithActions h5 {
+    margin: 0;
+    font-weight: 600;
+  }
+  
+  .headerActions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
