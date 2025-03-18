@@ -190,7 +190,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     setShowError(false);
     
     try {
-      // Group items by department
       const itemsByDepartment: Record<string, any> = {};
       
       calculatorItems.forEach(item => {
@@ -210,7 +209,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         });
       });
       
-      // Get the first bill from the list to extract the globalBillId
       const globalBillId = lineItems && lineItems.length > 0 ? lineItems[0].globalBillId : null;
       
       if (!globalBillId) {
@@ -222,14 +220,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       const departmentCount = Object.keys(itemsByDepartment).length;
       const departmentResults: any[] = [];
       
-      // For each department, create bill items
       for (const deptId in itemsByDepartment) {
         const dept = itemsByDepartment[deptId];
         
         try {
-          console.log(`Creating bill items for department ${deptId} (${dept.departmentName})`);
-          
-          // Create bill items directly
           const result = await createBillItems(
             globalBillId, 
             parseInt(deptId), 
@@ -244,7 +238,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
             totalItems: dept.items.length
           });
           
-          console.log(`Successfully created ${result.count} of ${dept.items.length} items for department ${dept.departmentName}`);
           successCount++;
         } catch (error) {
           console.error(`Failed to create bill items for department ${dept.departmentName}:`, error);
@@ -258,7 +251,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       }
       
       if (successCount === 0) {
-        // If no departments were successfully processed, show a detailed error
         const errorDetails = departmentResults
           .filter(result => result.error)
           .map(result => `Department ${result.departmentName}: ${result.error}`)
@@ -266,23 +258,17 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         
         throw new Error(`Failed to create any bill items. ${errorDetails}`);
       } else {
-        // Show a success message with summary
         const successSummary = departmentResults
           .filter(result => result.itemsCreated)
           .map(result => `${result.departmentName}: ${result.itemsCreated}/${result.totalItems} items`)
-          .join(', ');
-        
-        console.log(`Created bill items: ${successSummary}`);
+          .join(', '); 
       }
-      
-      // Refresh the data
       mutate();
       setIsCalculatorOpen(false);
     } catch (error) {
       console.error('Error saving bill items:', error);
       setErrorMessage(typeof error === 'string' ? error : error.message || 'Failed to save bill items');
       setShowError(true);
-      // Keep the modal open so the user can try again
     } finally {
       setIsSaving(false);
     }

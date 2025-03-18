@@ -308,12 +308,4 @@ export const printReceipt = (paymentData, consommationData, selectedItems) => {
   
   printWindow.document.write('</body></html>');
   printWindow.document.close();
-  
-  // Print automatically after the content is loaded
-  printWindow.onload = function() {
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-    }, 500);
-  };
 };

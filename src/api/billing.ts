@@ -497,8 +497,6 @@ export const submitBillPayment = async (paymentData: BillPaymentRequest): Promis
     throw error;
   }
 };
-
-// export interface ConsommationRequest {
 //   globalBillId: number;
 //   departmentId: number;
 //   billItems: Array<{
@@ -594,7 +592,6 @@ export const createBillItems = async (
         });
         
         createdItems.push(response.data);
-        console.log("Created bill item:", response.data);
       } catch (error) {
         console.error("Failed to create bill item:", error);
         // Continue with next item instead of stopping

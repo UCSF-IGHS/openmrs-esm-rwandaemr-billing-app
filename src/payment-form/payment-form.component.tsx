@@ -55,7 +55,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const session = useSession();
   const collectorUuid = session?.user?.uuid;
 
-  // State variables
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -67,13 +66,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [clientSidePaidItems, setClientSidePaidItems] = useState<Record<string, boolean>>({});
   const [paymentSuccessful, setPaymentSuccessful] = useState(false);
 
-  // Initialize form when opened
   useEffect(() => {
     if (isOpen) {
-      // Reset success state
       setPaymentSuccessful(false);
       
-      // Initialize form when opened
       const totalDueForSelected = calculateTotalDueForSelected(rows, selectedRows);
       setPaymentAmount(totalDueForSelected.toString());
       setPaymentMethod('cash');
@@ -84,14 +80,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     }
   }, [isOpen, rows, selectedRows]);
 
-  // Check if item is actually paid (considering all sources)
   const isActuallyPaid = (item: ConsommationItem): boolean => {
-    // Check client-side tracking first
     if (item.patientServiceBillId && clientSidePaidItems[item.patientServiceBillId]) {
       return true;
     }
     
-    // Check session storage
     try {
       const paymentKey = `payment_${item.patientServiceBillId}`;
       const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
@@ -102,13 +95,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       // Ignore errors
     }
     
-    // Then check server-reported status
     return isItemPaid(item);
   };
 
-  // Get accurate status text
   const getAccurateStatusText = (item) => {
-    // First check if the item has session storage payment
     const paymentKey = `payment_${item.patientServiceBillId}`;
     try {
       const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
@@ -121,7 +111,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       // Ignore session storage errors
     }
     
-    // Then check the item itself
     if (item.paid === true) {
       return t('paid', 'Paid');
     }
@@ -138,19 +127,16 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     return t('unpaid', 'Unpaid');
   };
 
-  // Check if any items are paid to enable receipt printing
   const hasPaidItems = () => {
     return selectedConsommationItems.some(item => isActuallyPaid(item));
   };
 
-// Fixed handlePrintReceipt function to properly use beneficiaryName from API
 const handlePrintReceipt = async () => {
   try {
     const selectedConsommation = rows.find(row => selectedRows.includes(row.id));
     
     if (!selectedConsommation) return;
     
-    // Get all items for this consommation
     const allItems = [...selectedConsommationItems];
     
     if (allItems.length === 0) {
@@ -162,36 +148,24 @@ const handlePrintReceipt = async () => {
       return;
     }
     
-    // Calculate total paid amount
     const totalPaidAmount = allItems.reduce((total, item) => {
       return total + (item.paidAmount || 0);
     }, 0);
     
-    // Default values for patient info
     let patientName = 'Unknown';
     let policyNumber = '';
     
     try {
-      console.log('Fetching consommation details for ID:', selectedConsommation.consommationId);
       const consommationDetails = await getConsommationById(selectedConsommation.consommationId);
-      
-      // Log the response (for debugging)
-      console.log('Consommation details received:', consommationDetails);
-      
-      // Set patient name and policy number from the API response
+
       if (consommationDetails && consommationDetails.patientBill) {
-        // The beneficiaryName is directly available in patientBill
         patientName = consommationDetails.patientBill.beneficiaryName || 'Unknown';
-        policyNumber = consommationDetails.patientBill.policyIdNumber || '';
-        
-        console.log('Found patient name:', patientName);
-        console.log('Found policy number:', policyNumber);
+        policyNumber = consommationDetails.patientBill.policyIdNumber || ''
       }
     } catch (error) {
       console.error('Error fetching consommation details:', error);
     }
     
-    // Create data for the receipt
     const paymentData = {
       amountPaid: totalPaidAmount.toFixed(2),
       receivedCash: paymentSuccessful ? receivedCash : '',
@@ -200,7 +174,7 @@ const handlePrintReceipt = async () => {
       deductedAmount: paymentSuccessful && paymentMethod === 'deposit' ? deductedAmount : '',
       dateReceived: new Date().toISOString().split('T')[0],
       collectorName: session?.user?.display || 'Unknown',
-      patientName: patientName,  // Use the beneficiary name directly
+      patientName: patientName,
       policyNumber: policyNumber
     };
     
@@ -209,7 +183,6 @@ const handlePrintReceipt = async () => {
       service: selectedConsommation.service
     };
     
-    // Call the print function with our prepared data
     printReceipt(paymentData, consommationData, allItems);
   } catch (error) {
     console.error('Error preparing receipt:', error);
@@ -221,7 +194,6 @@ const handlePrintReceipt = async () => {
   }
 };
 
-  // Handle payment submission
   const handlePaymentSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsSubmitting(true);
@@ -298,7 +270,7 @@ const handlePrintReceipt = async () => {
         if (remainingPayment >= item.itemCost) {
           paidItems.push({
             billItem: { patientServiceBillId: item.patientServiceBillId },
-            paidQty: item.quantity || 1 // Always use full quantity for full payments
+            paidQty: item.quantity || 1
           });
           remainingPayment -= item.itemCost;
         }
@@ -312,7 +284,6 @@ const handlePrintReceipt = async () => {
         if (unpaidItems.length > 0) {
           const itemToPartiallyPay = unpaidItems[0];
           
-          // Calculate what portion of the item we can pay
           const itemQuantity = itemToPartiallyPay.quantity || 1;
           const itemUnitPrice = itemToPartiallyPay.unitPrice || 0;
           
@@ -325,10 +296,9 @@ const handlePrintReceipt = async () => {
               });
             }
           } else {
-            // If we can't pay whole units, pay for the entire item
             paidItems.push({
               billItem: { patientServiceBillId: itemToPartiallyPay.patientServiceBillId },
-              paidQty: 1  // Always send integer quantities
+              paidQty: 1
             });
           }
         }
@@ -354,7 +324,6 @@ const handlePrintReceipt = async () => {
       try {
         const paymentResponse = await submitBillPayment(paymentPayload);
         
-        // Update session storage for paid items
         paidItems.forEach(paidItem => {
           const selectedItem = selectedConsommationItems.find(
             item => item.patientServiceBillId === paidItem.billItem.patientServiceBillId
@@ -384,17 +353,14 @@ const handlePrintReceipt = async () => {
           }
         });
       
-        // Set payment successful state
         setPaymentSuccessful(true);
         
-        // Show success message
         showToast({
           title: t('paymentSuccess', 'Payment Successful'),
           description: t('paymentProcessed', 'Payment has been processed successfully'),
           kind: 'success',
         });
         
-        // Call onSuccess to update parent component
         onSuccess();
       } catch (paymentError) {
         console.error('Payment API error:', paymentError);
