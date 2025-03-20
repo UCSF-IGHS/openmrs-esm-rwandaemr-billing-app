@@ -341,3 +341,10 @@ $danger: var(--omrs-color-danger, #da1e28);
 .frequencyInput {
   width: 120px;
 }
+
+.noServicesMessage {
+  margin-top: 0.5rem;
+  color: #c00404;
+  font-size: 0.875rem;
+  font-style: italic;
+}
