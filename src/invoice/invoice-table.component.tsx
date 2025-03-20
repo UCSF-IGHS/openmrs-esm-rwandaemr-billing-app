@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
+import { getBillableServiceById } from '../api/billing';
 import {
   Button,
   DataTable,
@@ -25,14 +26,14 @@ import {
   Modal,
   type DataTableRow,
 } from '@carbon/react';
-import { AddIcon, isDesktop, useConfig, useDebounce, useLayoutType, usePatient, usePagination } from '@openmrs/esm-framework';
+import { AddIcon, isDesktop, useConfig, useDebounce, useLayoutType, usePatient, usePagination, showNotification, showToast, openmrsFetch } from '@openmrs/esm-framework';
 import { CardHeader, EmptyState, usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import styles from './invoice-table.scss';
 import { usePatientBill, useInsuranceCardBill } from './invoice.resource';
 import GlobalBillHeader from '.././bill-list/global-bill-list.component';
 import EmbeddedConsommationsList from '../consommation/embedded-consommations-list.component';
 import ServiceCalculator from './service-calculator.component';
-import { createBillItems } from '../api/billing';
+import { createBillItems, createConsommation, type GlobalBillResponse, type GlobalBill, getGlobalBills, fetchGlobalBillsByPatient, getBeneficiaryByPolicyNumber } from '../api/billing';
 
 
 interface InvoiceTableProps {
@@ -102,6 +103,8 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
 
   const [errorMessage, setErrorMessage] = useState('');
   const [showError, setShowError] = useState(false);
+  const BASE_API_URL = '/ws/rest/v1/mohbilling';
+
 
   const filteredLineItems = useMemo(() => {
     if (!debouncedSearchTerm) {
@@ -179,100 +182,169 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     setIsCalculatorOpen(false);
     setIsSaving(false);
   }, []);
-  
+
   const handleCalculatorSave = useCallback(async () => {
     if (!calculatorItems || calculatorItems.length === 0) {
       return;
     }
-    
+  
     setIsSaving(true);
     setErrorMessage('');
     setShowError(false);
-    
+  
     try {
-      const itemsByDepartment: Record<string, any> = {};
+      // Validate calculator items and fetch missing billableServiceId
+      const invalidItems = [];
+      for (let i = 0; i < calculatorItems.length; i++) {
+        const item = calculatorItems[i];
+        if (!item.billableServiceId) {
+          try {
+            const billableService = await getBillableServiceById(item.billableServiceId || item.facilityServicePriceId);
+            if (billableService?.serviceId) {
+              item.billableServiceId = billableService.serviceId;
+            } else {
+              console.error('Failed to fetch billableServiceId for item:', item);
+              invalidItems.push(item);
+            }
+          } catch (fetchError) {
+            console.error('Error fetching billableServiceId for item:', item, fetchError);
+            invalidItems.push(item);
+          }
+        } else if (!item.facilityServicePriceId || !item.departmentId || !item.quantity || !item.price) {
+          invalidItems.push(item);
+        }
+      }
+
+      if (invalidItems.length > 0) {
+        console.error('Invalid items:', invalidItems);
+        throw new Error('Some bill items are missing required information');
+      }
+  
+      // Log the calculator items for debugging
+      console.log('Calculator items to save:', calculatorItems);
+  
+      // Fetch global bills for the current patient
+      const globalBillsResponse = await fetchGlobalBillsByPatient(patientUuid);
       
-      calculatorItems.forEach(item => {
+      if (!globalBillsResponse || !globalBillsResponse.results) {
+        throw new Error('Failed to fetch global bills for the patient');
+      }
+      
+      const globalBills = globalBillsResponse.results;
+  
+      // Find the most recent open global bill
+      const mostRecentOpenBill = globalBills.find((bill) => !bill.closed);
+  
+      if (!mostRecentOpenBill) {
+        throw new Error('No open global bill found. Please create a new global bill first.');
+      }
+  
+      const globalBillId = mostRecentOpenBill.globalBillId;
+      
+      if (!globalBillId) {
+        throw new Error('Invalid global bill ID found');
+      }
+      
+      // Extract insurance policy number
+      let insurancePolicyNumber = null;
+      if (mostRecentOpenBill.admission && 
+          mostRecentOpenBill.admission.insurancePolicy && 
+          mostRecentOpenBill.admission.insurancePolicy.insuranceCardNo) {
+        insurancePolicyNumber = mostRecentOpenBill.admission.insurancePolicy.insuranceCardNo;
+      } else {
+        throw new Error('Could not find insurance policy number in the global bill');
+      }
+      
+      // Get beneficiary ID
+      const beneficiaryId = await getBeneficiaryByPolicyNumber(insurancePolicyNumber);
+      
+      if (!beneficiaryId) {
+        throw new Error(`Could not find beneficiary for insurance policy: ${insurancePolicyNumber}`);
+      }
+  
+      // Group items by department
+      const itemsByDepartment: Record<string, any> = {};
+  
+      calculatorItems.forEach((item) => {
         if (!itemsByDepartment[item.departmentId]) {
           itemsByDepartment[item.departmentId] = {
             departmentId: item.departmentId,
-            departmentName: item.departmentName,
-            items: []
+            departmentName: item.departmentName || 'Unknown Department',
+            items: [],
           };
         }
-        
+  
+        // Ensure billableServiceId is used correctly
+        if (!item.billableServiceId) {
+          console.error('Missing billableServiceId for item:', item);
+          throw new Error(`Missing billableServiceId for item: ${item.name}`);
+        }
+  
         itemsByDepartment[item.departmentId].items.push({
           facilityServicePriceId: item.facilityServicePriceId,
           quantity: item.quantity,
           price: item.price,
-          drugFrequency: item.drugFrequency || ""
+          drugFrequency: item.drugFrequency || '',
+          service: {
+            serviceId: item.billableServiceId || item.facilityServicePriceId,
+            name: item.name,
+            displayName: item.name,
+            description: item.description || '',
+          },
         });
+        console.log('Mapped serviceId:', item.billableServiceId || item.facilityServicePriceId);
       });
-      
-      const globalBillId = lineItems && lineItems.length > 0 ? lineItems[0].globalBillId : null;
-      
-      if (!globalBillId) {
-        throw new Error("No global bill ID found. Please create a global bill first.");
-      }
-      
-      let successCount = 0;
-      let totalItemsCreated = 0;
-      const departmentCount = Object.keys(itemsByDepartment).length;
-      const departmentResults: any[] = [];
-      
+  
+      console.log('Items by department:', itemsByDepartment);
+  
+      // Create bill items for each department
+      const results = [];
       for (const deptId in itemsByDepartment) {
         const dept = itemsByDepartment[deptId];
-        
         try {
-          const result = await createBillItems(
-            globalBillId, 
-            parseInt(deptId), 
-            dept.items
-          );
+          console.log(`Creating bill items for department ${deptId}:`, dept.items);
           
-          totalItemsCreated += result.count;
-          departmentResults.push({
-            departmentId: deptId,
-            departmentName: dept.departmentName,
-            itemsCreated: result.count,
-            totalItems: dept.items.length
-          });
+          const result = await createBillItems(globalBillId, parseInt(deptId), dept.items, beneficiaryId);
+          results.push(result);
           
-          successCount++;
-        } catch (error) {
-          console.error(`Failed to create bill items for department ${dept.departmentName}:`, error);
-          departmentResults.push({
-            departmentId: deptId,
-            departmentName: dept.departmentName,
-            error: error.message || "Unknown error",
-            totalItems: dept.items.length
-          });
+          console.log(`Successfully created bill items for department ${deptId}:`, result);
+        } catch (deptError) {
+          console.error(`Error creating bill items for department ${deptId}:`, deptError);
+          
+          const errorDetails = dept.items.map(item => 
+            `Service: ${item.service.serviceId}, Quantity: ${item.quantity}`
+          ).join('; ');
+          
+          throw new Error(`Failed to create items for ${dept.departmentName}: ${errorDetails} - ${deptError.message}`);
         }
       }
+  
+      // Show success message
+      showToast({
+        kind: 'success',
+        title: t('itemsAdded', 'Items Added'),
+        description: t('billItemsCreatedSuccessfully', 'Bill items created successfully')
+      });
       
-      if (successCount === 0) {
-        const errorDetails = departmentResults
-          .filter(result => result.error)
-          .map(result => `Department ${result.departmentName}: ${result.error}`)
-          .join('; ');
-        
-        throw new Error(`Failed to create any bill items. ${errorDetails}`);
-      } else {
-        const successSummary = departmentResults
-          .filter(result => result.itemsCreated)
-          .map(result => `${result.departmentName}: ${result.itemsCreated}/${result.totalItems} items`)
-          .join(', '); 
-      }
+      // Refresh the data
       mutate();
       setIsCalculatorOpen(false);
     } catch (error) {
       console.error('Error saving bill items:', error);
-      setErrorMessage(typeof error === 'string' ? error : error.message || 'Failed to save bill items');
+      
+      let errorMsg = 'Failed to save bill items';
+      if (error.message) {
+        errorMsg = error.message;
+      } else if (error.response && error.response.data && error.response.data.error) {
+        errorMsg = error.response.data.error.message || errorMsg;
+      }
+      
+      setErrorMessage(errorMsg);
       setShowError(true);
     } finally {
       setIsSaving(false);
     }
-  }, [calculatorItems, lineItems, mutate, setErrorMessage, setShowError]);
+  }, [calculatorItems, patientUuid, mutate, t, showToast, getBeneficiaryByPolicyNumber, createBillItems]);
   
   const handleCalculatorUpdate = useCallback((items) => {
     setCalculatorItems(items);
