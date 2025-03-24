@@ -159,3 +159,12 @@ export const calculateTotalDueForSelected = (rows: any[], selectedRows: string[]
   });
   return Number(total.toFixed(2));
 };
+
+export const computePaymentStatus = (item: ConsommationItem): 'PAID' | 'PARTIAL' | 'UNPAID' => {
+  const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+  const paidAmount = item.paidAmount || 0;
+
+  if (paidAmount >= itemTotal) return 'PAID';
+  if (paidAmount > 0 && paidAmount < itemTotal) return 'PARTIAL';
+  return 'UNPAID';
+};

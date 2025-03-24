@@ -12,7 +12,7 @@ import {
   Button,
   Checkbox,
 } from '@carbon/react';
-import { isDesktop, showToast, useLayoutType, useSession } from '@openmrs/esm-framework';
+import { isDesktop, showToast, useLayoutType, useSession, usePagination } from '@openmrs/esm-framework';
 import { getConsommationsByGlobalBillId, getConsommationItems, getConsommationById } from '../api/billing';
 import { 
   isItemPaid, 
@@ -22,6 +22,7 @@ import {
 import { type ConsommationListResponse, type ConsommationItem, type RowData } from '../types';
 import styles from './embedded-consommations-list.scss';
 import PaymentForm from '../payment-form/payment-form.component';
+import { Pagination } from '@carbon/react';
 
 interface EmbeddedConsommationsListProps {
   globalBillId: string;
@@ -100,12 +101,35 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       insuranceCardNo: item.patientBill?.policyIdNumber || insuranceCardNo || '-',
       insuranceDue: Number(item.insuranceBill?.amount ?? 0).toFixed(2),
       thirdPartyDue: Number(item.thirdPartyBill?.amount ?? 0).toFixed(2),
-      patientDue: Number(item.patientBill?.amount ?? 0).toFixed(2),
-      paidAmount: Number(item.patientBill?.payments?.[0]?.amountPaid ?? 0).toFixed(2),
-      status: item.patientBill?.status || 'N/A',
+      patientDue: Number(
+        Math.max(
+          0,
+          (item.patientBill?.amount ?? 0) -
+          (item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0)
+        )
+      ).toFixed(2),
+      paidAmount: Number(
+        item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
+      ).toFixed(2),
+      status: (() => {
+        const rawPatientDue = Number(item.patientBill?.amount ?? 0);
+        const rawPaidAmount = Number(item.patientBill?.payments?.[0]?.amountPaid ?? 0);
+        if (rawPaidAmount >= rawPatientDue && rawPatientDue > 0) {
+          return t('fullyPaid', 'FULLY PAID');
+        } else if (rawPaidAmount === 0) {
+          return t('unpaid', 'UNPAID');
+        } else if (rawPaidAmount > 0 && rawPaidAmount < rawPatientDue) {
+          return t('partiallyPaid', 'PARTIALLY PAID');
+        } else {
+          return t('unpaid', 'UNPAID');
+        }
+      })(),
       rawPatientDue: Number(item.patientBill?.amount ?? 0),
       rawPaidAmount: Number(item.patientBill?.payments?.[0]?.amountPaid ?? 0),
-    })) || [], [consommations?.results, insuranceCardNo]);
+  })) || [], [consommations?.results, insuranceCardNo, t]);
+
+  const pageSize = 10;
+  const { paginated, goTo, results: paginatedRows, currentPage } = usePagination(rows, pageSize);
 
   // Handle row click
   const handleRowClick = (row: RowData) => {
@@ -240,8 +264,9 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       await fetchConsommations();
       
       // Then refresh the items for the selected consommation if any
-      if (selectedRows.length > 0) {
-        await fetchConsommationItems(selectedRows[0]);
+      const selectedRow = selectedRows?.[0];
+      if (selectedRow) {
+        await fetchConsommationItems(selectedRow);
       }
     } catch (error) {
       console.error('Error refreshing data after payment:', error);
@@ -406,7 +431,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
   }
 
   // Prepare rows with checkboxes
-  const rowsWithCheckboxes = rows.map(row => {
+  const rowsWithCheckboxes = paginatedRows.map(row => {
     const isSelected = selectedRows.includes(row.id);
     const anyRowSelected = selectedRows.length > 0;
     const isDisabled = anyRowSelected && !isSelected;
@@ -480,16 +505,19 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
               </Table>
             )}
           </DataTable>
+          {paginated && (
+            <Pagination
+              forwardText={t('nextPage', 'Next page')}
+              backwardText={t('previousPage', 'Previous page')}
+              page={currentPage}
+              pageSize={pageSize}
+              totalItems={rows.length}
+              pageSizes={[5, 10, 20, 50]}
+              onChange={({ page }) => goTo(page)}
+            />
+          )}
 
           <div className={styles.actionsContainer}>
-            <div className={styles.totals}>
-              <p>
-                {t('totalDueAmount', 'Total Due Amount')}: {(consommations?.totalDueAmount ?? 0).toFixed(2)}
-              </p>
-              <p>
-                {t('totalPaidAmount', 'Total Paid Amount')}: {(consommations?.totalPaidAmount ?? 0).toFixed(2)}
-              </p>
-            </div>
 
             <div className={styles.paymentActions}>
               <p className={styles.selectedSummary}>

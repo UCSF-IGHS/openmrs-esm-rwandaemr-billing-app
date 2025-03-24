@@ -306,40 +306,31 @@ function extractServiceName(billItem, departmentName = 'Unknown') {
  */
 export async function getConsommationItems(consommationId: string) {
   try {
+    // Fetch the specific consommation data
     const consommationData = await getConsommationById(consommationId);
     
+    // Ensure we have a department name, defaulting to 'Unknown' if not provided
+    const departmentName = consommationData.department?.name || 'Unknown Department';
+
+    // Map bill items to a more detailed and user-friendly format
     const items = consommationData.billItems.map((item, index) => {
-      const departmentName = consommationData.department?.name || 'Unknown';
+      // Extract the most detailed service name possible
+      const itemName = extractServiceDetailedName(item, departmentName);
       
-      const itemName = extractServiceName(item, departmentName);
-      
-      let patientServiceBillId = null;
-      
-      if (item.links && Array.isArray(item.links) && item.links.length > 0) {
-        const link = item.links.find(link => link.resourceAlias === 'patientServiceBill');
-        if (link && link.uri) {
-          const idMatch = link.uri.match(/\/patientServiceBill\/(\d+)/);
-          if (idMatch && idMatch[1]) {
-            patientServiceBillId = parseInt(idMatch[1]);
-          }
-        }
-      }
-      
-      const itemId = patientServiceBillId || 10372855 + index;
-      
+      // Calculate total and payment-related values
       const itemTotal = item.quantity * item.unitPrice;
-      
       const paidAmount = item.paidQuantity ? item.paidQuantity * item.unitPrice : (item.paid ? itemTotal : 0);
-      
       const remainingAmount = Math.max(0, itemTotal - paidAmount);
       
+      // Determine payment status
       const isFullyPaid = item.paid || remainingAmount <= 0;
       const isPartiallyPaid = !isFullyPaid && paidAmount > 0;
-      
+
+      // Create a detailed item object
       return {
         itemId: index + 1,
         itemCode: `ITEM-${index + 1}`,
-        itemName: itemName, // Use the extracted service name
+        itemName: itemName,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         total: itemTotal,
@@ -351,14 +342,18 @@ export async function getConsommationItems(consommationId: string) {
         partiallyPaid: isPartiallyPaid,
         paidQuantity: item.paidQuantity || 0,
         drugFrequency: item.drugFrequency,
-        patientServiceBillId: itemId,
+        patientServiceBillId: extractPatientServiceBillId(item, index),
         selected: false
       };
     });
     
     return items;
   } catch (error) {
-    console.error('Error fetching consommation items:', error);
+    console.error('Error fetching consommation items:', {
+      consommationId,
+      errorMessage: error.message,
+      stack: error.stack
+    });
     throw error;
   }
 }
@@ -613,3 +608,58 @@ export const createBillItems = async (
     throw error;
   }
 };
+
+
+function extractServiceDetailedName(item: any, departmentName: string): string {
+  try {
+    if (item.service?.facilityServicePrice?.name) {
+      return item.service.facilityServicePrice.name;
+    }
+
+    if (item.service?.name) {
+      return item.service.name;
+    }
+
+    if (item.serviceOtherDescription) {
+      return item.serviceOtherDescription;
+    }
+
+    if (item.serviceOther) {
+      return item.serviceOther;
+    }
+
+    return `${departmentName} Service Item`;
+  } catch (error) {
+    console.warn('Error extracting service name:', {
+      error: error.message,
+      item
+    });
+    return `${departmentName} Service Item`;
+  }
+}
+
+// Helper function to extract patient service bill ID
+function extractPatientServiceBillId(item: any, index: number): number {
+  try {
+    if (item.links && Array.isArray(item.links)) {
+      const patientServiceBillLink = item.links.find(
+        link => link.resourceAlias === 'patientServiceBill'
+      );
+
+      if (patientServiceBillLink && patientServiceBillLink.uri) {
+        const idMatch = patientServiceBillLink.uri.match(/\/patientServiceBill\/(\d+)/);
+        if (idMatch && idMatch[1]) {
+          return parseInt(idMatch[1]);
+        }
+      }
+    }
+
+    return 10372855 + index;
+  } catch (error) {
+    console.warn('Error extracting patient service bill ID:', {
+      error: error.message,
+      item
+    });
+    return 10372855 + index;
+  }
+}
