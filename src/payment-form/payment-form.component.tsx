@@ -22,7 +22,8 @@ import {
   calculateTotalRemainingAmount,
   areAllSelectedItemsPaid,
   getStatusClass,
-  calculateTotalDueForSelected
+  calculateTotalDueForSelected,
+  computePaymentStatus
 } from '../utils/billing-calculations';
 import { printReceipt } from '../payment-receipt/print-receipt';
 import { type ConsommationListResponse, type ConsommationItem, type RowData } from '../types';
@@ -647,14 +648,14 @@ const handlePrintReceipt = async () => {
                         <td>
                           <span
                             className={`${styles.statusBadge} ${
-                              getAccurateStatusText(item) === t('paid', 'Paid')
+                              computePaymentStatus(item) === 'PAID'
                                 ? styles.paidStatus
-                                : getAccurateStatusText(item) === t('partiallyPaid', 'Partially Paid')
+                                : computePaymentStatus(item) === 'PARTIAL'
                                   ? styles.partiallyPaidStatus
                                   : styles.unpaidStatus
                             }`}
                           >
-                            {getAccurateStatusText(item)}
+                            {computePaymentStatus(item)}
                           </span>
                         </td>
                       </tr>

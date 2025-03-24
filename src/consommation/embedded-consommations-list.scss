@@ -75,21 +75,12 @@ $disabled-03: #8d8d8d !default;
   width: 100%;
 }
 
-.totals {
-  display: flex;
-  gap: layout.$spacing-05;
-  
-  p {
-    font-weight: 600;
-    margin: 0;
-    white-space: nowrap;
-  }
-}
-
 .paymentActions {
   display: flex;
   align-items: center;
   gap: layout.$spacing-05;
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .selectedSummary {
