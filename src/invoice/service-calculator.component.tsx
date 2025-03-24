@@ -20,6 +20,22 @@ interface ServiceCalculatorProps {
   onSave?: (calculatorItems: any[]) => void;
 }
 
+interface CalculatorItem {
+  id: string;
+  uuid: string;
+  facilityServicePriceId: number;
+  name: string;
+  departmentName: string;
+  departmentId: string;
+  price: number;
+  quantity: number;
+  drugFrequency: string;
+  isDrug: boolean;
+  serviceDate: string;
+  itemType: number;
+  totalPrice?: number;
+}
+
 const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ 
   patientUuid, 
   insuranceCardNo, 
@@ -47,8 +63,12 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
     quantity: '',
   });
   
-  const [calculatorItems, setCalculatorItems] = useState([]);
+  const [calculatorItems, setCalculatorItems] = useState<CalculatorItem[]>([]);
   const [total, setTotal] = useState(0);
+
+  const handleQuantityChange = (index, e) => {
+    updateItemQuantity(index, parseInt(e.target.value) || 1);
+  };
   
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -231,9 +251,13 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
     onSave && onSave(updatedItems);
   };
 
+  const handleDepartmentChange = ({ selectedItem }) => {
+    setDepartmentUuid(selectedItem);
+    setServiceUuid('');
+  };
+
   return (
     <div className={styles.calculatorWrapper}>
-
       <Tile light className={styles.formTile}>
         <Form className={styles.form}>
           <div className={styles.formGrid}>
@@ -242,14 +266,11 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
               <Dropdown
                 id="department"
                 label={isLoadingDepartments ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
-                items={departments.map(dept => dept.serviceId.toString())}
-                itemToString={(uuid) => departments.find(d => d.serviceId.toString() === uuid)?.name || ''}
+                items={departments.map((dept) => dept.serviceId.toString())}
+                itemToString={(uuid) => departments.find((d) => d.serviceId.toString() === uuid)?.name || ''}
                 invalid={!!errors.departmentUuid}
                 invalidText={errors.departmentUuid}
-                onChange={({ selectedItem }) => {
-                  setDepartmentUuid(selectedItem);
-                  setServiceUuid('');
-                }}
+                onChange={handleDepartmentChange}
                 selectedItem={departmentUuid}
                 size="sm"
                 disabled={isLoadingDepartments}
@@ -262,10 +283,10 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
               <Dropdown
                 id="service"
                 label={isLoadingServices ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
-                items={getServicesForDepartment(departmentUuid).map(svc => svc.facilityServicePriceId.toString())}
+                items={getServicesForDepartment(departmentUuid).map((svc) => svc.facilityServicePriceId.toString())}
                 itemToString={(uuid) => {
                   const service = getServicesForDepartment(departmentUuid).find(
-                    s => s.facilityServicePriceId.toString() === uuid
+                    (s) => s.facilityServicePriceId.toString() === uuid,
                   );
                   return service ? `${service.name} (${service.fullPrice} ${defaultCurrency})` : '';
                 }}
@@ -314,9 +335,9 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
             <div className={styles.addButtonContainer}>
               <Button 
                 className={styles.addButton}
-                kind="primary" 
-                onClick={addService} 
-                disabled={!serviceUuid}
+                kind="primary"
+                onClick={addService}
+                disabled={!serviceUuid || isLoadingServices}
                 size="md"
               >
                 {t('addItem', 'Add Item')}
@@ -354,21 +375,19 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
                       id={`item-qty-${index}`}
                       value={item.quantity}
                       min={1}
-                      onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
+                      onChange={(e) => handleQuantityChange(index, e)}
                       className={styles.qtyInputPlain}
                     />
                   </td>
-                  
-                <td className={styles.dosageCell}>
-                    {item.isDrug ? item.drugFrequency : (
-                      <span className={styles.notApplicable}>-</span>
-                    )}
+
+                  <td className={styles.dosageCell}>
+                    {item.isDrug ? item.drugFrequency : <span className={styles.notApplicable}>-</span>}
                   </td>
-                  
+
                   <td className={styles.priceCell}>
-                    {(item.totalPrice || (item.price * item.quantity)).toLocaleString()} {defaultCurrency}
+                    {(item.totalPrice || item.price * item.quantity).toLocaleString()} {defaultCurrency}
                   </td>
-                  
+
                   <td className={styles.actionCell}>
                     <Button
                       kind="ghost"
@@ -390,7 +409,9 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
                   <span className={styles.totalLabel}>{t('total', 'Total')}:</span>
                 </td>
                 <td colSpan={2} className={styles.totalAmountCell}>
-                  <span className={styles.totalAmount}>{total.toLocaleString()} {defaultCurrency}</span>
+                  <span className={styles.totalAmount}>
+                    {total.toLocaleString()} {defaultCurrency}
+                  </span>
                 </td>
               </tr>
             </tfoot>
