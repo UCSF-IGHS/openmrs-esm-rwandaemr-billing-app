@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
 import {
-  Button,
   DataTable,
   DataTableSkeleton,
   Layer,
@@ -25,7 +24,7 @@ import {
   Modal,
   type DataTableRow,
 } from '@carbon/react';
-import { AddIcon, isDesktop, useConfig, useDebounce, useLayoutType, usePatient, usePagination } from '@openmrs/esm-framework';
+import { isDesktop, useConfig, useDebounce, useLayoutType, usePatient, usePagination, showToast } from '@openmrs/esm-framework';
 import { CardHeader, EmptyState, usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import styles from './invoice-table.scss';
 import { usePatientBill, useInsuranceCardBill } from './invoice.resource';
@@ -80,6 +79,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   // State for calculator modal
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentGlobalBillId, setCurrentGlobalBillId] = useState<string | null>(null);
   
   // State for calculator items - using direct state instead of ref
   const [calculatorItems, setCalculatorItems] = useState([]);
@@ -170,14 +170,30 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     setExpandedRowId(expandedRowId === row.id ? null : row.id);
   };
 
-  const createNewInvoice = useCallback(() => {
+  const createNewInvoice = useCallback((globalBillId: string) => {
+    const currentBill = lineItems.find(item => item.globalBillId?.toString() === globalBillId.toString());
+    const isGlobalBillClosed = currentBill?.paymentStatus === 'PAID';
+    
+    // Don't proceed if bill is closed (this is a failsafe in case the UI button disabled state is bypassed)
+    if (isGlobalBillClosed) {
+      showToast({
+        title: t('closedBill', 'Closed Bill'),
+        description: t('cannotAddToClosedBill', 'Cannot add items to a closed bill'),
+        kind: 'error',
+      });
+      return;
+    }
+    
+    // Make sure we store it as a string for consistent handling
+    setCurrentGlobalBillId(globalBillId.toString());
     setIsCalculatorOpen(true);
     setCalculatorItems([]);
-  }, []);
+  }, [lineItems, t]);
   
   const handleCalculatorClose = useCallback(() => {
     setIsCalculatorOpen(false);
     setIsSaving(false);
+    setCurrentGlobalBillId(null);
   }, []);
   
   const handleCalculatorSave = useCallback(async () => {
@@ -209,10 +225,17 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         });
       });
       
-      const globalBillId = lineItems && lineItems.length > 0 ? lineItems[0].globalBillId : null;
+      // Use the currentGlobalBillId instead of looking it up from lineItems
+      const globalBillId = currentGlobalBillId;
       
       if (!globalBillId) {
         throw new Error("No global bill ID found. Please create a global bill first.");
+      }
+
+      const globalBillIdNumber = parseInt(globalBillId, 10);
+      
+      if (isNaN(globalBillIdNumber)) {
+        throw new Error("Invalid global bill ID format. Expected a number.");
       }
       
       let successCount = 0;
@@ -225,7 +248,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         
         try {
           const result = await createBillItems(
-            globalBillId, 
+            globalBillIdNumber, 
             parseInt(deptId), 
             dept.items
           );
@@ -265,6 +288,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       }
       mutate();
       setIsCalculatorOpen(false);
+      setCurrentGlobalBillId(null);
     } catch (error) {
       console.error('Error saving bill items:', error);
       setErrorMessage(typeof error === 'string' ? error : error.message || 'Failed to save bill items');
@@ -272,22 +296,28 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     } finally {
       setIsSaving(false);
     }
-  }, [calculatorItems, lineItems, mutate, setErrorMessage, setShowError]);
+  }, [calculatorItems, currentGlobalBillId, mutate, setErrorMessage, setShowError]);
   
   const handleCalculatorUpdate = useCallback((items) => {
     setCalculatorItems(items);
   }, []);
 
   const renderConsommationsTable = (globalBillId) => {
+    // Find the corresponding lineItem to check its status
+    const currentBill = lineItems.find(item => item.globalBillId?.toString() === globalBillId?.toString());
+    const isGlobalBillClosed = currentBill?.paymentStatus === 'PAID';
+    
     return (
       <div className={styles.expandedContent}>
         <EmbeddedConsommationsList 
-          globalBillId={globalBillId} 
+          globalBillId={globalBillId.toString()} 
           patientUuid={patientUuid} 
           insuranceCardNo={insuranceCardNo} 
           onConsommationClick={() => {
             // Function intentionally left empty
           }}
+          onAddNewInvoice={createNewInvoice}
+          isGlobalBillClosed={isGlobalBillClosed}
         />
       </div>
     );
@@ -335,7 +365,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       <EmptyState
         displayText={t('invoicesInLowerCase', 'invoices')}
         headerTitle={t('globalBillList', 'Global Bill List')}
-        launchForm={createNewInvoice}
+        launchForm={() => {}}
       />
     );
   }
@@ -352,14 +382,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     <div className={styles.widgetCard}>
       <CardHeader title={t('globalBillList', 'Global Bill List')}>
         <span>{isValidating ? <InlineLoading /> : null}</span>
-        <Button
-          kind="ghost"
-          renderIcon={(props) => <AddIcon size={16} {...props} />}
-          iconDescription={t('addInvoice', 'Add invoice')}
-          onClick={createNewInvoice}
-        >
-          {t('add', 'Add Item')}
-        </Button>
       </CardHeader>
 
       {(patientUuid || insuranceCardNo) && (
@@ -460,7 +482,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       </div>
 
       {/* Calculator Modal for when there are existing items */}
-      {isCalculatorOpen && lineItems.length > 0 && (
+      {isCalculatorOpen && currentGlobalBillId && (
         <Modal
           open={isCalculatorOpen}
           modalHeading={t('addNewInvoice', 'Patient Bill Calculations')}
