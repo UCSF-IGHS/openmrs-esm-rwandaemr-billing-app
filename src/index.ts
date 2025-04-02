@@ -6,13 +6,11 @@ import BillingAdminCardLink from './billing-admin-card-link.component';
 import BillingAdminHome from './billing-admin/billing-home/billing-home-component';
 import InvoiceTable from './invoice/invoice-table.component';
 import { dashboardMeta } from './dashboard.meta';
+import BillingReportsHome from './billing-reports/billing-reports.component';
 
 const moduleName = '@openmrs/esm-rwandaemr-billing-app';
 
-const options = {
-  featureName: 'RwandaEMR Billing',
-  moduleName,
-};
+const options = { featureName: 'RwandaEMR Billing', moduleName };
 
 export const importTranslation = require.context('../translations', false, /.json$/, 'lazy');
 
@@ -28,14 +26,18 @@ export const billingSummaryDashboardLink = getSyncLifecycle(
 );
 
 export const billingDashboardLink = getSyncLifecycle(
-  createLeftPanelLink({
-    name: 'billing',
-    title: 'Billing',
-  }),
+  createLeftPanelLink({ name: 'billing', title: 'Billing' }),
+  options,
+);
+
+export const billingReportsDashboardLink = getSyncLifecycle(
+  createLeftPanelLink({ name: 'billing-reports', title: 'Billing Reports' }),
   options,
 );
 
 export const billingAdminHome = getSyncLifecycle(BillingAdminHome, options);
+
+export const billingReportsHome = getSyncLifecycle(BillingReportsHome, options);
 
 export const billingPatientSummary = getSyncLifecycle(InvoiceTable, options);
 
