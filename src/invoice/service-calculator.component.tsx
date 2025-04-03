@@ -10,7 +10,14 @@ import {
   Tile
 } from '@carbon/react';
 import { useConfig } from '@openmrs/esm-framework';
-import { getServices, getFacilityServicePrices, type HopService, type FacilityServicePrice } from '../api/billing';
+import { 
+  getServices, 
+  getServiceCategories, 
+  getBillableServices,
+  type HopService, 
+  type ServiceCategory,
+  type BillableService
+} from '../api/billing';
 import styles from './service-calculator.scss';
 
 interface ServiceCalculatorProps {
@@ -18,6 +25,13 @@ interface ServiceCalculatorProps {
   insuranceCardNo?: string;
   onClose?: () => void;
   onSave?: (calculatorItems: any[]) => void;
+}
+
+interface NormalizedService {
+  serviceId: string | number;
+  name: string;
+  price: number;
+  originalData: any;
 }
 
 const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ 
@@ -31,19 +45,23 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
   const defaultCurrency = config?.defaultCurrency || 'RWF';
   
   const [departmentUuid, setDepartmentUuid] = useState('');
-  const [serviceUuid, setServiceUuid] = useState('');
+  const [serviceCategoryId, setServiceCategoryId] = useState('');
+  const [serviceId, setServiceId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [drugFrequency, setDrugFrequency] = useState('');
   
   const [departments, setDepartments] = useState<HopService[]>([]);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
-  const [isLoadingServices, setIsLoadingServices] = useState(false);
+  const [isLoadingServiceCategories, setIsLoadingServiceCategories] = useState(false);
+  const [isLoadingBillableServices, setIsLoadingBillableServices] = useState(false);
   
-  const [departmentServices, setDepartmentServices] = useState<Record<string, FacilityServicePrice[]>>({});
+  const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([]);
+  const [billableServices, setBillableServices] = useState<NormalizedService[]>([]);
   
   const [errors, setErrors] = useState({
     departmentUuid: '',
-    serviceUuid: '',
+    serviceCategoryId: '',
+    serviceId: '',
     quantity: '',
   });
   
@@ -75,57 +93,100 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
     fetchDepartments();
   }, []);
   
-  const fetchServicesForDepartment = useCallback(async (departmentId: string) => {
+  const fetchServiceCategories = useCallback(async (departmentId: string) => {
     if (!departmentId) return;
     
-    if (departmentServices[departmentId]) return;
+    setIsLoadingServiceCategories(true);
+    setServiceCategories([]);
+    setBillableServices([]);
+    setServiceCategoryId('');
+    setServiceId('');
     
-    setIsLoadingServices(true);
     try {
-      // Fetch all facility service prices and filter by department
-      const allServices = await getFacilityServicePrices(0, 500);
+      const ipCardNumber = insuranceCardNo || '0';
       
-      if (allServices && allServices.results) {
-        const departmentServicesList = allServices.results.filter(service => 
-          service.category === departments.find(d => d.serviceId.toString() === departmentId)?.name
-        );
-        
-        setDepartmentServices(prev => ({
-          ...prev,
-          [departmentId]: departmentServicesList
-        }));
+      const categories = await getServiceCategories(departmentId, ipCardNumber);
+      
+      if (categories && categories.results && categories.results.length > 0) {
+        setServiceCategories(categories.results);
       } else {
-        console.error('Failed to fetch services: No data returned');
+        console.error('Failed to fetch service categories: No data returned');
       }
     } catch (error) {
-      console.error('Error fetching services:', error);
+      console.error('Error fetching service categories:', error);
     } finally {
-      setIsLoadingServices(false);
+      setIsLoadingServiceCategories(false);
     }
-  }, [departmentServices, departments]);
+  }, [insuranceCardNo]);
+  
+const fetchBillableServices = useCallback(async (serviceCategoryId: string) => {
+  if (!serviceCategoryId) return;
+  
+  setIsLoadingBillableServices(true);
+  setBillableServices([]);
+  setServiceId('');
+  
+  try {
+    const services = await getBillableServices(serviceCategoryId);
+    
+    if (services && services.results && services.results.length > 0) {
+      const formattedServices = services.results
+        .filter(service => service != null)
+        .map((service, index) => {
+          const id = service.serviceId || index + 1;
+          const serviceName = service.facilityServicePrice?.name || 
+                            (service as any).name || 
+                            `Service ${index + 1}`;
+                            
+          const servicePrice = service.facilityServicePrice?.fullPrice || 
+                             (service as any).maximaToPay || 
+                             0;
+          
+          return {
+            serviceId: id,
+            name: serviceName,
+            price: servicePrice,
+            originalData: service
+          };
+        });
+      
+      setBillableServices(formattedServices);
+    } else {
+      console.error('Failed to fetch billable services: No data returned');
+    }
+  } catch (error) {
+    console.error('Error fetching billable services:', error);
+  } finally {
+    setIsLoadingBillableServices(false);
+  }
+}, []);
   
   useEffect(() => {
     if (departmentUuid) {
-      fetchServicesForDepartment(departmentUuid);
+      fetchServiceCategories(departmentUuid);
     }
-  }, [departmentUuid, fetchServicesForDepartment]);
+  }, [departmentUuid, fetchServiceCategories]);
   
-  const getServicesForDepartment = (departmentUuid: string) => {
-    return departmentServices[departmentUuid] || [];
-  };
-  
-  const getServiceByUuid = (serviceUuid: string) => {
-    for (const deptUuid in departmentServices) {
-      const service = departmentServices[deptUuid]?.find(s => s.facilityServicePriceId.toString() === serviceUuid);
-      if (service) return service;
+  useEffect(() => {
+    if (serviceCategoryId) {
+      fetchBillableServices(serviceCategoryId);
     }
-    return null;
+  }, [serviceCategoryId, fetchBillableServices]);
+  
+  const getBillableServiceById = (serviceId: string) => {
+    if (!serviceId) {
+      return null;
+    }
+    
+    const service = billableServices.find(service => service.serviceId.toString() === serviceId);
+    return service;
   };
   
   const validateForm = () => {
     const newErrors = {
       departmentUuid: '',
-      serviceUuid: '',
+      serviceCategoryId: '',
+      serviceId: '',
       quantity: '',
     };
     
@@ -133,8 +194,12 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
       newErrors.departmentUuid = t('departmentRequired', 'Department is required');
     }
     
-    if (!serviceUuid) {
-      newErrors.serviceUuid = t('serviceRequired', 'Service is required');
+    if (!serviceCategoryId) {
+      newErrors.serviceCategoryId = t('serviceCategoryRequired', 'Service Category is required');
+    }
+    
+    if (!serviceId) {
+      newErrors.serviceId = t('serviceRequired', 'Service is required');
     }
     
     if (!quantity || quantity < 1) {
@@ -148,10 +213,13 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
   const addService = () => {
     if (!validateForm()) return;
     
-    const service = getServiceByUuid(serviceUuid);
-    if (!service) return;
+    const service = getBillableServiceById(serviceId);
+    if (!service) {
+      console.error('Service not found for ID:', serviceId);
+      return;
+    }
     
-    const existingIndex = calculatorItems.findIndex(item => item.uuid === serviceUuid);
+    const existingIndex = calculatorItems.findIndex(item => item.serviceId.toString() === serviceId);
     
     let updatedItems;
     if (existingIndex >= 0) {
@@ -163,20 +231,23 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
       };
     } else {
       const department = departments.find(d => d.serviceId.toString() === departmentUuid);
+      const serviceCategory = serviceCategories.find(c => c.serviceCategoryId?.toString() === serviceCategoryId);
+      
       const newItem = {
-        id: serviceUuid,
-        uuid: serviceUuid,
-        facilityServicePriceId: service.facilityServicePriceId,
+        id: serviceId,
+        serviceId: Number(service.serviceId),
         name: service.name,
+        price: service.price,
         departmentName: department?.name || '',
-        departmentId: departmentUuid,
-        price: service.fullPrice,
+        departmentId: Number(departmentUuid),
+        serviceCategoryId: Number(serviceCategoryId),
+        serviceCategoryName: serviceCategory?.name || '',
+        originalData: service.originalData,
         quantity,
         drugFrequency: drugFrequency || '',
-        isDrug: departmentUuid === '11', // Assuming department ID 11 is for drugs
-        // Add any other fields needed for the consommation API
+        isDrug: departmentUuid === '11',
         serviceDate: new Date().toISOString(),
-        itemType: service.itemType || 1
+        itemType: service.originalData?.facilityServicePrice?.itemType || 1
       };
       
       updatedItems = [...calculatorItems, newItem];
@@ -185,7 +256,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
     setCalculatorItems(updatedItems);
     onSave && onSave(updatedItems);
     
-    setServiceUuid('');
+    setServiceId('');
     setQuantity(1);
     setDrugFrequency('');
   };
@@ -233,7 +304,6 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
 
   return (
     <div className={styles.calculatorWrapper}>
-
       <Tile light className={styles.formTile}>
         <Form className={styles.form}>
           <div className={styles.formGrid}>
@@ -242,13 +312,14 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
               <Dropdown
                 id="department"
                 label={isLoadingDepartments ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
-                items={departments.map(dept => dept.serviceId.toString())}
-                itemToString={(uuid) => departments.find(d => d.serviceId.toString() === uuid)?.name || ''}
+                items={departments.map((dept) => dept.serviceId.toString())}
+                itemToString={(uuid) => departments.find((d) => d.serviceId.toString() === uuid)?.name || ''}
                 invalid={!!errors.departmentUuid}
                 invalidText={errors.departmentUuid}
                 onChange={({ selectedItem }) => {
                   setDepartmentUuid(selectedItem);
-                  setServiceUuid('');
+                  setServiceCategoryId('');
+                  setServiceId('');
                 }}
                 selectedItem={departmentUuid}
                 size="sm"
@@ -256,30 +327,69 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
               />
               {isLoadingDepartments && <InlineLoading className={styles.inlineLoading} />}
             </div>
-            
+
+            <div className={styles.formField}>
+              <label className={styles.fieldLabel}>{t('serviceCategory', 'Service Category')}</label>
+              <Dropdown
+                id="serviceCategory"
+                label={isLoadingServiceCategories ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
+                items={serviceCategories
+                  .filter((cat) => cat && cat.serviceCategoryId) // Filter out categories with missing IDs
+                  .map((cat) => cat.serviceCategoryId.toString())}
+                itemToString={(id) => {
+                  if (!id) return '';
+                  return (
+                    serviceCategories.find((cat) => cat.serviceCategoryId && cat.serviceCategoryId.toString() === id)
+                      ?.name || ''
+                  );
+                }}
+                invalid={!!errors.serviceCategoryId}
+                invalidText={errors.serviceCategoryId}
+                onChange={({ selectedItem }) => {
+                  setServiceCategoryId(selectedItem);
+                  setServiceId('');
+                }}
+                selectedItem={serviceCategoryId}
+                size="sm"
+                disabled={!departmentUuid || isLoadingServiceCategories}
+              />
+              {isLoadingServiceCategories && <InlineLoading className={styles.inlineLoading} />}
+            </div>
+
             <div className={styles.formField}>
               <label className={styles.fieldLabel}>{t('service', 'Service')}</label>
               <Dropdown
                 id="service"
-                label={isLoadingServices ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
-                items={getServicesForDepartment(departmentUuid).map(svc => svc.facilityServicePriceId.toString())}
-                itemToString={(uuid) => {
-                  const service = getServicesForDepartment(departmentUuid).find(
-                    s => s.facilityServicePriceId.toString() === uuid
-                  );
-                  return service ? `${service.name} (${service.fullPrice} ${defaultCurrency})` : '';
+                label={
+                  isLoadingBillableServices
+                    ? t('loading', 'Loading...')
+                    : billableServices.length === 0
+                      ? t('noServicesAvailable', 'No services available')
+                      : t('pleaseSelect', 'Please select')
+                }
+                items={billableServices.map((svc) => svc.serviceId?.toString() || '')}
+                itemToString={(id) => {
+                  if (!id) return '';
+                  const service = billableServices.find((s) => s.serviceId?.toString() === id);
+                  if (!service) return '';
+                  return `${service.name} (${service.price} ${defaultCurrency})`;
                 }}
-                invalid={!!errors.serviceUuid}
-                invalidText={errors.serviceUuid}
-                onChange={({ selectedItem }) => setServiceUuid(selectedItem)}
-                selectedItem={serviceUuid}
-                disabled={!departmentUuid || isLoadingServices}
+                invalid={!!errors.serviceId}
+                invalidText={errors.serviceId}
+                onChange={({ selectedItem }) => {
+                  setServiceId(selectedItem);
+                }}
+                selectedItem={serviceId}
+                disabled={!serviceCategoryId || isLoadingBillableServices || billableServices.length === 0}
                 size="md"
               />
-              {isLoadingServices && <InlineLoading className={styles.inlineLoading} />}
+              {isLoadingBillableServices && <InlineLoading className={styles.inlineLoading} />}
+              {!isLoadingBillableServices && billableServices.length === 0 && (
+                <div className={styles.emptyStateMessage}></div>
+              )}
             </div>
           </div>
-          
+
           <div className={styles.formControls}>
             <div className={styles.controlsGroup}>
               <div className={styles.formField}>
@@ -296,7 +406,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
                   className={styles.numberInput}
                 />
               </div>
-              
+
               {departmentUuid === '11' && (
                 <div className={styles.formField}>
                   <label className={styles.fieldLabel}>{t('frequency', 'Frequency')}</label>
@@ -310,22 +420,16 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
                 </div>
               )}
             </div>
-            
+
             <div className={styles.addButtonContainer}>
-              <Button 
-                className={styles.addButton}
-                kind="primary" 
-                onClick={addService} 
-                disabled={!serviceUuid}
-                size="md"
-              >
+              <Button className={styles.addButton} kind="primary" onClick={addService} disabled={!serviceId} size="md">
                 {t('addItem', 'Add Item')}
               </Button>
             </div>
           </div>
         </Form>
       </Tile>
-      
+
       {/* Items table */}
       {calculatorItems.length > 0 && (
         <div className={styles.tableContainerCompact}>
@@ -339,15 +443,17 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
                 <th className={styles.actionColumn}></th>
               </tr>
             </thead>
-            
+
             <tbody>
               {calculatorItems.map((item, index) => (
-                <tr key={`${item.uuid}-${index}`}>
+                <tr key={`${item.serviceId}-${index}`}>
                   <td className={styles.itemCell}>
                     <div className={styles.itemName}>{item.name}</div>
-                    <div className={styles.itemDept}>{item.departmentName}</div>
+                    <div className={styles.itemDept}>
+                      {item.departmentName} - {item.serviceCategoryName}
+                    </div>
                   </td>
-                  
+
                   <td className={styles.qtyCell}>
                     <input
                       type="number"
@@ -358,17 +464,15 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
                       className={styles.qtyInputPlain}
                     />
                   </td>
-                  
-                <td className={styles.dosageCell}>
-                    {item.isDrug ? item.drugFrequency : (
-                      <span className={styles.notApplicable}>-</span>
-                    )}
+
+                  <td className={styles.dosageCell}>
+                    {item.isDrug ? item.drugFrequency : <span className={styles.notApplicable}>-</span>}
                   </td>
-                  
+
                   <td className={styles.priceCell}>
-                    {(item.totalPrice || (item.price * item.quantity)).toLocaleString()} {defaultCurrency}
+                    {(item.totalPrice || item.price * item.quantity).toLocaleString()} {defaultCurrency}
                   </td>
-                  
+
                   <td className={styles.actionCell}>
                     <Button
                       kind="ghost"
@@ -383,14 +487,16 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
                 </tr>
               ))}
             </tbody>
-            
+
             <tfoot>
               <tr className={styles.totalRow}>
                 <td colSpan={3} className={styles.totalLabelCell}>
                   <span className={styles.totalLabel}>{t('total', 'Total')}:</span>
                 </td>
                 <td colSpan={2} className={styles.totalAmountCell}>
-                  <span className={styles.totalAmount}>{total.toLocaleString()} {defaultCurrency}</span>
+                  <span className={styles.totalAmount}>
+                    {total.toLocaleString()} {defaultCurrency}
+                  </span>
                 </td>
               </tr>
             </tfoot>

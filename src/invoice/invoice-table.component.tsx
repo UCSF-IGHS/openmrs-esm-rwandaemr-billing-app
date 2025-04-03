@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
 import {
-  Button,
   DataTable,
   DataTableSkeleton,
   Layer,
@@ -16,7 +15,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableSelectRow,
   TableToolbarSearch,
   Tile,
   InlineNotification,
@@ -25,15 +23,14 @@ import {
   Modal,
   type DataTableRow,
 } from '@carbon/react';
-import { AddIcon, isDesktop, useConfig, useDebounce, useLayoutType, usePatient, usePagination } from '@openmrs/esm-framework';
+import { isDesktop, useConfig, useDebounce, useLayoutType, usePatient, usePagination, showToast } from '@openmrs/esm-framework';
 import { CardHeader, EmptyState, usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import styles from './invoice-table.scss';
 import { usePatientBill, useInsuranceCardBill } from './invoice.resource';
 import GlobalBillHeader from '.././bill-list/global-bill-list.component';
 import EmbeddedConsommationsList from '../consommation/embedded-consommations-list.component';
 import ServiceCalculator from './service-calculator.component';
-import { createBillItems } from '../api/billing';
-
+import { createBillItems, createDirectConsommation } from '../api/billing';
 
 interface InvoiceTableProps {
   patientUuid?: string;
@@ -80,8 +77,9 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   // State for calculator modal
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentGlobalBillId, setCurrentGlobalBillId] = useState<string | null>(null);
   
-  // State for calculator items - using direct state instead of ref
+  // State for calculator items
   const [calculatorItems, setCalculatorItems] = useState([]);
   
   // Pagination setup
@@ -170,14 +168,28 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     setExpandedRowId(expandedRowId === row.id ? null : row.id);
   };
 
-  const createNewInvoice = useCallback(() => {
+  const createNewInvoice = useCallback((globalBillId: string) => {
+    const currentBill = lineItems.find(item => item.globalBillId?.toString() === globalBillId.toString());
+    const isGlobalBillClosed = currentBill?.paymentStatus === 'PAID';
+    
+    if (isGlobalBillClosed) {
+      showToast({
+        title: t('closedBill', 'Closed Bill'),
+        description: t('cannotAddToClosedBill', 'Cannot add items to a closed bill'),
+        kind: 'error',
+      });
+      return;
+    }
+    
+    setCurrentGlobalBillId(globalBillId.toString());
     setIsCalculatorOpen(true);
     setCalculatorItems([]);
-  }, []);
+  }, [lineItems, t]);
   
   const handleCalculatorClose = useCallback(() => {
     setIsCalculatorOpen(false);
     setIsSaving(false);
+    setCurrentGlobalBillId(null);
   }, []);
   
   const handleCalculatorSave = useCallback(async () => {
@@ -202,69 +214,80 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         }
         
         itemsByDepartment[item.departmentId].items.push({
-          facilityServicePriceId: item.facilityServicePriceId,
+          serviceId: item.serviceId,
           quantity: item.quantity,
           price: item.price,
           drugFrequency: item.drugFrequency || ""
         });
       });
       
-      const globalBillId = lineItems && lineItems.length > 0 ? lineItems[0].globalBillId : null;
+      const globalBillId = currentGlobalBillId;
       
       if (!globalBillId) {
         throw new Error("No global bill ID found. Please create a global bill first.");
       }
+
+      const globalBillIdNumber = parseInt(globalBillId, 10);
+      
+      if (isNaN(globalBillIdNumber)) {
+        throw new Error("Invalid global bill ID format. Expected a number.");
+      }
       
       let successCount = 0;
       let totalItemsCreated = 0;
-      const departmentCount = Object.keys(itemsByDepartment).length;
-      const departmentResults: any[] = [];
       
       for (const deptId in itemsByDepartment) {
         const dept = itemsByDepartment[deptId];
+        const deptIdNumber = parseInt(deptId, 10);
         
         try {
+          try {
+            const result = await createDirectConsommation(
+              globalBillIdNumber, 
+              deptIdNumber, 
+              dept.items
+            );
+            
+            if (result.success) {
+              totalItemsCreated += result.count;
+              successCount++;
+              continue;
+            }
+          } catch (directError) {
+            console.error(`Direct consommation creation failed:`, directError);
+          }
+          
           const result = await createBillItems(
-            globalBillId, 
-            parseInt(deptId), 
+            globalBillIdNumber, 
+            deptIdNumber, 
             dept.items
           );
           
-          totalItemsCreated += result.count;
-          departmentResults.push({
-            departmentId: deptId,
-            departmentName: dept.departmentName,
-            itemsCreated: result.count,
-            totalItems: dept.items.length
-          });
-          
-          successCount++;
+          if (result.success) {
+            totalItemsCreated += result.count;
+            successCount++;
+          }
         } catch (error) {
-          console.error(`Failed to create bill items for department ${dept.departmentName}:`, error);
-          departmentResults.push({
-            departmentId: deptId,
-            departmentName: dept.departmentName,
-            error: error.message || "Unknown error",
-            totalItems: dept.items.length
-          });
+          console.error(`Failed to create billing items for department ${dept.departmentName}:`, error);
         }
       }
       
       if (successCount === 0) {
-        const errorDetails = departmentResults
-          .filter(result => result.error)
-          .map(result => `Department ${result.departmentName}: ${result.error}`)
-          .join('; ');
-        
-        throw new Error(`Failed to create any bill items. ${errorDetails}`);
+        throw new Error(`Failed to create any billing items. Please check the console for details.`);
       } else {
-        const successSummary = departmentResults
-          .filter(result => result.itemsCreated)
-          .map(result => `${result.departmentName}: ${result.itemsCreated}/${result.totalItems} items`)
-          .join(', '); 
+        const successMessage = totalItemsCreated === 1 
+          ? `Added 1 item to the bill.` 
+          : `Added ${totalItemsCreated} items to the bill.`;
+        
+        showToast({
+          title: t('itemsAdded', 'Items Added'),
+          description: successMessage,
+          kind: 'success',
+        });
       }
       mutate();
       setIsCalculatorOpen(false);
+      setCurrentGlobalBillId(null);
     } catch (error) {
       console.error('Error saving bill items:', error);
       setErrorMessage(typeof error === 'string' ? error : error.message || 'Failed to save bill items');
@@ -272,22 +295,28 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     } finally {
       setIsSaving(false);
     }
-  }, [calculatorItems, lineItems, mutate, setErrorMessage, setShowError]);
+  }, [calculatorItems, currentGlobalBillId, mutate, setErrorMessage, setShowError, t]);
   
   const handleCalculatorUpdate = useCallback((items) => {
     setCalculatorItems(items);
   }, []);
 
   const renderConsommationsTable = (globalBillId) => {
+    // Find the corresponding lineItem to check its status
+    const currentBill = lineItems.find(item => item.globalBillId?.toString() === globalBillId?.toString());
+    const isGlobalBillClosed = currentBill?.paymentStatus === 'PAID';
+    
     return (
       <div className={styles.expandedContent}>
         <EmbeddedConsommationsList 
-          globalBillId={globalBillId} 
+          globalBillId={globalBillId.toString()} 
           patientUuid={patientUuid} 
           insuranceCardNo={insuranceCardNo} 
           onConsommationClick={() => {
             // Function intentionally left empty
           }}
+          onAddNewInvoice={createNewInvoice}
+          isGlobalBillClosed={isGlobalBillClosed}
         />
       </div>
     );
@@ -335,7 +364,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       <EmptyState
         displayText={t('invoicesInLowerCase', 'invoices')}
         headerTitle={t('globalBillList', 'Global Bill List')}
-        launchForm={createNewInvoice}
+        launchForm={() => {}}
       />
     );
   }
@@ -352,14 +381,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     <div className={styles.widgetCard}>
       <CardHeader title={t('globalBillList', 'Global Bill List')}>
         <span>{isValidating ? <InlineLoading /> : null}</span>
-        <Button
-          kind="ghost"
-          renderIcon={(props) => <AddIcon size={16} {...props} />}
-          iconDescription={t('addInvoice', 'Add invoice')}
-          onClick={createNewInvoice}
-        >
-          {t('add', 'Add Item')}
-        </Button>
       </CardHeader>
 
       {(patientUuid || insuranceCardNo) && (
@@ -460,7 +481,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       </div>
 
       {/* Calculator Modal for when there are existing items */}
-      {isCalculatorOpen && lineItems.length > 0 && (
+      {isCalculatorOpen && currentGlobalBillId && (
         <Modal
           open={isCalculatorOpen}
           modalHeading={t('addNewInvoice', 'Patient Bill Calculations')}

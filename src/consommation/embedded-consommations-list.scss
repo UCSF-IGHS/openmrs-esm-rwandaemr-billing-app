@@ -231,3 +231,73 @@ $disabled-03: #8d8d8d !default;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Add these styles to your embedded-consommations-list.scss file */
+.container {
+  width: 100%;
+  padding: 0;
+}
+
+.tableHeader {
+  margin-bottom: 1rem;
+}
+
+.headerTitleContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.headerTitleInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.closedBillNotice {
+  color: #da1e28;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.table {
+  width: 100%;
+}
+
+.clickableRow {
+  cursor: pointer;
+}
+
+.emptyStateContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  gap: 1rem;
+}
+
+.noData {
+  font-size: 1rem;
+  color: #525252;
+  margin-bottom: 1rem;
+}
+
+.actionsContainer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.paymentActions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.selectedSummary {
+  font-weight: 500;
+}
