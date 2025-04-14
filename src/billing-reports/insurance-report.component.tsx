@@ -1,44 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReportFilterForm from './report-filter-form.component';
-import { Table, TableHead, TableHeader, TableBody, TableRow, TableCell, Button } from '@carbon/react';
+import { Table, TableHead, TableHeader, TableBody, TableRow, TableCell, Button, Modal } from '@carbon/react';
+import { fetchInsuranceFirms, fetchInsuranceReport } from '../api/billing';
+import dayjs from 'dayjs';
+import { exportSingleRecordToPDF, exportToExcel, formatValue } from './utils/download-utils';
+import styles from './billing-reports.scss';
 
 const InsuranceReport: React.FC = () => {
   const [results, setResults] = useState([]);
+  const [columns, setColumns] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [insuranceOptions, setInsuranceOptions] = useState([]);
+  const [selectedRecord, setSelectedRecord] = useState(null);
 
-  const handleSearch = (filters) => {
-    const dummyData = [
-      {
-        insurance: 'MMI',
-        patient: 'Pacifique Iradukunda',
-        total: 1500,
-        covered: 1000,
-        patientDue: 500,
-        status: 'Paid',
-      },
-      { insurance: 'RAMA', patient: 'Diane Mukamana', total: 2000, covered: 1800, patientDue: 200, status: 'Pending' },
-    ];
-
-    setResults(dummyData);
+  const handleView = (record) => {
+    setSelectedRecord(record);
   };
+
+  const closeModal = () => setSelectedRecord(null);
+
+  const handleSearch = async (filters) => {
+    setLoading(true);
+    try {
+      const formattedStart = dayjs(filters.startDate).format('YYYY-MM-DD');
+      const formattedEnd = dayjs(filters.endDate).format('YYYY-MM-DD');
+      const results = await fetchInsuranceReport(formattedStart, formattedEnd, filters.insurance);
+
+      if (results.length > 0) {
+        const columnNames = results[0].record.map((item) => item.column);
+        setColumns(columnNames);
+      }
+
+      setResults(results);
+    } catch (error) {
+      console.error('Error fetching report:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getValue = (record, column) => {
+    const found = record.find((item) => item.column === column);
+    return Array.isArray(found?.value) ? found.value.join('-') : (found?.value ?? '');
+  };
+
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const options = await fetchInsuranceFirms();
+        setInsuranceOptions(options);
+      } catch (e) {
+        console.error('Error loading insurance options:', e);
+      }
+    };
+
+    loadOptions();
+  }, []);
 
   return (
     <div style={{ padding: '1rem' }}>
       <h3>Insurance Report</h3>
 
-      <ReportFilterForm fields={['startDate', 'endDate', 'insurance', 'reportType']} onSearch={handleSearch} />
+      <ReportFilterForm
+        fields={['startDate', 'endDate', 'insurance']}
+        onSearch={handleSearch}
+        insuranceOptions={insuranceOptions}
+      />
 
-      {results.length > 0 && (
+      {loading && <p>Loading...</p>}
+      {!loading && results.length === 0 && <p>No results found.</p>}
+
+      {!loading && results.length > 0 && (
         <div style={{ marginTop: '2rem' }}>
+          <Button onClick={() => exportToExcel(columns, results, getValue)}>Export to Excel</Button>
           <Table>
             <TableHead>
               <TableRow>
                 <TableHeader>No</TableHeader>
-                <TableHeader>Insurance</TableHeader>
-                <TableHeader>Patient</TableHeader>
-                <TableHeader>Total (RWF)</TableHeader>
-                <TableHeader>Covered</TableHeader>
-                <TableHeader>Patient Due</TableHeader>
-                <TableHeader>Status</TableHeader>
+                {columns.map((col) => (
+                  <TableHeader key={col}>{col}</TableHeader>
+                ))}
                 <TableHeader>Action</TableHeader>
               </TableRow>
             </TableHead>
@@ -46,14 +87,11 @@ const InsuranceReport: React.FC = () => {
               {results.map((row, index) => (
                 <TableRow key={index}>
                   <TableCell>{index + 1}</TableCell>
-                  <TableCell>{row.insurance}</TableCell>
-                  <TableCell>{row.patient}</TableCell>
-                  <TableCell>{row.total}</TableCell>
-                  <TableCell>{row.covered}</TableCell>
-                  <TableCell>{row.patientDue}</TableCell>
-                  <TableCell>{row.status}</TableCell>
+                  {columns.map((col) => (
+                    <TableCell key={col}>{getValue(row.record, col)}</TableCell>
+                  ))}
                   <TableCell>
-                    <Button kind="ghost" size="sm">
+                    <Button kind="ghost" size="sm" onClick={() => handleView(row.record)}>
                       View
                     </Button>
                   </TableCell>
@@ -61,6 +99,47 @@ const InsuranceReport: React.FC = () => {
               ))}
             </TableBody>
           </Table>
+          {/* Modal outside the Table */}
+          import styles from './billing.module.scss'; // or './billing.scss' if not using modules
+          <Modal
+            open={!!selectedRecord}
+            onRequestClose={closeModal}
+            modalHeading="Record Details"
+            passiveModal
+            className="billing-detail-modal"
+          >
+            <div className={styles.billingDetailContent}>
+              {selectedRecord?.map((item, idx) => (
+                <div className={styles.detailRow} key={idx}>
+                  <span className={styles.detailLabel}>{item.column}:</span>
+                  <span className={styles.detailValue}>{formatValue(item.value)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', gap: '1rem' }}>
+              <Button kind="secondary" onClick={closeModal}>
+                Close
+              </Button>
+              <Button
+                kind="primary"
+                onClick={() => {
+                  if (!selectedRecord || selectedRecord.length === 0) {
+                    alert('No record selected.');
+                    return;
+                  }
+                  const formattedRecord = selectedRecord.map((item) => ({
+                    column: item.column,
+                    value: formatValue(item.value),
+                  }));
+
+                  exportSingleRecordToPDF(formattedRecord);
+                }}
+              >
+                Download
+              </Button>
+            </div>
+          </Modal>
         </div>
       )}
     </div>

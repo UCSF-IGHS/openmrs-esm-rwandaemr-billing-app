@@ -257,3 +257,29 @@
   margin-top: layout.$spacing-05;
   padding: layout.$spacing-05;
 }
+
+.billingDetailContent {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  padding: 1rem;
+  font-size: 14px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.5rem;
+}
+
+.detailLabel {
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 0.1rem;
+}
+
+.detailValue {
+  color: #333;
+}

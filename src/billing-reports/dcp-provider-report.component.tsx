@@ -3,23 +3,21 @@ import { useTranslation } from 'react-i18next';
 import ReportFilterForm from './report-filter-form.component';
 import { EmptyStateComingSoon } from './empty-state/empty-state-comingsoon.component';
 
-const DepositsReport: React.FC = () => {
+const DcpProviderReport: React.FC = () => {
   const { t } = useTranslation();
 
-  const headerTitle = t('depositsReport', 'Deposits Report');
+  const headerTitle = t('thirdPartyReport', 'Third Party Report');
   const handleSearch = () => {};
 
   return (
     <div style={{ padding: '1rem' }}>
       <h3>{headerTitle}</h3>
 
-      <ReportFilterForm fields={['startDate', 'endDate', 'type', 'collector']} onSearch={handleSearch} />
+      <ReportFilterForm fields={['startDate', 'endDate', 'thirdParty']} onSearch={handleSearch} />
 
-      <>
-        <EmptyStateComingSoon displayText={headerTitle} headerTitle={headerTitle} />
-      </>
+      <EmptyStateComingSoon displayText={headerTitle} headerTitle={headerTitle} />
     </div>
   );
 };
 
-export default DepositsReport;
+export default DcpProviderReport;

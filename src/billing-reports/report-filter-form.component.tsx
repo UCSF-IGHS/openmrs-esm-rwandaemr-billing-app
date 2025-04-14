@@ -16,9 +16,10 @@ type ReportFilterField =
 interface ReportFilterFormProps {
   fields: ReportFilterField[];
   onSearch: (formData: Record<string, any>) => void;
+  insuranceOptions?: { label: string; value: number }[];
 }
 
-const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch }) => {
+const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, insuranceOptions }) => {
   const [formData, setFormData] = React.useState({});
 
   const handleChange = (field: string, value: any) => {
@@ -48,9 +49,9 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch })
           <Dropdown
             id="insurance"
             label="Insurance"
-            items={['Mutuelle', 'MMI', 'RAMA', 'PRIVATE', 'None']}
-            itemToString={(item) => item}
-            onChange={({ selectedItem }) => handleChange('insurance', selectedItem)}
+            items={insuranceOptions || []}
+            itemToString={(item) => item?.label || ''}
+            onChange={({ selectedItem }) => handleChange('insurance', selectedItem?.value)}
           />
         );
 

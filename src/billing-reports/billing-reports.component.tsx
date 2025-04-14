@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import styles from './billing.scss';
+import styles from './billing-reports.scss';
 import PaymentsDeskIcon from '../images/payments-desk-icon.svg';
 import { DatePicker, DatePickerInput, Dropdown } from '@carbon/react';
 import { useSession } from '@openmrs/esm-framework';
@@ -11,6 +11,7 @@ import ServiceRevenueReport from './service-revenue-report.component';
 import RefundReport from './refund-report.component';
 import InsuranceReport from './insurance-report.component';
 import ThirdPartyReport from './third-party-report.component';
+import DcpProviderReport from './third-party-report.component';
 
 const reportTypes = [
   'Find Bills',
@@ -96,6 +97,7 @@ const BillingReportsHome: React.FC = () => {
           {activeReport === 'Refund Report' && <RefundReport />}
           {activeReport === 'Insurance Report' && <InsuranceReport />}
           {activeReport === 'Third Party Report' && <ThirdPartyReport />}
+          {activeReport === 'DCP Provider Report' && <DcpProviderReport />}
         </div>
       </div>
     </div>
