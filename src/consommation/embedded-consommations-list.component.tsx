@@ -80,11 +80,11 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     { key: 'createdDate', header: t('date', 'Date') },
     { key: 'consommationId', header: t('id', 'ID') },
     { key: 'service', header: t('service', 'Service') },
-    { key: 'createdBy', header: t('by', 'By') },
+    // Removed "createdBy" column
     { key: 'insuranceCardNo', header: t('cardNo', 'Card #') },
-    { key: 'insuranceDue', header: t('insDue', 'Ins Due') },
-    { key: 'thirdPartyDue', header: t('tpDue', 'TP Due') },
-    { key: 'patientDue', header: t('patDue', 'Pat Due') },
+    { key: 'insuranceDue', header: t('insurance', 'Insurance') },
+    { key: 'thirdPartyDue', header: t('total', 'Total') },
+    { key: 'patientDue', header: t('patient', 'Patient') },
     { key: 'paidAmount', header: t('paid', 'Paid') },
     { key: 'status', header: t('status', 'Status') },
   ];
@@ -97,7 +97,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       createdDate: item.createdDate ? new Date(item.createdDate).toLocaleDateString() : '-',
       consommationId: item.consommationId?.toString() || '-',
       service: item?.department?.name || '-',
-      createdBy: item?.insuranceBill?.creator?.person?.display || '-',
+      // Removed "createdBy" field
       insuranceCardNo: item.patientBill?.policyIdNumber || insuranceCardNo || '-',
       insuranceDue: Number(item.insuranceBill?.amount ?? 0).toFixed(2),
       thirdPartyDue: Number(item.thirdPartyBill?.amount ?? 0).toFixed(2),
