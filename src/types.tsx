@@ -134,7 +134,6 @@ export interface RowData {
   createdDate: string;
   consommationId: string;
   service: string;
-  createdBy: string;
   insuranceCardNo: string;
   insuranceDue: string;
   thirdPartyDue: string;
