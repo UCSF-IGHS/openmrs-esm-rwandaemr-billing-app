@@ -6,12 +6,12 @@ import { EmptyState } from '@openmrs/esm-patient-common-lib';
 const DcpProviderReport: React.FC = () => {
   const { t } = useTranslation();
 
-  const headerTitle = t('thirdPartyReport', 'Third Party Report');
+  const headerTitle = t('dcpProviderReport', 'DCP Provider Report');
   const handleSearch = () => {};
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h3>{headerTitle}</h3>
+    <div>
+      {headerTitle}
 
       <ReportFilterForm fields={['startDate', 'endDate', 'thirdParty']} onSearch={handleSearch} />
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { DatePicker, DatePickerInput, Dropdown, TextInput, Button } from '@carbon/react';
+import { useTranslation } from 'react-i18next';
 
 type ReportFilterField =
   | 'startDate'
@@ -20,6 +21,7 @@ interface ReportFilterFormProps {
 }
 
 const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, insuranceOptions }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = React.useState({});
 
   const handleChange = (field: string, value: any) => {
@@ -38,8 +40,9 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
           <DatePicker datePickerType="single" onChange={(date) => handleChange(field, date[0])}>
             <DatePickerInput
               id={field}
-              labelText={field === 'startDate' ? 'Start Date' : 'End Date'}
-              placeholder="DD-MMM-YYYY"
+              labelText={t(field, field === 'startDate' ? 'Start Date' : 'End Date')}
+              placeholder={t('datePlaceholder', 'DD-MMM-YYYY')}
+              aria-label={t(field, field === 'startDate' ? 'Start Date' : 'End Date')}
             />
           </DatePicker>
         );
@@ -48,7 +51,8 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
         return (
           <Dropdown
             id="insurance"
-            label="Insurance"
+            titleText={t('insurance', 'Insurance')}
+            label={t('select', 'Select')}
             items={insuranceOptions || []}
             itemToString={(item) => item?.label || ''}
             onChange={({ selectedItem }) => handleChange('insurance', selectedItem?.value)}
@@ -59,7 +63,8 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
         return (
           <Dropdown
             id="service"
-            label="Service"
+            titleText={t('service', 'Service')}
+            label={t('select', 'Select')}
             items={['Consultation', 'Pharmacy', 'Lab', 'Radiology', 'Surgery']}
             itemToString={(item) => item}
             onChange={({ selectedItem }) => handleChange('service', selectedItem)}
@@ -70,7 +75,8 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
         return (
           <Dropdown
             id="third-party"
-            label="Third Party"
+            titleText={t('thirdParty', 'Third Party')}
+            label={t('select', 'Select')}
             items={['Prison', 'RNUD', 'GBV', 'Others']}
             itemToString={(item) => item}
             onChange={({ selectedItem }) => handleChange('thirdParty', selectedItem)}
@@ -81,7 +87,8 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
         return (
           <Dropdown
             id="report-type"
-            label="Report Type"
+            titleText={t('reportType', 'Report Type')}
+            label={t('select', 'Select')}
             items={['Ordinary Report', 'DCP Report', 'All']}
             itemToString={(item) => item}
             onChange={({ selectedItem }) => handleChange('reportType', selectedItem)}
@@ -92,7 +99,8 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
         return (
           <Dropdown
             id="bill-status"
-            label="Bill Status"
+            titleText={t('billStatus', 'Bill Status')}
+            label={t('select', 'Select')}
             items={['Paid', 'Fully Paid', 'UnPaid', 'Partly Paid']}
             itemToString={(item) => item}
             onChange={({ selectedItem }) => handleChange('billStatus', selectedItem)}
@@ -103,7 +111,8 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
         return (
           <Dropdown
             id="deposit-type"
-            label="Deposit Report Type"
+            titleText={t('type', 'Deposit Report Type')}
+            label={t('select', 'Select')}
             items={['Deposit', 'Payment', 'Withdrawal']}
             itemToString={(item) => item}
             onChange={({ selectedItem }) => handleChange('type', selectedItem)}
@@ -114,8 +123,9 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
         return (
           <TextInput
             id="bill-creator"
-            labelText="Bill Creator"
-            placeholder="Enter user name"
+            labelText={t('billCreator', 'Bill Creator')}
+            placeholder={t('enterUserName', 'Enter user name')}
+            aria-label={t('billCreator', 'Bill Creator')}
             onChange={(e) => handleChange('billCreator', e.target.value)}
           />
         );
@@ -124,8 +134,9 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
         return (
           <TextInput
             id="collector"
-            labelText="Collector"
-            placeholder="Enter user name"
+            labelText={t('collector', 'Collector')}
+            placeholder={t('enterUserName', 'Enter user name')}
+            aria-label={t('collector', 'Collector')}
             onChange={(e) => handleChange('collector', e.target.value)}
           />
         );
@@ -152,7 +163,7 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
 
       <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-start' }}>
         <Button kind="primary" onClick={handleSearch}>
-          Search
+          {t('search', 'Search')}
         </Button>
       </div>
     </div>

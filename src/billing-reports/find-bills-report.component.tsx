@@ -10,8 +10,8 @@ const FindBillsReport: React.FC = () => {
   const handleSearch = () => {};
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h3>{headerTitle}</h3>
+    <div>
+      {headerTitle}
 
       <ReportFilterForm
         fields={[

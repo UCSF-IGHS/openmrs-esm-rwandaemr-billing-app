@@ -10,9 +10,8 @@ const ServiceRevenueReport: React.FC = () => {
   const handleSearch = () => {};
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h3>{headerTitle}</h3>
-
+    <div>
+      {headerTitle}
       <ReportFilterForm fields={['startDate', 'endDate']} onSearch={handleSearch} />
 
       <EmptyState displayText={headerTitle} headerTitle={headerTitle} />

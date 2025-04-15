@@ -10,14 +10,11 @@ const CashierReport: React.FC = () => {
   const handleSearch = () => {};
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h3>Cashier Report</h3>
-
+    <div>
+      {headerTitle}
       <ReportFilterForm fields={['startDate', 'endDate', 'reportType', 'collector']} onSearch={handleSearch} />
 
-      <>
-        <EmptyState displayText={headerTitle} headerTitle={headerTitle} />
-      </>
+      <EmptyState displayText={headerTitle} headerTitle={headerTitle} />
     </div>
   );
 };

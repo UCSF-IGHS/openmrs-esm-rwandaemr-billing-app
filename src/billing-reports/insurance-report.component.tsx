@@ -5,26 +5,48 @@ import { fetchInsuranceFirms, fetchInsuranceReport } from '../api/billing';
 import dayjs from 'dayjs';
 import { exportSingleRecordToPDF, exportToExcel, formatValue } from './utils/download-utils';
 import styles from './billing-reports.scss';
+import { useTranslation } from 'react-i18next';
+
+interface ReportRecord {
+  column: string;
+  value: string | string[];
+}
+
+interface ReportRow {
+  record: ReportRecord[];
+}
+
+interface Filters {
+  startDate: string;
+  endDate: string;
+  insurance: string;
+}
 
 const InsuranceReport: React.FC = () => {
-  const [results, setResults] = useState([]);
+  const { t } = useTranslation();
+
+  const [results, setResults] = useState<ReportRow[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [insuranceOptions, setInsuranceOptions] = useState([]);
-  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [selectedRecord, setSelectedRecord] = useState<ReportRecord[] | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(50);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [currentFilters, setCurrentFilters] = useState(null);
+  const [currentFilters, setCurrentFilters] = useState<Filters | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleView = (record) => {
-    setSelectedRecord(record);
-  };
-
+  const handleView = (record: ReportRecord[]) => setSelectedRecord(record);
   const closeModal = () => setSelectedRecord(null);
 
-  const handleSearch = async (filters, pageNum = 1) => {
+  const getValue = (record: ReportRecord[], column: string): string => {
+    const found = record.find((item) => item.column === column);
+    return Array.isArray(found?.value) ? found.value.join(' - ') : (found?.value ?? '');
+  };
+
+  const handleSearch = async (filters: Filters, pageNum = 1) => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const formattedStart = dayjs(filters.startDate).format('YYYY-MM-DD');
       const formattedEnd = dayjs(filters.endDate).format('YYYY-MM-DD');
@@ -48,14 +70,10 @@ const InsuranceReport: React.FC = () => {
       setCurrentFilters(filters);
     } catch (error) {
       console.error('Error fetching report:', error);
+      setErrorMessage(t('errorFetchingReport', 'Failed to load report data.'));
     } finally {
       setLoading(false);
     }
-  };
-
-  const getValue = (record, column) => {
-    const found = record.find((item) => item.column === column);
-    return Array.isArray(found?.value) ? found.value.join('-') : (found?.value ?? '');
   };
 
   useEffect(() => {
@@ -65,87 +83,95 @@ const InsuranceReport: React.FC = () => {
         setInsuranceOptions(options);
       } catch (e) {
         console.error('Error loading insurance options:', e);
+        setErrorMessage(t('errorFetchingInsuranceOptions', 'Failed to load insurance options.'));
       }
     };
-
     loadOptions();
-  }, []);
+  }, [t]);
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h3>Insurance Report</h3>
+    <div className={styles.container}>
+      {t('insuranceReport', 'Insurance Report')}
+      <div className={styles.reportContent}>
+        <div className={styles.filterSection}>
+          <ReportFilterForm
+            fields={['startDate', 'endDate', 'insurance']}
+            onSearch={handleSearch}
+            insuranceOptions={insuranceOptions}
+          />
+        </div>
+      </div>
 
-      <ReportFilterForm
-        fields={['startDate', 'endDate', 'insurance']}
-        onSearch={handleSearch}
-        insuranceOptions={insuranceOptions}
-      />
-
-      {loading && <p>Loading...</p>}
-      {!loading && results.length === 0 && <p>No results found.</p>}
+      {loading && <p>{t('loading', 'Loading...')}</p>}
+      {errorMessage && <p className={styles.error}>{errorMessage}</p>}
+      {!loading && !errorMessage && results.length === 0 && <p>{t('noResults', 'No results found.')}</p>}
 
       {!loading && results.length > 0 && (
-        <div style={{ marginTop: '2rem' }}>
-          <Button onClick={() => exportToExcel(columns, results, getValue)}>Export to Excel</Button>
+        <div className={styles.reportTableContainer}>
+          <Button onClick={() => exportToExcel(columns, results, getValue)}>
+            {t('exportExcel', 'Export to Excel')}
+          </Button>
+
           <Table>
             <TableHead>
               <TableRow>
-                <TableHeader>No</TableHeader>
+                <TableHeader>{t('no', 'No')}</TableHeader>
                 {columns.map((col) => (
                   <TableHeader key={col}>{col}</TableHeader>
                 ))}
-                <TableHeader>Action</TableHeader>
+                <TableHeader>{t('action', 'Action')}</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {results.map((row, index) => (
                 <TableRow key={index}>
-                  <TableCell>{(page - 1) * pageSize + index + 1}</TableCell> {/* 👈 Numbering logic */}
+                  <TableCell>{(page - 1) * pageSize + index + 1}</TableCell>
                   {columns.map((col) => (
                     <TableCell key={col}>{getValue(row.record, col)}</TableCell>
                   ))}
                   <TableCell>
                     <Button kind="ghost" size="sm" onClick={() => handleView(row.record)}>
-                      View
+                      {t('view', 'View')}
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+
           {totalRecords > pageSize && (
-            <div className="pagination-container">
+            <div className={styles.paginationContainer}>
               <Button
                 kind="ghost"
                 disabled={page === 1}
                 size="sm"
-                onClick={() => handleSearch(currentFilters, page - 1)}
+                onClick={() => handleSearch(currentFilters!, page - 1)}
               >
-                ‹ Prev
+                ‹ {t('prev', 'Prev')}
               </Button>
 
               <span>
-                Page <strong>{page}</strong> of <strong>{Math.ceil(totalRecords / pageSize)}</strong>
+                {t('page', 'Page')} <strong>{page}</strong> {t('of', 'of')}{' '}
+                <strong>{Math.ceil(totalRecords / pageSize)}</strong>
               </span>
 
               <Button
                 kind="ghost"
                 disabled={page >= Math.ceil(totalRecords / pageSize)}
                 size="sm"
-                onClick={() => handleSearch(currentFilters, page + 1)}
+                onClick={() => handleSearch(currentFilters!, page + 1)}
               >
-                Next ›
+                {t('next', 'Next')} ›
               </Button>
             </div>
           )}
 
-          {/* Modal outside the Table */}
           <Modal
             open={!!selectedRecord}
             onRequestClose={closeModal}
-            modalHeading="Record Details"
+            modalHeading={t('recordDetails', 'Record Details')}
             passiveModal
-            className="billing-detail-modal"
+            className={styles.billingDetailModal}
           >
             <div className={styles.billingDetailContent}>
               {selectedRecord?.map((item, idx) => (
@@ -156,17 +182,18 @@ const InsuranceReport: React.FC = () => {
               ))}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', gap: '1rem' }}>
+            <div className={styles.modalFooter}>
               <Button kind="secondary" onClick={closeModal}>
-                Close
+                {t('close', 'Close')}
               </Button>
               <Button
                 kind="primary"
                 onClick={() => {
                   if (!selectedRecord || selectedRecord.length === 0) {
-                    alert('No record selected.');
+                    alert(t('noRecordSelected', 'No record selected.'));
                     return;
                   }
+
                   const formattedRecord = selectedRecord.map((item) => ({
                     column: item.column,
                     value: formatValue(item.value),
@@ -175,7 +202,7 @@ const InsuranceReport: React.FC = () => {
                   exportSingleRecordToPDF(formattedRecord);
                 }}
               >
-                Download
+                {t('download', 'Download')}
               </Button>
             </div>
           </Modal>

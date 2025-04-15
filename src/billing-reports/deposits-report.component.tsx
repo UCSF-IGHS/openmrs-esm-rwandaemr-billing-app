@@ -10,14 +10,12 @@ const DepositsReport: React.FC = () => {
   const handleSearch = () => {};
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h3>{headerTitle}</h3>
+    <div>
+      {headerTitle}
 
       <ReportFilterForm fields={['startDate', 'endDate', 'type', 'collector']} onSearch={handleSearch} />
 
-      <>
-        <EmptyState displayText={headerTitle} headerTitle={headerTitle} />
-      </>
+      <EmptyState displayText={headerTitle} headerTitle={headerTitle} />
     </div>
   );
 };
