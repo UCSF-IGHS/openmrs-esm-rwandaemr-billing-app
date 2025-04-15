@@ -12,6 +12,10 @@ const InsuranceReport: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [insuranceOptions, setInsuranceOptions] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [currentFilters, setCurrentFilters] = useState(null);
 
   const handleView = (record) => {
     setSelectedRecord(record);
@@ -19,12 +23,19 @@ const InsuranceReport: React.FC = () => {
 
   const closeModal = () => setSelectedRecord(null);
 
-  const handleSearch = async (filters) => {
+  const handleSearch = async (filters, pageNum = 1) => {
     setLoading(true);
     try {
       const formattedStart = dayjs(filters.startDate).format('YYYY-MM-DD');
       const formattedEnd = dayjs(filters.endDate).format('YYYY-MM-DD');
-      const results = await fetchInsuranceReport(formattedStart, formattedEnd, filters.insurance);
+
+      const { results, total } = await fetchInsuranceReport(
+        formattedStart,
+        formattedEnd,
+        filters.insurance,
+        pageNum,
+        pageSize,
+      );
 
       if (results.length > 0) {
         const columnNames = results[0].record.map((item) => item.column);
@@ -32,6 +43,9 @@ const InsuranceReport: React.FC = () => {
       }
 
       setResults(results);
+      setTotalRecords(total);
+      setPage(pageNum);
+      setCurrentFilters(filters);
     } catch (error) {
       console.error('Error fetching report:', error);
     } finally {
@@ -86,7 +100,7 @@ const InsuranceReport: React.FC = () => {
             <TableBody>
               {results.map((row, index) => (
                 <TableRow key={index}>
-                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>{(page - 1) * pageSize + index + 1}</TableCell> {/* 👈 Numbering logic */}
                   {columns.map((col) => (
                     <TableCell key={col}>{getValue(row.record, col)}</TableCell>
                   ))}
@@ -99,8 +113,33 @@ const InsuranceReport: React.FC = () => {
               ))}
             </TableBody>
           </Table>
+          {totalRecords > pageSize && (
+            <div className="pagination-container">
+              <Button
+                kind="ghost"
+                disabled={page === 1}
+                size="sm"
+                onClick={() => handleSearch(currentFilters, page - 1)}
+              >
+                ‹ Prev
+              </Button>
+
+              <span>
+                Page <strong>{page}</strong> of <strong>{Math.ceil(totalRecords / pageSize)}</strong>
+              </span>
+
+              <Button
+                kind="ghost"
+                disabled={page >= Math.ceil(totalRecords / pageSize)}
+                size="sm"
+                onClick={() => handleSearch(currentFilters, page + 1)}
+              >
+                Next ›
+              </Button>
+            </div>
+          )}
+
           {/* Modal outside the Table */}
-          import styles from './billing.module.scss'; // or './billing.scss' if not using modules
           <Modal
             open={!!selectedRecord}
             onRequestClose={closeModal}

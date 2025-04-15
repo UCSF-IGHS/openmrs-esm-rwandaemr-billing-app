@@ -673,7 +673,13 @@ export async function fetchInsuranceFirms() {
   });
 }
 
-export async function fetchInsuranceReport(startDate: string, endDate: string, insuranceId: string) {
+export async function fetchInsuranceReport(
+  startDate: string,
+  endDate: string,
+  insuranceId: string,
+  page_number = 1,
+  page_size = 50,
+) {
   const formattedStart = dayjs(startDate).format('YYYY-MM-DD');
   const formattedEnd = dayjs(endDate).format('YYYY-MM-DD');
 
@@ -682,8 +688,14 @@ export async function fetchInsuranceReport(startDate: string, endDate: string, i
     insurance_identifier: insuranceId,
     start_date: formattedStart,
     end_date: formattedEnd,
+    page_number: String(page_number),
+    page_size: String(page_size),
   });
 
   const { data } = await openmrsFetch(`${BASE_MAMBA_API}?${params.toString()}`);
-  return data.results || [];
+
+  return {
+    results: data.results || [],
+    total: data.pagination?.totalRecords || 0,
+  };
 }
