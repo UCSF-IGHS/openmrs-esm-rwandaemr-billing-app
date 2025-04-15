@@ -31,7 +31,7 @@ export const billingDashboardLink = getSyncLifecycle(
 );
 
 export const billingReportsDashboardLink = getSyncLifecycle(
-  createLeftPanelLink({ name: 'billing-reports', title: 'Billing Reports' }),
+  createLeftPanelLink({ name: 'billing/reports', title: 'Billing Reports' }),
   options,
 );
 

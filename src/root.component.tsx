@@ -5,10 +5,10 @@ import InvoiceTable from './invoice/invoice-table.component';
 import PatientBills from './billing-admin/patientbills.component';
 import ConsommationView from './consommation/consommation-view.component';
 import ConsommationsList from './consommation/consommations-list.component';
-import BillingReportsHome from './billing-reports/billing-reports.component'; // ✅ New
+import BillingReportsHome from './billing-reports/billing-reports.component';
 
 const RootComponent: React.FC = () => {
-  const baseName = window.getOpenmrsSpaBase() + 'home'; // ✅ Updated
+  const baseName = window.getOpenmrsSpaBase() + 'home';
 
   return (
     <BrowserRouter basename={baseName}>
@@ -18,7 +18,7 @@ const RootComponent: React.FC = () => {
         <Route path="billing/patient-bills" element={<PatientBills />} />
         <Route path="billing/consommations/:globalBillId" element={<ConsommationsList />} />
         <Route path="billing/consommation/:consommationId" element={<ConsommationView />} />
-        <Route path="billing-reports" element={<BillingReportsHome />} /> {/* ✅ New route */}
+        <Route path="billing/reports" element={<BillingReportsHome />} />
       </Routes>
     </BrowserRouter>
   );

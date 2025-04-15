@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import ReportFilterForm from './report-filter-form.component';
-import { EmptyStateComingSoon } from './empty-state/empty-state-comingsoon.component';
+import { EmptyState } from '@openmrs/esm-patient-common-lib';
 
 const FindBillsReport: React.FC = () => {
   const { t } = useTranslation();
@@ -27,7 +27,7 @@ const FindBillsReport: React.FC = () => {
         onSearch={handleSearch}
       />
 
-      <EmptyStateComingSoon displayText={headerTitle} headerTitle={headerTitle} />
+      <EmptyState displayText={headerTitle} headerTitle={headerTitle} />
     </div>
   );
 };

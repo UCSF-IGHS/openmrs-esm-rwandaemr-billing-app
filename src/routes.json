@@ -11,7 +11,7 @@
    },
    {
     "component": "billingReportsDashboard",
-    "route": "billing-reports"
+    "route": "billing/reports"
   }
  ],
   "extensions": [
@@ -41,7 +41,7 @@
       "name": "billing-report-home-left-panel-link",
       "slot": "homepage-dashboard-slot",
       "meta": {
-        "name": "billing-reports",
+        "name": "billing/reports",
         "title": "Billing Reports",
         "slot": "rwanda-billing-app-slot",
         "isFolder": true
