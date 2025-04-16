@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import ReportFilterForm from './report-filter-form.component';
-import { Table, TableHead, TableHeader, TableBody, TableRow, TableCell, Button, Modal } from '@carbon/react';
+import {
+  Table,
+  TableHead,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+  Button,
+  Modal,
+  Pagination,
+} from '@carbon/react';
 import { fetchInsuranceFirms, fetchInsuranceReport } from '../api/billing';
 import dayjs from 'dayjs';
 import { exportSingleRecordToPDF, exportToExcel, formatValue } from './utils/download-utils';
@@ -31,7 +41,7 @@ const InsuranceReport: React.FC = () => {
   const [insuranceOptions, setInsuranceOptions] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState<ReportRecord[] | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(50);
   const [totalRecords, setTotalRecords] = useState(0);
   const [currentFilters, setCurrentFilters] = useState<Filters | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -43,14 +53,12 @@ const InsuranceReport: React.FC = () => {
     const found = record.find((item) => item.column === column);
     return Array.isArray(found?.value) ? found.value.join(' - ') : (found?.value ?? '');
   };
-
-  const handleSearch = async (filters: Filters, pageNum = 1) => {
+  const handleSearch = async (filters: Filters, pageNum = 1, pageSize = 50) => {
     setLoading(true);
     setErrorMessage(null);
     try {
       const formattedStart = dayjs(filters.startDate).format('YYYY-MM-DD');
       const formattedEnd = dayjs(filters.endDate).format('YYYY-MM-DD');
-
       const { results, total } = await fetchInsuranceReport(
         formattedStart,
         formattedEnd,
@@ -67,6 +75,7 @@ const InsuranceReport: React.FC = () => {
       setResults(results);
       setTotalRecords(total);
       setPage(pageNum);
+      setPageSize(pageSize);
       setCurrentFilters(filters);
     } catch (error) {
       console.error('Error fetching report:', error);
@@ -74,6 +83,14 @@ const InsuranceReport: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const goToPage = (newPage: number) => {
+    handleSearch(currentFilters!, newPage, pageSize);
+  };
+
+  const getPageSizes = (totalItems: number, currentPageSize: number) => {
+    return [10, 25, 50, 100];
   };
 
   useEffect(() => {
@@ -138,33 +155,20 @@ const InsuranceReport: React.FC = () => {
               ))}
             </TableBody>
           </Table>
-
-          {totalRecords > pageSize && (
-            <div className={styles.paginationContainer}>
-              <Button
-                kind="ghost"
-                disabled={page === 1}
-                size="sm"
-                onClick={() => handleSearch(currentFilters!, page - 1)}
-              >
-                ‹ {t('prev', 'Prev')}
-              </Button>
-
-              <span>
-                {t('page', 'Page')} <strong>{page}</strong> {t('of', 'of')}{' '}
-                <strong>{Math.ceil(totalRecords / pageSize)}</strong>
-              </span>
-
-              <Button
-                kind="ghost"
-                disabled={page >= Math.ceil(totalRecords / pageSize)}
-                size="sm"
-                onClick={() => handleSearch(currentFilters!, page + 1)}
-              >
-                {t('next', 'Next')} ›
-              </Button>
-            </div>
-          )}
+          <Pagination
+            backwardText={t('previousPage', 'Previous page')}
+            forwardText={t('nextPage', 'Next page')}
+            itemsPerPageText={t('itemsPerPage', 'Items per page') + ':'}
+            page={page}
+            pageNumberText={t('pageNumber', 'Page number')}
+            pageSize={pageSize}
+            pageSizes={getPageSizes(totalRecords, pageSize)}
+            onChange={({ page, pageSize }) => {
+              goToPage(page);
+              setPageSize(pageSize);
+            }}
+            totalItems={totalRecords}
+          />
 
           <Modal
             open={!!selectedRecord}

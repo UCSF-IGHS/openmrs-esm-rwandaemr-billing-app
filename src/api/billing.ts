@@ -693,7 +693,6 @@ export async function fetchInsuranceReport(
   });
 
   const { data } = await openmrsFetch(`${BASE_MAMBA_API}?${params.toString()}`);
-
   return {
     results: data.results || [],
     total: data.pagination?.totalRecords || 0,
