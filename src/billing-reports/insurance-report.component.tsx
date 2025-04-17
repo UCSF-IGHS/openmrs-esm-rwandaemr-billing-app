@@ -94,6 +94,37 @@ const InsuranceReport: React.FC = () => {
     return [10, 25, 50, 100];
   };
 
+  const headerDisplayMap: Record<string, string> = {
+    no: t('no', 'No'),
+    first_closing_date_id: t('firstClosingDateId', 'First Closing Date'),
+    admission_date: t('admissionDate', 'Admission Date'),
+    closing_date: t('closingDate', 'Closing Date'),
+    beneficiary_name: t('beneficiaryName', 'Beneficiary Name'),
+    household_head_name: t('householdHeadName', 'Household Head Name'),
+    family_code: t('familyCode', 'Family Code'),
+    beneficiary_level: t('beneficiaryLevel', 'Beneficiary Level'),
+    card_number: t('cardNumber', 'Card Number'),
+    company_name: t('companyName', 'Company Name'),
+    age: t('age', 'Age'),
+    birth_date: t('birthDate', 'Birth Date'),
+    gender: t('gender', 'Gender'),
+    doctor_name: t('doctorName', 'Doctor Name'),
+    insurance_id: t('insuranceId', 'Insurance ID'),
+    global_bill_id: t('globalBillId', 'Global Bill ID'),
+    global_bill_identifier: t('globalBillIdentifier', 'Global Bill Identifier'),
+    MEDICAMENTS: t('medicaments', 'Medications'),
+    CONSULTATION: t('consultation', 'Consultation'),
+    HOSPITALISATION: t('hospitalisation', 'Hospitalization'),
+    LABORATOIRE: t('laboratory', 'Laboratory'),
+    FORMALITES_ADMINISTRATIVES: t('adminFormalities', 'Administrative Formalities'),
+    AMBULANCE: t('ambulance', 'Ambulance'),
+    CONSOMMABLES: t('consumables', 'Consumables'),
+    OXYGENOTHERAPIE: t('oxygen', 'Oxygen Therapy'),
+    IMAGING: t('imaging', 'Imaging'),
+    'PROCED.': t('procedure', 'Procedure'),
+    Action: t('action', 'Action'),
+  };
+
   useEffect(() => {
     const loadOptions = async () => {
       try {
@@ -135,8 +166,9 @@ const InsuranceReport: React.FC = () => {
               <TableRow>
                 <TableHeader>{t('no', 'No')}</TableHeader>
                 {columns.map((col) => (
-                  <TableHeader key={col}>{col}</TableHeader>
+                  <TableHeader key={col}>{headerDisplayMap[col] || col}</TableHeader>
                 ))}
+
                 <TableHeader>{t('action', 'Action')}</TableHeader>
               </TableRow>
             </TableHead>
