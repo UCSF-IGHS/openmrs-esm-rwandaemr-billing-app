@@ -51,7 +51,8 @@ const InsuranceReport: React.FC = () => {
 
   const getValue = (record: ReportRecord[], column: string): string => {
     const found = record.find((item) => item.column === column);
-    return Array.isArray(found?.value) ? found.value.join(' - ') : (found?.value ?? '');
+    const value = found?.value;
+    return formatValue(value);
   };
   const handleSearch = async (filters: Filters, pageNum = 1, pageSize = 50) => {
     setLoading(true);
