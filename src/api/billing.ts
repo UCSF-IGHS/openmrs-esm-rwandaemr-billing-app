@@ -187,7 +187,7 @@ export const getPatientBills = async (
   limit: number = 20
 ): Promise<PatientBillResponse> => {
   const response = await openmrsFetch<PatientBillResponse>(
-    `${BASE_API_URL}/patientBill?startDate=${startDate}&endDate=${endDate}&startIndex=${startIndex}&limit=${limit}&orderBy=createdDate&order=desc`
+    `${BASE_API_URL}/patientBill?limit=${limit}`
   );
   return response.data;
 };
