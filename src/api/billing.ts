@@ -673,6 +673,22 @@ export async function fetchInsuranceFirms() {
   });
 }
 
+export async function fetchAllInsuranceReportData(startDate: string, endDate: string, insuranceId: string) {
+  let page = 1;
+  const pageSize = 50;
+  let allResults: any[] = [];
+  let hasMore = true;
+
+  while (hasMore) {
+    const { results, total } = await fetchInsuranceReport(startDate, endDate, insuranceId, page, pageSize);
+    allResults = [...allResults, ...results];
+    page++;
+    hasMore = allResults.length < total;
+  }
+
+  return allResults;
+}
+
 export async function fetchInsuranceReport(
   startDate: string,
   endDate: string,

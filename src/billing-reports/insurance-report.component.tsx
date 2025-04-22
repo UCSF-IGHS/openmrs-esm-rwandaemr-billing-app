@@ -11,11 +11,13 @@ import {
   Modal,
   Pagination,
 } from '@carbon/react';
-import { fetchInsuranceFirms, fetchInsuranceReport } from '../api/billing';
+import { fetchAllInsuranceReportData, fetchInsuranceFirms, fetchInsuranceReport } from '../api/billing';
 import dayjs from 'dayjs';
 import { exportSingleRecordToPDF, exportToExcel, formatValue } from './utils/download-utils';
 import styles from './billing-reports.scss';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@carbon/react';
+import { TableContainer } from '@carbon/react';
 
 interface ReportRecord {
   column: string;
@@ -47,6 +49,7 @@ const InsuranceReport: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleView = (record: ReportRecord[]) => setSelectedRecord(record);
+
   const closeModal = () => setSelectedRecord(null);
 
   const getValue = (record: ReportRecord[], column: string): string => {
@@ -54,6 +57,7 @@ const InsuranceReport: React.FC = () => {
     const value = found?.value;
     return formatValue(value);
   };
+
   const handleSearch = async (filters: Filters, pageNum = 1, pageSize = 50) => {
     setLoading(true);
     setErrorMessage(null);
@@ -81,6 +85,22 @@ const InsuranceReport: React.FC = () => {
     } catch (error) {
       console.error('Error fetching report:', error);
       setErrorMessage(t('errorFetchingReport', 'Failed to load report data.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportClick = async () => {
+    if (!currentFilters) return;
+
+    setLoading(true);
+    try {
+      const { startDate, endDate, insurance } = currentFilters;
+      const allResults = await fetchAllInsuranceReportData(startDate, endDate, insurance);
+      exportToExcel(columns, allResults, getValue, 'insurance-report.xlsx');
+    } catch (error) {
+      console.error('Export failed:', error);
+      setErrorMessage(t('errorExportingExcel', 'Failed to export to Excel.'));
     } finally {
       setLoading(false);
     }
@@ -121,7 +141,7 @@ const InsuranceReport: React.FC = () => {
     CONSOMMABLES: t('consumables', 'Consumables'),
     OXYGENOTHERAPIE: t('oxygen', 'Oxygen Therapy'),
     IMAGING: t('imaging', 'Imaging'),
-    'PROCED.': t('procedure', 'Procedure'),
+    'PROCED.': t('procedure', 'Proced.'),
     Action: t('action', 'Action'),
   };
 
@@ -157,37 +177,67 @@ const InsuranceReport: React.FC = () => {
 
       {!loading && results.length > 0 && (
         <div className={styles.reportTableContainer}>
-          <Button onClick={() => exportToExcel(columns, results, getValue)}>
-            {t('exportExcel', 'Export to Excel')}
-          </Button>
+          <Button onClick={handleExportClick}>{t('exportExcel', 'Export to Excel')}</Button>
 
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeader>{t('no', 'No')}</TableHeader>
-                {columns.map((col) => (
-                  <TableHeader key={col}>{headerDisplayMap[col] || col}</TableHeader>
-                ))}
+          <DataTable
+            rows={results.map((row, index) => {
+              const rowData = {
+                id: `${(page - 1) * pageSize + index + 1}`,
+                ...Object.fromEntries(columns.map((col) => [col, getValue(row.record, col)])),
+                no: (page - 1) * pageSize + index + 1,
+              };
 
-                <TableHeader>{t('action', 'Action')}</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {results.map((row, index) => (
-                <TableRow key={index}>
-                  <TableCell>{(page - 1) * pageSize + index + 1}</TableCell>
-                  {columns.map((col) => (
-                    <TableCell key={col}>{getValue(row.record, col)}</TableCell>
-                  ))}
-                  <TableCell>
-                    <Button kind="ghost" size="sm" onClick={() => handleView(row.record)}>
-                      {t('view', 'View')}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              return {
+                ...rowData,
+                record: row.record,
+              };
+            })}
+            headers={[
+              { key: 'no', header: t('no', 'No') },
+              ...columns.map((col) => ({
+                key: col,
+                header: headerDisplayMap[col] || col,
+              })),
+              { key: 'actions', header: t('action', 'Action') },
+            ]}
+            size="lg"
+            useZebraStyles
+            isSortable={false}
+            overflowMenuOnHover={false}
+            className={styles.dataTable}
+          >
+            {({ rows, headers, getTableProps, getTableContainerProps, getHeaderProps, getRowProps }) => (
+              <TableContainer {...getTableContainerProps()}>
+                <Table {...getTableProps()} className={styles.table}>
+                  <TableHead>
+                    <TableRow>
+                      {headers.map((header) => (
+                        <TableHeader key={header.key} {...getHeaderProps({ header })}>
+                          {header.header}
+                        </TableHeader>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {results.map((row, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{(page - 1) * pageSize + index + 1}</TableCell>
+                        {columns.map((col) => (
+                          <TableCell key={col}>{getValue(row.record, col)}</TableCell>
+                        ))}
+                        <TableCell>
+                          <Button kind="ghost" size="sm" onClick={() => handleView(row.record)}>
+                            {t('view', 'View')}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </DataTable>
+
           <Pagination
             backwardText={t('previousPage', 'Previous page')}
             forwardText={t('nextPage', 'Next page')}
