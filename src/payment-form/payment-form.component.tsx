@@ -16,18 +16,16 @@ import { submitBillPayment, getConsommationById } from '../api/billing';
 import { 
   isItemPaid, 
   isItemPartiallyPaid, 
-  calculateRemainingDue,
   calculateChange,
   calculateSelectedItemsTotal,
   calculateTotalRemainingAmount,
-  areAllSelectedItemsPaid,
-  getStatusClass,
   calculateTotalDueForSelected,
   computePaymentStatus
 } from '../utils/billing-calculations';
 import { printReceipt } from '../payment-receipt/print-receipt';
 import { type ConsommationListResponse, type ConsommationItem, type RowData } from '../types';
 import styles from './payment-form.scss';
+import { isActuallyPaid, hasPaidItems, getStoredPayment, setStoredPayment } from '../utils/payment-form.utils';
 
 interface PaymentFormProps {
   isOpen: boolean;
@@ -58,7 +56,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [referenceNumber, setReferenceNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [receivedCash, setReceivedCash] = useState('');
@@ -70,67 +67,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   useEffect(() => {
     if (isOpen) {
       setPaymentSuccessful(false);
-      
       const totalDueForSelected = calculateTotalDueForSelected(rows, selectedRows);
       setPaymentAmount(totalDueForSelected.toString());
       setPaymentMethod('cash');
-      setReferenceNumber('');
       setPaymentError('');
       setReceivedCash('');
       setDeductedAmount('');
     }
   }, [isOpen, rows, selectedRows]);
-
-  const isActuallyPaid = (item: ConsommationItem): boolean => {
-    if (item.patientServiceBillId && clientSidePaidItems[item.patientServiceBillId]) {
-      return true;
-    }
-    
-    try {
-      const paymentKey = `payment_${item.patientServiceBillId}`;
-      const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
-      if (storedPayment.paid) {
-        return true;
-      }
-    } catch (e) {
-      // Ignore errors
-    }
-    
-    return isItemPaid(item);
-  };
-
-  const getAccurateStatusText = (item) => {
-    const paymentKey = `payment_${item.patientServiceBillId}`;
-    try {
-      const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
-      if (storedPayment.paid) {
-        return t('paid', 'Paid');
-      } else if (storedPayment.paidAmount > 0) {
-        return t('partiallyPaid', 'Partially Paid');
-      }
-    } catch (e) {
-      // Ignore session storage errors
-    }
-    
-    if (item.paid === true) {
-      return t('paid', 'Paid');
-    }
-    
-    const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-    const paidAmount = item.paidAmount || 0;
-    
-    if (paidAmount >= itemTotal) {
-      return t('paid', 'Paid');
-    } else if (paidAmount > 0) {
-      return t('partiallyPaid', 'Partially Paid');
-    }
-    
-    return t('unpaid', 'Unpaid');
-  };
-
-  const hasPaidItems = () => {
-    return selectedConsommationItems.some(item => isActuallyPaid(item));
-  };
 
 const handlePrintReceipt = async () => {
   try {
@@ -243,7 +187,7 @@ const handlePrintReceipt = async () => {
         throw new Error(t('noBillId', 'Could not retrieve patient bill ID'));
       }
       
-      const selectedItems = selectedConsommationItems.filter(item => item.selected === true && !isActuallyPaid(item));
+      const selectedItems = selectedConsommationItems.filter(item => item.selected === true && !isActuallyPaid(item, clientSidePaidItems));
       
       if (selectedItems.length === 0) {
         throw new Error(t('noItemsSelected', 'No billable items selected'));
@@ -387,7 +331,7 @@ const handlePrintReceipt = async () => {
       primaryButtonDisabled={
         isSubmitting ||
         (!paymentSuccessful &&
-          selectedConsommationItems.filter((item) => item.selected && !isActuallyPaid(item)).length === 0)
+          selectedConsommationItems.filter((item) => item.selected && !isActuallyPaid(item, clientSidePaidItems)).length === 0)
       }
       size="md"
     >
@@ -588,7 +532,7 @@ const handlePrintReceipt = async () => {
               <h5>{t('consommationItems', 'Consommation Items')}</h5>
               <div className={styles.headerActions}>
                 {isLoadingItems && <span className={styles.loadingIndicator}>{t('loading', '(Loading...)')}</span>}
-                {hasPaidItems() && (
+                {hasPaidItems(selectedConsommationItems, clientSidePaidItems) && (
                   <Button 
                   kind="ghost"
                   renderIcon={Printer}
@@ -625,7 +569,7 @@ const handlePrintReceipt = async () => {
                   {selectedConsommationItems.map((item, index) => {
                     const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
                     const paidAmt = item.paidAmount || 0;
-                    const isPaid = isActuallyPaid(item);
+                    const isPaid = isActuallyPaid(item, clientSidePaidItems);
                     const isPartiallyPaid = isItemPartiallyPaid(item);
 
                     return (

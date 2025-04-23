@@ -1,3 +1,4 @@
+
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
@@ -40,12 +41,43 @@ interface InvoiceTableProps {
   insuranceCardNo?: string;
 }
 
+interface BillLineItem {
+  uuid: string;
+  globalBillId: string;
+  date: string;
+  createdBy: string;
+  policyId: string;
+  admissionDate: string;
+  dischargeDate: string;
+  billIdentifier: string;
+  patientDueAmount: number;
+  paidAmount: number;
+  paymentStatus: string;
+}
+
+const pickDataSourceUtil = (usePatientData, useInsuranceData, patientData, insuranceData, fallback) =>
+  usePatientData ? patientData : useInsuranceData ? insuranceData : fallback;
+
+const parseError = (error: any) =>
+  typeof error === 'string' ? error : error?.message || 'Unknown error';
+
+const useFilteredLineItems = (searchTerm: string, results: BillLineItem[]) =>
+  useMemo(() => {
+    if (!searchTerm) return results || [];
+    return fuzzy
+      .filter(searchTerm, results || [], {
+        extract: (lineItem: any) =>
+          `${lineItem?.item || ''} ${lineItem?.globalBillId || ''} ${lineItem?.billIdentifier || ''}`,
+      })
+      .sort((r1, r2) => r1.score - r2.score)
+      .map((result) => result.original);
+  }, [searchTerm, results]);
+
 const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   const { t } = useTranslation();
   
   const config = useConfig();
   const defaultCurrency = config?.defaultCurrency || 'RWF';
-  const showEditBillButton = config?.showEditBillButton || false;
   const pageSize = config?.pageSize || 10;
   
   const layout = useLayoutType();
@@ -66,16 +98,13 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     useInsuranceData ? insuranceBillResponse.bills : [],
   [usePatientData, patientBillResponse.bills, useInsuranceData, insuranceBillResponse.bills]);
   
-  const isLoading = usePatientData ? patientBillResponse.isLoading : 
-                   useInsuranceData ? insuranceBillResponse.isLoading : false;
-  const error = usePatientData ? patientBillResponse.error : 
-               useInsuranceData ? insuranceBillResponse.error : null;
-  const isValidating = usePatientData ? patientBillResponse.isValidating : 
-                      useInsuranceData ? insuranceBillResponse.isValidating : false;
-  const mutate = useMemo(() => 
-    usePatientData ? patientBillResponse.mutate : 
-    useInsuranceData ? insuranceBillResponse.mutate : () => {},
-  [usePatientData, patientBillResponse.mutate, useInsuranceData, insuranceBillResponse.mutate]);
+  const isLoading = pickDataSourceUtil(usePatientData, useInsuranceData, patientBillResponse.isLoading, insuranceBillResponse.isLoading, false);
+  const error = pickDataSourceUtil(usePatientData, useInsuranceData, patientBillResponse.error, insuranceBillResponse.error, null);
+  const isValidating = pickDataSourceUtil(usePatientData, useInsuranceData, patientBillResponse.isValidating, insuranceBillResponse.isValidating, false);
+  const mutate = useMemo(
+    () => pickDataSourceUtil(usePatientData, useInsuranceData, patientBillResponse.mutate, insuranceBillResponse.mutate, () => {}),
+    [usePatientData, patientBillResponse.mutate, useInsuranceData, insuranceBillResponse.mutate]
+  );
   
   // State for calculator modal
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
@@ -103,20 +132,11 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [showError, setShowError] = useState(false);
 
-  const filteredLineItems = useMemo(() => {
-    if (!debouncedSearchTerm) {
-      return results || [];
-    }
-
-    return debouncedSearchTerm
-      ? fuzzy
-          .filter(debouncedSearchTerm, results || [], {
-            extract: (lineItem: any) => `${lineItem?.item || ''} ${lineItem?.globalBillId || ''} ${lineItem?.billIdentifier || ''}`,
-          })
-          .sort((r1, r2) => r1.score - r2.score)
-          .map((result) => result.original)
-      : results || [];
-  }, [debouncedSearchTerm, results]);
+  const normalizedResults: BillLineItem[] = (results || []).map((item: any) => ({
+    ...item,
+    uuid: String(item.uuid),
+  }));
+  const filteredLineItems = useFilteredLineItems(debouncedSearchTerm, normalizedResults);
 
   const tableHeaders = [
     { key: 'no', header: t('no', 'No') },
@@ -209,7 +229,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         });
       });
       
-      const globalBillId = lineItems && lineItems.length > 0 ? lineItems[0].globalBillId : null;
+      const globalBillId = lineItems?.[0]?.globalBillId ?? null;
       
       if (!globalBillId) {
         throw new Error("No global bill ID found. Please create a global bill first.");
@@ -267,7 +287,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       setIsCalculatorOpen(false);
     } catch (error) {
       console.error('Error saving bill items:', error);
-      setErrorMessage(typeof error === 'string' ? error : error.message || 'Failed to save bill items');
+      setErrorMessage(parseError(error));
       setShowError(true);
     } finally {
       setIsSaving(false);
@@ -285,9 +305,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
           globalBillId={globalBillId} 
           patientUuid={patientUuid} 
           insuranceCardNo={insuranceCardNo} 
-          onConsommationClick={() => {
-            // Function intentionally left empty
-          }}
+          onConsommationClick={undefined}
         />
       </div>
     );
