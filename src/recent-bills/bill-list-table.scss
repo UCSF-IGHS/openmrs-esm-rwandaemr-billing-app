@@ -1,168 +1,347 @@
-@use '@carbon/layout';
-@use '@carbon/type';
-@use '@carbon/colors';
-@use '@openmrs/esm-styleguide/src/vars' as *;
+@use '@carbon/styles/scss/spacing';
+@use '@carbon/styles/scss/type';
+@import "~@openmrs/esm-styleguide/src/vars";
 
+// Define text color variables if they're not available in the OpenMRS styleguide
+$ui-01-color: #ffffff;
+$ui-02-color: #f4f4f4;
+$ui-03-color: #e0e0e0;
+$text-01-color: #161616;
+$text-02-color: #525252;
+
+// Container styles
 .container {
-  margin: layout.$spacing-07 0;
+  background-color: $ui-02-color;
   width: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.desktopHeading {
+  padding: spacing.$spacing-05 spacing.$spacing-05 spacing.$spacing-03;
+  @include type.type-style('heading-03');
+  margin-bottom: 0;
 }
 
 .billHistoryContainer {
-  background-color: $ui-02;
-  border: 1px solid $ui-03;
   width: 100%;
-  margin: 0 auto;
-  max-width: 100%;
-  padding: layout.$spacing-05;
-  overflow-x: auto;
 }
 
-.dataTable {
-  min-width: 800px;
+// Controls container
+.controlsContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: spacing.$spacing-03 spacing.$spacing-05 spacing.$spacing-05;
+  background-color: $ui-02-color;
   
-  // Ensure that the Carbon table specific styles are overridden
-  :global(.cds--data-table-content) {
-    overflow-x: visible;
-  }
-  
-  :global(.cds--data-table-container) {
-    padding-top: 0;
+  @media (max-width: 767px) {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
-.pagination {
-  overflow: hidden;
-  margin-top: layout.$spacing-03;
-
-  &:global(.cds--pagination) {
-    border-top: none;
-    background-color: $ui-02;
+.filterContainer {
+  display: flex;
+  align-items: center;
+  
+  @media (max-width: 767px) {
+    margin-bottom: spacing.$spacing-05;
     width: 100%;
   }
 }
 
-.desktopHeading {
-  text-align: left;
-  text-transform: capitalize;
-  margin-bottom: layout.$spacing-03;
+.filterByLabel {
+  margin-right: spacing.$spacing-03;
+  @include type.type-style('body-compact-01');
+  color: $text-02-color;
+  white-space: nowrap;
+}
 
-  h4 {
-    @include type.type-style('heading-compact-02');
-    color: $text-02;
-    margin: 0;
+.filterDropdown {
+  min-width: 120px;
+  
+  :global(.cds--list-box__field) {
+    height: 32px;
+  }
 
-    &:after {
-      content: '';
-      display: block;
-      width: layout.$spacing-07;
-      padding-top: 3px;
-      border-bottom: 0.375rem solid;
-      @include brand-03(border-bottom-color);
-    }
+  :global(.cds--list-box__menu-icon) {
+    height: 32px;
+  }
+}
+
+.searchContainer {
+  display: flex;
+  align-items: center;
+  
+  @media (max-width: 767px) {
+    width: 100%;
+  }
+}
+
+.searchInLabel {
+  margin-right: spacing.$spacing-03;
+  @include type.type-style('body-compact-01');
+  color: $text-02-color;
+  white-space: nowrap;
+}
+
+.searchCategoryDropdown {
+  margin-right: spacing.$spacing-03;
+  min-width: 120px;
+  
+  :global(.cds--list-box__field) {
+    height: 32px;
+  }
+
+  :global(.cds--list-box__menu-icon) {
+    height: 32px;
+  }
+}
+
+.searchInput {
+  width: 240px;
+  
+  @media (max-width: 767px) {
+    width: 100%;
+  }
+  
+  :global(.cds--search-input) {
+    height: 32px;
+  }
+}
+
+// Table styles
+.dataTable {
+  margin-bottom: 0;
+
+  :global(.cds--data-table) {
+    background-color: $ui-01-color;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  :global(.cds--table-header-label) {
+    color: $text-02-color;
   }
 }
 
 .table {
   width: 100%;
   
-  // Important fixes for cell spacing
-  :global(.cds--data-table) {
-    width: 100%;
-    table-layout: fixed;
-  }
-  
-  :global(.cds--data-table--zebra) tbody tr:not(.cds--data-table--selected):nth-child(odd) td {
-    background-color: $ui-01;
-  }
-  
-  // Make sure header cells don't wrap awkwardly
-  :global(.cds--table-header-label) {
-    white-space: nowrap;
+  :global(th) {
+    height: 3rem;
+    color: $text-02-color;
     font-weight: 600;
+    background-color: $ui-03-color;
+    border-top: 1px solid $ui-03-color;
+    border-bottom: 1px solid $ui-03-color;
+    text-align: left;
+    padding: 0 spacing.$spacing-05;
   }
-}
-
-// Column width classes with clear width constraints
-.visitTimeCol {
-  width: 140px !important;
   
-  :global(th&) {
-    width: 140px !important;
-  }
-}
-
-.identifierCol {
-  width: 120px !important;
-  
-  :global(th&) {
-    width: 120px !important;
-  }
-}
-
-.nameCol {
-  width: 200px !important;
-  
-  :global(th&) {
-    width: 200px !important;
-  }
-}
-
-.billedItemsCol {
-  width: calc(100% - 460px) !important;
-  min-width: 200px !important;
-  
-  :global(th&) {
-    width: calc(100% - 460px) !important;
+  :global(td) {
+    height: 3rem;
+    border-top: 1px solid $ui-03-color;
+    border-bottom: 1px solid $ui-03-color;
+    padding: 0 spacing.$spacing-05;
   }
 }
 
 .tableCells {
-  font-size: 0.875rem !important;
-  line-height: 1.5 !important;
-  padding: layout.$spacing-05 !important;
-  vertical-align: middle !important;
-  height: auto !important;
-  word-break: normal !important;
-  overflow: visible !important;
-  white-space: normal !important;
+  color: $text-01-color;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: spacing.$spacing-03 spacing.$spacing-05 !important;
+  vertical-align: middle;
+}
+
+// Special padding for date and refID columns
+.specialPadding {
+  padding: 0 spacing.$spacing-05 !important;
+}
+
+.dateCell {
+  padding-left: spacing.$spacing-05 !important;
+  padding-right: spacing.$spacing-05 !important;
+}
+
+.refIdCell {
+  padding-left: spacing.$spacing-05 !important;
+  padding-right: spacing.$spacing-05 !important;
+}
+
+// Column width styles
+.visitTimeCol {
+  width: 20%;
+}
+
+.identifierCol {
+  width: 20%;
+}
+
+.nameCol {
+  width: 30%;
+}
+
+.billedItemsCol {
+  width: 30%;
+}
+
+// Pagination styles
+.paginationContainer {
+  display: flex;
+  justify-content: space-between;
+  padding: spacing.$spacing-03;
+  background-color: $ui-02-color;
+  border-top: 1px solid $ui-03-color;
+}
+
+.pagination {
+  width: 100%;
+
+  :global(.cds--pagination__button) {
+    height: 2rem;
+    width: 2rem;
+  }
+
+  :global(.cds--pagination) {
+    height: auto;
+    min-height: 2rem;
+    border: none;
+    background-color: $ui-02-color;
+  }
   
-  &:global(.cds--table-cell) {
-    max-width: none !important;
-    text-overflow: clip !important;
+  :global(.cds--pagination__left) {
+    flex: 1 1 auto;
+  }
+  
+  :global(.cds--pagination__right) {
+    flex: 0 1 auto;
   }
 }
 
-.nameLink {
-  color: #0066CC;
-  text-decoration: none;
-  white-space: normal;
-  word-break: break-word;
+// Loading and error states
+.loaderContainer, .errorContainer {
+  padding: spacing.$spacing-05;
+  background-color: $ui-01-color;
+}
+
+// Empty state styles
+.emptyStateContainer {
+  padding: spacing.$spacing-05;
+  margin: 0 0 spacing.$spacing-03 0;
+  text-align: center;
+  background-color: $ui-01-color;
+  
+  .tile {
+    border: 1px solid $ui-03-color;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: spacing.$spacing-09 0 spacing.$spacing-07;
+    background-color: $ui-01-color;
+  }
+  
+  .illo {
+    margin-bottom: spacing.$spacing-07;
+  }
+  
+  .content {
+    @include type.type-style('heading-compact-01');
+    color: $text-02-color;
+    margin-bottom: spacing.$spacing-03;
+  }
+}
+
+.filterEmptyState {
+  width: 100%;
+  margin-top: spacing.$spacing-05;
+  
+  .filterEmptyStateTile {
+    padding: spacing.$spacing-05;
+    text-align: center;
+  }
+  
+  .filterEmptyStateContent {
+    @include type.type-style('heading-01');
+    margin-bottom: spacing.$spacing-03;
+  }
+  
+  .filterEmptyStateHelper {
+    @include type.type-style('body-01');
+    color: $text-02-color; // Fixed from $text-02 to $text-02-color
+  }
+}
+
+// Zebra striping
+:global(.cds--data-table--zebra) tbody tr:nth-child(odd) td {
+  background-color: $ui-01-color;
+}
+
+:global(.cds--data-table--zebra) tbody tr:nth-child(even) td {
+  background-color: $ui-02-color;
+}
+
+.paidStatus {
+  color: #24a148;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  
+  &::before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background-color: #24a148;
+  }
+}
+
+.pendingStatus {
+  color: #ff832b;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  
+  &::before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background-color: #ff832b;
+  }
+}
+
+.moneyValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.tableCells {
+  max-width: 15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  
+  // Style for the billed items column
+  &.hasTooltip {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: help;
+  }
+}
+
+// Custom tooltip styling
+:global(.cds--definition-tooltip) {
+  cursor: pointer;
+  border-bottom: 1px dotted #6f6f6f;
   
   &:hover {
-    text-decoration: underline;
-  }
-}
-
-// Force table styles for nested elements
-:global(.cds--table-header) {
-  height: auto !important;
-  padding: layout.$spacing-05 !important;
-}
-
-:global(.cds--data-table td),
-:global(.cds--data-table th) {
-  border-top: 1px solid $ui-03;
-  border-bottom: 1px solid $ui-03;
-}
-
-// Responsive adjustments
-@media (max-width: 1200px) {
-  .billHistoryContainer {
-    overflow-x: auto;
-  }
-  
-  .table {
-    min-width: 800px;
+    text-decoration: none;
   }
 }
