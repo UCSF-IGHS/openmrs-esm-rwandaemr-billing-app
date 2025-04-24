@@ -212,7 +212,7 @@ const InsuranceReport: React.FC = () => {
                   <TableHead>
                     <TableRow>
                       {headers.map((header) => (
-                        <TableHeader key={header.key} {...getHeaderProps({ header })}>
+                        <TableHeader key={header.key} title={header.header} {...getHeaderProps({ header })}>
                           {header.header}
                         </TableHeader>
                       ))}
@@ -223,7 +223,9 @@ const InsuranceReport: React.FC = () => {
                       <TableRow key={index}>
                         <TableCell>{(page - 1) * pageSize + index + 1}</TableCell>
                         {columns.map((col) => (
-                          <TableCell key={col}>{getValue(row.record, col)}</TableCell>
+                          <TableCell key={col} title={getValue(row.record, col)}>
+                            {getValue(row.record, col)}
+                          </TableCell>
                         ))}
                         <TableCell>
                           <Button kind="ghost" size="sm" onClick={() => handleView(row.record)}>
