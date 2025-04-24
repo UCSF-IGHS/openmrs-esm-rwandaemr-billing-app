@@ -92,6 +92,29 @@ export interface Insurance {
   address: string;
   phone: string;
   category: string;
+  rate: number | null;       
+  flatFee: string | null;    
+  depositBalance: string;    
+  voided: boolean;           
+  concept?: {               
+    uuid: string;
+    display: string;
+    links: Array<{
+      rel: string;
+      uri: string;
+      resourceAlias: string;
+    }>;
+  };
+  creator?: {
+    uuid: string;
+    display: string;
+    links: Array<{
+      rel: string;
+      uri: string;
+      resourceAlias: string;
+    }>;
+  };
+  createdDate?: string;
   links: Array<{
     rel: string;
     uri: string;
@@ -103,9 +126,20 @@ export interface InsuranceResponse {
   results: Array<Insurance>;
 }
 
+/**
+ * Fetches all insurance providers
+ * @returns Promise containing array of insurance providers
+ */
 export const getInsurances = async (): Promise<Array<Insurance>> => {
-  const response = await openmrsFetch<InsuranceResponse>(`${BASE_API_URL}/insurance`);
-  return response.data.results;
+  try {
+    const response = await openmrsFetch<InsuranceResponse>(
+      `${BASE_API_URL}/insurance`
+    );
+    return response.data.results;
+  } catch (error) {
+    console.error('Error fetching insurances:', error);
+    throw error;
+  }
 };
 
 export interface ThirdParty {
@@ -663,3 +697,31 @@ function extractPatientServiceBillId(item: any, index: number): number {
     return 10372855 + index;
   }
 }
+
+/**
+ * Fetches detailed information for a specific insurance by ID
+ * @param insuranceId - The ID of the insurance to fetch
+ * @returns Promise with the insurance details
+ */
+export const getInsuranceById = async (insuranceId: number): Promise<Insurance | null> => {
+  try {
+    
+    const url = `${BASE_API_URL}/insurance/${insuranceId}`;
+    const response = await openmrsFetch<Insurance>(url);
+    
+    if (response.ok && response.data) {
+      if (response.data.rate !== undefined) {
+        return response.data;
+      } else {
+        console.warn('Insurance data retrieved but rate is undefined', response.data);
+        return response.data;
+      }
+    }
+    
+    console.warn('Failed to retrieve insurance data', response);
+    return null;
+  } catch (error) {
+    console.error(`Error fetching insurance ID ${insuranceId}:`, error);
+    return null;
+  }
+};
