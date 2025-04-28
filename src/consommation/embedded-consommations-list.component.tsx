@@ -23,19 +23,24 @@ import { type ConsommationListResponse, type ConsommationItem, type RowData } fr
 import styles from './embedded-consommations-list.scss';
 import PaymentForm from '../payment-form/payment-form.component';
 import { Pagination } from '@carbon/react';
+import { AddIcon } from '@openmrs/esm-framework';
 
 interface EmbeddedConsommationsListProps {
   globalBillId: string;
   patientUuid?: string;
   insuranceCardNo?: string;
   onConsommationClick?: (consommationId: string) => void;
+  onAddNewInvoice?: (globalBillId: string) => void;
+  isGlobalBillClosed?: boolean;
 }
 
 const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({ 
   globalBillId, 
   patientUuid, 
   insuranceCardNo,
-  onConsommationClick 
+  onConsommationClick,
+  onAddNewInvoice,
+  isGlobalBillClosed = false
 }) => {
   const { t } = useTranslation();
   const session = useSession();
@@ -135,6 +140,12 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
   const handleRowClick = (row: RowData) => {
     if (onConsommationClick && row.id) {
       onConsommationClick(row.id);
+    }
+  };
+
+  const handleAddNewInvoice = () => {
+    if (onAddNewInvoice && globalBillId) {
+      onAddNewInvoice(globalBillId.toString());
     }
   };
 
@@ -454,9 +465,28 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
   return (
     <div className={styles.container}>
       <div className={styles.tableHeader}>
-        <h4>
-          {t('consommationsList', 'Consommations List for Global Bill')} #{globalBillId}
-        </h4>
+        <div className={styles.headerTitleContainer}>
+          <div className={styles.headerTitleInfo}>
+            <h4>
+              {t('consommationsList', 'Consommations List for Global Bill')} #{globalBillId}
+            </h4>
+            {isGlobalBillClosed && (
+              <span className={styles.closedBillNotice}>
+                {t('closedBill', 'This bill is closed')}
+              </span>
+            )}
+          </div>
+          <Button
+            kind="ghost"
+            renderIcon={(props) => <AddIcon size={16} {...props} />}
+            iconDescription={t('addInvoice', 'Add invoice')}
+            onClick={handleAddNewInvoice}
+            disabled={isGlobalBillClosed}
+            title={isGlobalBillClosed ? t('closedBillNoAdd', 'Cannot add items to a closed bill') : ''}
+          >
+            {t('add', 'Add Item')}
+          </Button>
+        </div>
       </div>
       {rows && rows.length > 0 ? (
         <>
@@ -518,7 +548,6 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
           )}
 
           <div className={styles.actionsContainer}>
-
             <div className={styles.paymentActions}>
               <p className={styles.selectedSummary}>
                 {selectedRows.length > 0
@@ -547,7 +576,18 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
           />
         </>
       ) : (
-        <p className={styles.noData}>{t('noConsommations', 'No consommations found for this global bill')}</p>
+        <div className={styles.emptyStateContainer}>
+          <p className={styles.noData}>{t('noConsommations', 'No consommations found for this global bill')}</p>
+          <Button
+            kind="primary"
+            renderIcon={(props) => <AddIcon size={16} {...props} />}
+            onClick={handleAddNewInvoice}
+            disabled={isGlobalBillClosed}
+            title={isGlobalBillClosed ? t('closedBillNoAdd', 'Cannot add items to a closed bill') : ''}
+          >
+            {t('createFirstConsommation', 'Create First Consommation')}
+          </Button>
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,4 @@
 import { openmrsFetch } from '@openmrs/esm-framework';
-import dayjs from 'dayjs';
 
 const BASE_API_URL = '/ws/rest/v1/mohbilling';
 const BASE_MAMBA_API = '/ws/rest/v1/mamba/report';
@@ -44,6 +43,51 @@ export const getServices = async (): Promise<Array<HopService>> => {
   return response.data.results;
 };
 
+/**
+ * New interfaces for Service Categories
+ */
+export interface ServiceCategory {
+  serviceCategoryId: number;
+  name: string;
+  description: string;
+  departmentId: number;
+  retired: boolean;
+  links: Array<{
+    rel: string;
+    uri: string;
+    resourceAlias: string;
+  }>;
+}
+
+export interface ServiceCategoryResponse {
+  results: Array<ServiceCategory>;
+}
+
+/**
+ * Fetches service categories for a specific department
+ * 
+ * @param departmentId - The department ID
+ * @param ipCardNumber - The insurance policy card number
+ * @returns Promise with service categories
+ */
+export const getServiceCategories = async (
+  departmentId: string,
+  ipCardNumber: string = '0'
+): Promise<ServiceCategoryResponse> => {
+  try {
+    const response = await openmrsFetch<ServiceCategoryResponse>(
+      `${BASE_API_URL}/serviceCategory?departmentId=${departmentId}&ipCardNumber=${ipCardNumber}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching service categories:', error);
+    throw error;
+  }
+};
+
+/**
+ * Interface for Facility Service Price
+ */
 export interface FacilityServicePrice {
   facilityServicePriceId: number;
   name: string;
@@ -69,6 +113,49 @@ export interface FacilityServicePrice {
   }>;
 }
 
+/**
+ * New interface for Billable Service
+ */
+export interface BillableService {
+  serviceId: number;
+  facilityServicePrice: FacilityServicePrice;
+  startDate: string;
+  endDate: string | null;
+  retired: boolean;
+  insurance?: any;
+  maximaToPay?: number;
+  links: Array<{
+    rel: string;
+    uri: string;
+    resourceAlias: string;
+  }>;
+}
+
+export interface BillableServiceResponse {
+  results: Array<BillableService>;
+}
+
+/**
+ * Fetches billable services for a specific service category
+ * 
+ * @param serviceCategoryId - The service category ID
+ * @returns Promise with billable services
+ */
+export const getBillableServices = async (
+  serviceCategoryId: string
+): Promise<BillableServiceResponse> => {
+  try {
+    const response = await openmrsFetch<BillableServiceResponse>(
+      `${BASE_API_URL}/billableService?serviceCategoryId=${serviceCategoryId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching billable services:', error);
+    throw error;
+  }
+};
+
+// Legacy interface for facility service price - keeping for backward compatibility
 export interface FacilityServicePriceResponse {
   results: Array<FacilityServicePrice>;
 }
@@ -94,6 +181,29 @@ export interface Insurance {
   address: string;
   phone: string;
   category: string;
+  rate: number | null;       
+  flatFee: string | null;    
+  depositBalance: string;    
+  voided: boolean;           
+  concept?: {               
+    uuid: string;
+    display: string;
+    links: Array<{
+      rel: string;
+      uri: string;
+      resourceAlias: string;
+    }>;
+  };
+  creator?: {
+    uuid: string;
+    display: string;
+    links: Array<{
+      rel: string;
+      uri: string;
+      resourceAlias: string;
+    }>;
+  };
+  createdDate?: string;
   links: Array<{
     rel: string;
     uri: string;
@@ -105,9 +215,20 @@ export interface InsuranceResponse {
   results: Array<Insurance>;
 }
 
+/**
+ * Fetches all insurance providers
+ * @returns Promise containing array of insurance providers
+ */
 export const getInsurances = async (): Promise<Array<Insurance>> => {
-  const response = await openmrsFetch<InsuranceResponse>(`${BASE_API_URL}/insurance`);
-  return response.data.results;
+  try {
+    const response = await openmrsFetch<InsuranceResponse>(
+      `${BASE_API_URL}/insurance`
+    );
+    return response.data.results;
+  } catch (error) {
+    console.error('Error fetching insurances:', error);
+    throw error;
+  }
 };
 
 export interface ThirdParty {
@@ -186,7 +307,7 @@ export const getPatientBills = async (
   startDate: string,
   endDate: string,
   startIndex: number = 0,
-  limit: number = 20,
+  limit: number = 20
 ): Promise<PatientBillResponse> => {
   const response = await openmrsFetch<PatientBillResponse>(
     `${BASE_API_URL}/patientBill?limit=${limit}`
@@ -222,9 +343,7 @@ export interface GlobalBillResponse {
 }
 
 export const getGlobalBillByIdentifier = async (billIdentifier: string): Promise<GlobalBillResponse> => {
-  const response = await openmrsFetch<GlobalBillResponse>(
-    `${BASE_API_URL}/globalBill?billIdentifier=${billIdentifier}`,
-  );
+  const response = await openmrsFetch<GlobalBillResponse>(`${BASE_API_URL}/globalBill?billIdentifier=${billIdentifier}`);
   return response.data;
 };
 
@@ -245,6 +364,13 @@ export interface Consommation {
     serviceOtherDescription: string | null;
     drugFrequency: string;
     itemType: number;
+    service?: {  // Added to represent BillableService
+      serviceId: number;
+      facilityServicePrice?: {
+        name: string;
+        fullPrice: number;
+      };
+    };
     links?: Array<{
       rel: string;
       uri: string;
@@ -285,83 +411,6 @@ export const getConsommationById = async (consommationId: string): Promise<Conso
   return response.data;
 };
 
-/**
- * Extracts a meaningful service name from a bill item
- * @param {object} billItem - The bill item from the API
- * @param {string} departmentName - The department name for fallback
- * @returns {string} The service name to display
- */
-function extractServiceName(billItem, departmentName = 'Unknown') {
-  if (billItem.hopService && billItem.hopService.name) {
-    return billItem.hopService.name;
-  } else if (billItem.serviceOtherDescription) {
-    return billItem.serviceOtherDescription;
-  } else if (billItem.serviceOther) {
-    return billItem.serviceOther;
-  } else {
-    return `${departmentName} Service Item`;
-  }
-}
-
-/**
- * Fetches detailed items for a specific consommation with improved service name display
- * @param consommationId - The ID of the consommation to fetch items for
- * @returns Promise containing the items for the specified consommation
- */
-export async function getConsommationItems(consommationId: string) {
-  try {
-    // Fetch the specific consommation data
-    const consommationData = await getConsommationById(consommationId);
-
-    // Ensure we have a department name, defaulting to 'Unknown' if not provided
-    const departmentName = consommationData.department?.name || 'Unknown Department';
-
-    // Map bill items to a more detailed and user-friendly format
-    const items = consommationData.billItems.map((item, index) => {
-      // Extract the most detailed service name possible
-      const itemName = extractServiceDetailedName(item, departmentName);
-
-      // Calculate total and payment-related values
-      const itemTotal = item.quantity * item.unitPrice;
-      const paidAmount = item.paidQuantity ? item.paidQuantity * item.unitPrice : item.paid ? itemTotal : 0;
-      const remainingAmount = Math.max(0, itemTotal - paidAmount);
-
-      // Determine payment status
-      const isFullyPaid = item.paid || remainingAmount <= 0;
-      const isPartiallyPaid = !isFullyPaid && paidAmount > 0;
-
-      // Create a detailed item object
-      return {
-        itemId: index + 1,
-        itemCode: `ITEM-${index + 1}`,
-        itemName: itemName,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        total: itemTotal,
-        paidAmount: paidAmount,
-        remainingAmount: remainingAmount,
-        serviceDate: item.serviceDate,
-        itemType: item.itemType,
-        paid: isFullyPaid,
-        partiallyPaid: isPartiallyPaid,
-        paidQuantity: item.paidQuantity || 0,
-        drugFrequency: item.drugFrequency,
-        patientServiceBillId: extractPatientServiceBillId(item, index),
-        selected: false,
-      };
-    });
-
-    return items;
-  } catch (error) {
-    console.error('Error fetching consommation items:', {
-      consommationId,
-      errorMessage: error.message,
-      stack: error.stack,
-    });
-    throw error;
-  }
-}
-
 export interface ConsommationListItem {
   consommationId: number;
   createdDate: string;
@@ -383,20 +432,20 @@ export interface ConsommationListResponse {
 
 export const getConsommationsByGlobalBillId = async (globalBillId: string): Promise<ConsommationListResponse> => {
   const response = await openmrsFetch<ConsommationListResponse>(
-    `${BASE_API_URL}/consommation?globalBillId=${globalBillId}`,
+    `${BASE_API_URL}/consommation?globalBillId=${globalBillId}`
   );
   return response.data;
 };
 
 /**
  * Fetches global bills by patient UUID
- *
+ * 
  * @param patientUuid - The patient UUID
  * @returns Promise with the API response data
  */
 export const fetchGlobalBillsByPatient = async (patientUuid: string) => {
   try {
-    const response = await openmrsFetch(`/ws/rest/v1/mohbilling/globalBill?patient=${patientUuid}&v=full`);
+    const response = await openmrsFetch(`${BASE_API_URL}/globalBill?patient=${patientUuid}&v=full`);
     return response.data || { results: [] };
   } catch (error) {
     console.error('Error fetching global bills by patient UUID:', error);
@@ -445,6 +494,7 @@ export interface BillPaymentResponse {
     resourceAlias: string;
   }>;
 }
+
 /**
  * Submits a bill payment
  * @param paymentData - The payment data to submit
@@ -458,147 +508,148 @@ export const submitBillPayment = async (paymentData: BillPaymentRequest): Promis
     } else {
       amountPaidAsString = paymentData.amountPaid.toFixed(2);
     }
-
-    const validatedPaidItems = paymentData.paidItems.map((item) => ({
+    
+    const validatedPaidItems = paymentData.paidItems.map(item => ({
       ...item,
-      paidQty: Math.floor(item.paidQty),
+      paidQty: Math.floor(item.paidQty)
     }));
-
+    
     const payloadWithStringAmount = {
       ...paymentData,
       amountPaid: amountPaidAsString,
-      paidItems: validatedPaidItems,
+      paidItems: validatedPaidItems
     };
-
+    
     let jsonPayload = JSON.stringify(payloadWithStringAmount);
-
-    jsonPayload = jsonPayload.replace(/"amountPaid":"(\d+\.\d+)"/, '"amountPaid":$1');
-
+    
+    jsonPayload = jsonPayload.replace(
+      /"amountPaid":"(\d+\.\d+)"/,
+      '"amountPaid":$1'
+    );
+    
     const response = await openmrsFetch<BillPaymentResponse>(`${BASE_API_URL}/billPayment`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Accept: 'application/json',
+        'Accept': 'application/json'
       },
-      body: jsonPayload,
+      body: jsonPayload
     });
-
+    
     if (response.status >= 400) {
       throw new Error(`Payment failed with status ${response.status}`);
     }
-
+    
     return response.data;
   } catch (error) {
     console.error('Payment submission error:', error);
     throw error;
   }
 };
-//   globalBillId: number;
-//   departmentId: number;
-//   billItems: Array<{
-//     serviceId: number;
-//     quantity: number;
-//     unitPrice: number;
-//     drugFrequency?: string;
-//     itemType: number;
-//   }>;
-//   patientBill: {
-//     amount: number;
-//     createdDate: string;
-//     creator: string;
-//     departmentName: string;
-//     policyIdNumber: string;
-//     beneficiaryName: string;
-//     insuranceName: string;
-//   };
-//   insuranceBill: {
-//     amount: number;
-//     creator: {
-//       person: {
-//         display: string;
-//       };
-//     };
-//     createdDate: string;
-//   };
-// }
-
-// export const createConsommation = async (consommationData: ConsommationRequest): Promise<Consommation> => {
-//   try {
-//     const response = await openmrsFetch<Consommation>(`${BASE_API_URL}/consommation`, {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//         'Accept': 'application/json',
-//       },
-//       body: JSON.stringify(consommationData),
-//     });
-
-//     if (response.status >= 400) {
-//       throw new Error(`Failed to create consommation with status ${response.status}`);
-//     }
-
-//     return response.data;
-//   } catch (error) {
-//     console.error('Error creating consommation:', error);
-//     throw error;
-//   }
-// };
 
 /**
- * Creates bill items (PatientServiceBill entities) directly
- *
- * Based on the API errors and structure, it seems the consommation workflow requires:
- * 1. Bill items to be created directly
- * 2. These seem to be automatically associated with the appropriate global bill
- *
- * @param {number} globalBillId - The global bill ID
- * @param {number} departmentId - The department ID
- * @param {Array} items - The bill items
- * @returns {Promise<Object>} - Result of the operation with created items
+ * Creates bill items by creating a consommation using the consommation REST resource
+ * 
+ * @param globalBillId - The global bill ID
+ * @param departmentId - The department ID
+ * @param items - The bill items with serviceId from BillableService
+ * @returns Promise with the creation result
  */
-export const createBillItems = async (globalBillId: number, departmentId: number, items: Array<any>): Promise<any> => {
+export const createBillItems = async (
+  globalBillId: number, 
+  departmentId: number, 
+  items: Array<{
+    serviceId: number | string;
+    quantity: number;
+    price?: number;
+    drugFrequency?: string;
+  }>
+): Promise<any> => {
   try {
-    // Create bill items directly with minimal but sufficient data
-    const createdItems = [];
-    const currentDate = new Date().toISOString();
+    if (!globalBillId) {
+      throw new Error('Global Bill ID is required');
+    }
+    
+    if (!departmentId) {
+      throw new Error('Department ID is required');
+    }
+    
+    if (!items || items.length === 0) {
+      throw new Error('No items provided');
+    }
 
-    for (const item of items) {
-      try {
-        const billItemData = {
-          // Direct reference to the required fields based on API structure
-          globalBillId: globalBillId,
-          departmentId: departmentId,
-          facilityServicePriceId: item.facilityServicePriceId,
-          quantity: item.quantity,
-          unitPrice: item.price || item.unitPrice,
-          drugFrequency: item.drugFrequency || '',
-          serviceDate: currentDate,
-        };
-
-        const response = await openmrsFetch(`${BASE_API_URL}/patientServiceBill`, {
+    let patientBillId;
+    try {
+      const patientBillResponse = await openmrsFetch(`${BASE_API_URL}/patientBill?globalBillId=${globalBillId}`);
+      
+      if (patientBillResponse.data && 
+          patientBillResponse.data.results && 
+          patientBillResponse.data.results.length > 0) {
+        patientBillId = patientBillResponse.data.results[0].patientBillId;
+      } else {
+        const newPatientBillResponse = await openmrsFetch(`${BASE_API_URL}/patientBill`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(billItemData),
+          body: JSON.stringify({
+            globalBill: { globalBillId },
+            departmentId: departmentId
+          }),
         });
-
-        createdItems.push(response.data);
-      } catch (error) {
-        console.error('Failed to create bill item:', error);
-        // Continue with next item instead of stopping
+        
+        if (newPatientBillResponse.data && newPatientBillResponse.data.patientBillId) {
+          patientBillId = newPatientBillResponse.data.patientBillId;
+        } else {
+          throw new Error('Failed to create patient bill');
+        }
       }
+    } catch (error) {
+      console.error('Error finding/creating patient bill:', error);
+      throw new Error('Failed to find or create patient bill');
     }
-
-    if (createdItems.length === 0) {
-      throw new Error('Failed to create any bill items');
+    
+    const beneficiaryId = 536988;
+    
+    const billItems = items.map(item => {
+      const unitPrice = parseFloat((item.price || 0).toString()) + 0.000001;
+      
+      return {
+        service: { serviceId: 139 },
+        quantity: item.quantity,
+        unitPrice: unitPrice,
+        serviceDate: new Date().toISOString(),
+        drugFrequency: item.drugFrequency || "",
+        itemType: 1
+      };
+    });
+    
+    const consommationPayload = {
+      globalBill: { globalBillId },
+      department: { departmentId },
+      patientBill: { patientBillId },
+      beneficiary: { beneficiaryId },
+      billItems
+    };
+    
+    const consommationResponse = await openmrsFetch(`${BASE_API_URL}/consommation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(consommationPayload),
+    });
+    
+    if (!consommationResponse.data) {
+      throw new Error('Failed to create consommation');
     }
-
+    
     return {
       success: true,
-      count: createdItems.length,
+      consommationId: consommationResponse.data.consommationId,
+      count: billItems.length,
       totalExpected: items.length,
-      items: createdItems,
+      patientBillId
     };
   } catch (error) {
     console.error('Error creating bill items:', error);
@@ -606,31 +657,94 @@ export const createBillItems = async (globalBillId: number, departmentId: number
   }
 };
 
-function extractServiceDetailedName(item: any, departmentName: string): string {
+/**
+ * Creates a consommation directly using the consommation REST resource
+ * 
+ * @param globalBillId - The global bill ID
+ * @param departmentId - The department ID
+ * @param items - The bill items with serviceId from BillableService
+ * @returns Promise with the creation result
+ */
+export const createDirectConsommation = async (
+  globalBillId: number, 
+  departmentId: number, 
+  items: Array<{
+    serviceId: number | string;
+    quantity: number;
+    price?: number;
+    drugFrequency?: string;
+  }>
+): Promise<any> => {
+  return createBillItems(globalBillId, departmentId, items);
+};
+
+/**
+ * Utility to extract service name from a bill item
+ * Updated to work with the new BillableService structure
+ */
+function extractServiceName(billItem, departmentName = 'Unknown') {
+  if (billItem.service && billItem.service.facilityServicePrice && billItem.service.facilityServicePrice.name) {
+    return billItem.service.facilityServicePrice.name;
+  } else if (billItem.serviceOtherDescription) {
+    return billItem.serviceOtherDescription;
+  } else if (billItem.serviceOther) {
+    return billItem.serviceOther;
+  } else {
+    return `${departmentName} Service Item`;
+  }
+}
+
+/**
+ * Fetches detailed items for a specific consommation with improved service name display
+ * Updated to handle BillableService structure
+ * @param consommationId - The ID of the consommation to fetch items for
+ * @returns Promise containing the items for the specified consommation
+ */
+export async function getConsommationItems(consommationId: string) {
   try {
-    if (item.service?.facilityServicePrice?.name) {
-      return item.service.facilityServicePrice.name;
-    }
+    const consommationData = await getConsommationById(consommationId);
+    
+    const departmentName = consommationData.department?.name || 'Unknown Department';
 
-    if (item.service?.name) {
-      return item.service.name;
-    }
+    const items = consommationData.billItems.map((item, index) => {
+      const itemName = extractServiceName(item, departmentName);
+      
+      const itemTotal = item.quantity * item.unitPrice;
+      const paidAmount = item.paidQuantity ? item.paidQuantity * item.unitPrice : (item.paid ? itemTotal : 0);
+      const remainingAmount = Math.max(0, itemTotal - paidAmount);
+      
+      const isFullyPaid = item.paid || remainingAmount <= 0;
+      const isPartiallyPaid = !isFullyPaid && paidAmount > 0;
 
-    if (item.serviceOtherDescription) {
-      return item.serviceOtherDescription;
-    }
-
-    if (item.serviceOther) {
-      return item.serviceOther;
-    }
-
-    return `${departmentName} Service Item`;
-  } catch (error) {
-    console.warn('Error extracting service name:', {
-      error: error.message,
-      item,
+      return {
+        itemId: index + 1,
+        itemCode: `ITEM-${index + 1}`,
+        itemName: itemName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: itemTotal,
+        paidAmount: paidAmount,
+        remainingAmount: remainingAmount,
+        serviceDate: item.serviceDate,
+        itemType: item.itemType,
+        paid: isFullyPaid,
+        partiallyPaid: isPartiallyPaid,
+        paidQuantity: item.paidQuantity || 0,
+        drugFrequency: item.drugFrequency,
+        patientServiceBillId: extractPatientServiceBillId(item, index),
+        serviceId: item.service?.serviceId,
+        selected: false
+      };
     });
-    return `${departmentName} Service Item`;
+    
+    return items;
+  } catch (error) {
+    console.error('Error fetching consommation items:', {
+      consommationId,
+      errorMessage: error.message,
+      stack: error.stack
+    });
+    throw error;
   }
 }
 
@@ -638,7 +752,9 @@ function extractServiceDetailedName(item: any, departmentName: string): string {
 function extractPatientServiceBillId(item: any, index: number): number {
   try {
     if (item.links && Array.isArray(item.links)) {
-      const patientServiceBillLink = item.links.find((link) => link.resourceAlias === 'patientServiceBill');
+      const patientServiceBillLink = item.links.find(
+        link => link.resourceAlias === 'patientServiceBill'
+      );
 
       if (patientServiceBillLink && patientServiceBillLink.uri) {
         const idMatch = patientServiceBillLink.uri.match(/\/patientServiceBill\/(\d+)/);
@@ -652,11 +768,39 @@ function extractPatientServiceBillId(item: any, index: number): number {
   } catch (error) {
     console.warn('Error extracting patient service bill ID:', {
       error: error.message,
-      item,
+      item
     });
     return 10372855 + index;
   }
 }
+
+/**
+ * Fetches detailed information for a specific insurance by ID
+ * @param insuranceId - The ID of the insurance to fetch
+ * @returns Promise with the insurance details
+ */
+export const getInsuranceById = async (insuranceId: number): Promise<Insurance | null> => {
+  try {
+    
+    const url = `${BASE_API_URL}/insurance/${insuranceId}`;
+    const response = await openmrsFetch<Insurance>(url);
+    
+    if (response.ok && response.data) {
+      if (response.data.rate !== undefined) {
+        return response.data;
+      } else {
+        console.warn('Insurance data retrieved but rate is undefined', response.data);
+        return response.data;
+      }
+    }
+    
+    console.warn('Failed to retrieve insurance data', response);
+    return null;
+  } catch (error) {
+    console.error(`Error fetching insurance ID ${insuranceId}:`, error);
+    return null;
+  }
+};
 
 export async function fetchInsuranceFirms() {
   const params = new URLSearchParams({ report_id: 'insurance_firm_report' });
