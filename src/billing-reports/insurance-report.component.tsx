@@ -8,16 +8,18 @@ import {
   TableRow,
   TableCell,
   Button,
-  Modal,
   Pagination,
+  TableExpandHeader,
+  TableExpandRow,
+  TableExpandedRow,
+  DataTable,
+  TableContainer,
 } from '@carbon/react';
 import { fetchAllInsuranceReportData, fetchInsuranceFirms, fetchInsuranceReport } from '../api/billing';
 import dayjs from 'dayjs';
 import { exportSingleRecordToPDF, exportToExcel, formatValue } from './utils/download-utils';
 import styles from './billing-reports.scss';
 import { useTranslation } from 'react-i18next';
-import { DataTable } from '@carbon/react';
-import { TableContainer } from '@carbon/react';
 
 interface ReportRecord {
   column: string;
@@ -41,22 +43,40 @@ const InsuranceReport: React.FC = () => {
   const [columns, setColumns] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [insuranceOptions, setInsuranceOptions] = useState([]);
-  const [selectedRecord, setSelectedRecord] = useState<ReportRecord[] | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [totalRecords, setTotalRecords] = useState(0);
   const [currentFilters, setCurrentFilters] = useState<Filters | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const handleView = (record: ReportRecord[]) => setSelectedRecord(record);
-
-  const closeModal = () => setSelectedRecord(null);
+  const recordMap = new Map<string, ReportRecord[]>();
 
   const getValue = (record: ReportRecord[], column: string): string => {
     const found = record.find((item) => item.column === column);
     const value = found?.value;
     return formatValue(value);
   };
+
+  const hiddenColumns = [
+    'first_closing_date_id',
+    'family_code',
+    'household_head_name',
+    'beneficiary_level',
+    'birth_date',
+    'company_name',
+    'insurance_id',
+    'global_bill_id',
+    'global_bill_identifier',
+    'MEDICAMENTS',
+    'CONSULTATION',
+    'HOSPITALISATION',
+    'LABORATOIRE',
+    'FORMALITES ADMINISTRATIVES',
+    'AMBULANCE',
+    'CONSOMMABLES',
+    'OXYGENOTHERAPIE',
+    'IMAGING',
+    'PROCED.',
+  ];
 
   const handleSearch = async (filters: Filters, pageNum = 1, pageSize = 50) => {
     setLoading(true);
@@ -116,14 +136,14 @@ const InsuranceReport: React.FC = () => {
 
   const headerDisplayMap: Record<string, string> = {
     no: t('no', 'No'),
-    first_closing_date_id: t('firstClosingDateId', 'First Closing Date'),
+    first_closing_date_id: t('firstClosingDateId', 'First Closing Date ID'),
     admission_date: t('admissionDate', 'Admission Date'),
     closing_date: t('closingDate', 'Closing Date'),
     beneficiary_name: t('beneficiaryName', 'Beneficiary Name'),
     household_head_name: t('householdHeadName', 'Household Head Name'),
     family_code: t('familyCode', 'Family Code'),
     beneficiary_level: t('beneficiaryLevel', 'Beneficiary Level'),
-    card_number: t('cardNumber', 'Card Number'),
+    card_number: t('cardNumber', 'Card No'),
     company_name: t('companyName', 'Company Name'),
     age: t('age', 'Age'),
     birth_date: t('birthDate', 'Birth Date'),
@@ -136,13 +156,12 @@ const InsuranceReport: React.FC = () => {
     CONSULTATION: t('consultation', 'Consultation'),
     HOSPITALISATION: t('hospitalisation', 'Hospitalization'),
     LABORATOIRE: t('laboratory', 'Laboratory'),
-    FORMALITES_ADMINISTRATIVES: t('adminFormalities', 'Administrative Formalities'),
+    FORMALITES_ADMINISTRATIVES: t('adminFormalities', 'Admin Formalities'),
     AMBULANCE: t('ambulance', 'Ambulance'),
     CONSOMMABLES: t('consumables', 'Consumables'),
     OXYGENOTHERAPIE: t('oxygen', 'Oxygen Therapy'),
     IMAGING: t('imaging', 'Imaging'),
     'PROCED.': t('procedure', 'Proced.'),
-    Action: t('action', 'Action'),
   };
 
   useEffect(() => {
@@ -181,28 +200,28 @@ const InsuranceReport: React.FC = () => {
 
           <DataTable
             rows={results.map((row, index) => {
+              const id = `${(page - 1) * pageSize + index + 1}`;
               const rowData = {
-                id: `${(page - 1) * pageSize + index + 1}`,
+                id,
                 ...Object.fromEntries(columns.map((col) => [col, getValue(row.record, col)])),
-                no: (page - 1) * pageSize + index + 1,
+                no: parseInt(id),
               };
+              recordMap.set(id, row.record);
 
-              return {
-                ...rowData,
-                record: row.record,
-              };
+              return rowData;
             })}
             headers={[
               { key: 'no', header: t('no', 'No') },
-              ...columns.map((col) => ({
-                key: col,
-                header: headerDisplayMap[col] || col,
-              })),
-              { key: 'actions', header: t('action', 'Action') },
+              ...columns
+                .filter((col) => !hiddenColumns.includes(col))
+                .map((col) => ({
+                  key: col,
+                  header: headerDisplayMap[col] || col,
+                })),
             ]}
             size="lg"
             useZebraStyles
-            isSortable={false}
+            isSortable={true}
             overflowMenuOnHover={false}
             className={styles.dataTable}
           >
@@ -211,28 +230,84 @@ const InsuranceReport: React.FC = () => {
                 <Table {...getTableProps()} className={styles.table}>
                   <TableHead>
                     <TableRow>
+                      <TableExpandHeader />
                       {headers.map((header) => (
-                        <TableHeader key={header.key} title={header.header} {...getHeaderProps({ header })}>
+                        <TableHeader key={header.key} {...getHeaderProps({ header })}>
                           {header.header}
                         </TableHeader>
                       ))}
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {results.map((row, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{(page - 1) * pageSize + index + 1}</TableCell>
-                        {columns.map((col) => (
-                          <TableCell key={col} title={getValue(row.record, col)}>
-                            {getValue(row.record, col)}
-                          </TableCell>
-                        ))}
-                        <TableCell>
-                          <Button kind="ghost" size="sm" onClick={() => handleView(row.record)}>
-                            {t('view', 'View')}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                    {rows.map((row) => (
+                      <React.Fragment key={row.id}>
+                        <TableExpandRow {...getRowProps({ row })}>
+                          {row.cells.map((cell) => (
+                            <TableCell key={cell.id}>
+                              <span title={cell.value}>{cell.value}</span>
+                            </TableCell>
+                          ))}
+                        </TableExpandRow>
+                        {row.isExpanded && (
+                          <TableExpandedRow colSpan={headers.length + 1}>
+                            <div className={styles.expandedContentRow}>
+                              {recordMap.has(row.id) &&
+                                recordMap
+                                  .get(row.id)!
+                                  .filter((item) =>
+                                    [
+                                      'first_closing_date_id',
+                                      'household_head_name',
+                                      'family_code',
+                                      'beneficiary_level',
+                                      'company_name',
+                                      'birth_date',
+                                      'insurance_id',
+                                      'global_bill_id',
+                                      'global_bill_identifier',
+                                      'MEDICAMENTS',
+                                      'CONSULTATION',
+                                      'HOSPITALISATION',
+                                      'LABORATOIRE',
+                                      'FORMALITES ADMINISTRATIVES',
+                                      'AMBULANCE',
+                                      'CONSOMMABLES',
+                                      'OXYGENOTHERAPIE',
+                                      'IMAGING',
+                                      'PROCED.',
+                                    ].includes(item.column),
+                                  )
+                                  .map((item, i) => (
+                                    <div className={styles.inlineDetailItem} key={i}>
+                                      <span className={styles.detailLabel}>
+                                        {headerDisplayMap[item.column] || item.column}:
+                                      </span>{' '}
+                                      <span className={styles.detailValue}>{formatValue(item.value)}</span>
+                                      {i !== 9 && <span className={styles.divider}>|</span>}
+                                    </div>
+                                  ))}
+                            </div>
+                            {recordMap.has(row.id) && (
+                              <div className={styles.expandedDownloadRow}>
+                                <Button
+                                  size="sm"
+                                  kind="primary"
+                                  onClick={() => {
+                                    const fullRecord = recordMap.get(row.id)!;
+                                    const formattedRecord = fullRecord.map((item) => ({
+                                      column: item.column,
+                                      value: formatValue(item.value),
+                                    }));
+                                    exportSingleRecordToPDF(formattedRecord);
+                                  }}
+                                >
+                                  {t('download', 'Download')}
+                                </Button>
+                              </div>
+                            )}
+                          </TableExpandedRow>
+                        )}
+                      </React.Fragment>
                     ))}
                   </TableBody>
                 </Table>
@@ -254,47 +329,6 @@ const InsuranceReport: React.FC = () => {
             }}
             totalItems={totalRecords}
           />
-
-          <Modal
-            open={!!selectedRecord}
-            onRequestClose={closeModal}
-            modalHeading={t('recordDetails', 'Record Details')}
-            passiveModal
-            className={styles.billingDetailModal}
-          >
-            <div className={styles.billingDetailContent}>
-              {selectedRecord?.map((item, idx) => (
-                <div className={styles.detailRow} key={idx}>
-                  <span className={styles.detailLabel}>{item.column}:</span>
-                  <span className={styles.detailValue}>{formatValue(item.value)}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className={styles.modalFooter}>
-              <Button kind="secondary" onClick={closeModal}>
-                {t('close', 'Close')}
-              </Button>
-              <Button
-                kind="primary"
-                onClick={() => {
-                  if (!selectedRecord || selectedRecord.length === 0) {
-                    alert(t('noRecordSelected', 'No record selected.'));
-                    return;
-                  }
-
-                  const formattedRecord = selectedRecord.map((item) => ({
-                    column: item.column,
-                    value: formatValue(item.value),
-                  }));
-
-                  exportSingleRecordToPDF(formattedRecord);
-                }}
-              >
-                {t('download', 'Download')}
-              </Button>
-            </div>
-          </Modal>
         </div>
       )}
     </div>
