@@ -51,6 +51,11 @@
       "meta": {
         "columnSpan": 4
       }
+    },
+    {
+      "name": "patient-admission-form",
+      "slot": "extra-visit-attribute-slot",
+      "component": "patientAdmissionForm"
     }
   ],
   "workspaces": []

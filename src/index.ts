@@ -6,6 +6,7 @@ import BillingAdminCardLink from './billing-admin-card-link.component';
 import BillingAdminHome from './billing-admin/billing-home/billing-home-component';
 import InvoiceTable from './invoice/invoice-table.component';
 import { dashboardMeta } from './dashboard.meta';
+import PatientAdmissionForm from './visit-attributes/patient-admission-form.component';
 
 const moduleName = '@openmrs/esm-rwandaemr-billing-app';
 
@@ -40,3 +41,6 @@ export const billingAdminHome = getSyncLifecycle(BillingAdminHome, options);
 export const billingPatientSummary = getSyncLifecycle(InvoiceTable, options);
 
 export const billableServicesCardLink = getSyncLifecycle(BillingAdminCardLink, options);
+
+export const patientAdmissionForm = getSyncLifecycle(PatientAdmissionForm, options);
+
