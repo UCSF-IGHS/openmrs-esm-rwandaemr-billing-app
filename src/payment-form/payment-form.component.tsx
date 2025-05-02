@@ -12,7 +12,7 @@ import {
 } from '@carbon/react';
 import { Printer } from '@carbon/react/icons';
 import { showToast, useSession } from '@openmrs/esm-framework';
-import { submitBillPayment, getConsommationById } from '../api/billing';
+import { submitBillPayment, getConsommationById, getConsommationRates } from '../api/billing';
 import { 
   isItemPaid, 
   isItemPartiallyPaid, 
@@ -66,6 +66,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [depositBalance, setDepositBalance] = useState('1100.00'); // Mock value for demonstration
   const [clientSidePaidItems, setClientSidePaidItems] = useState<Record<string, boolean>>({});
   const [paymentSuccessful, setPaymentSuccessful] = useState(false);
+  const [insuranceRates, setInsuranceRates] = useState({
+    insuranceRate: 0,
+    patientRate: 100
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -78,8 +82,29 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       setPaymentError('');
       setReceivedCash('');
       setDeductedAmount('');
+      
+      // Fetch insurance rates for the selected consommation
+      if (selectedRows.length > 0) {
+        fetchInsuranceRates(selectedRows[0]);
+      }
     }
   }, [isOpen, rows, selectedRows]);
+
+  // Function to fetch insurance rates
+  const fetchInsuranceRates = async (consommationId) => {
+    if (!consommationId) return;
+    
+    try {
+      const rates = await getConsommationRates(consommationId);
+      setInsuranceRates(rates);
+    } catch (error) {
+      console.error('Error fetching insurance rates:', error);
+      setInsuranceRates({
+        insuranceRate: 0,
+        patientRate: 100
+      });
+    }
+  };
 
   const isActuallyPaid = (item: ConsommationItem): boolean => {
     if (item.patientServiceBillId && clientSidePaidItems[item.patientServiceBillId]) {
@@ -132,68 +157,68 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     return selectedConsommationItems.some(item => isActuallyPaid(item));
   };
 
-const handlePrintReceipt = async () => {
-  try {
-    const selectedConsommation = rows.find(row => selectedRows.includes(row.id));
-    
-    if (!selectedConsommation) return;
-    
-    const allItems = [...selectedConsommationItems];
-    
-    if (allItems.length === 0) {
-      showToast({
-        title: t('noItems', 'No Items'),
-        description: t('noItemsDescription', 'There are no items to print a receipt for'),
-        kind: 'warning',
-      });
-      return;
-    }
-    
-    const totalPaidAmount = allItems.reduce((total, item) => {
-      return total + (item.paidAmount || 0);
-    }, 0);
-    
-    let patientName = 'Unknown';
-    let policyNumber = '';
-    
+  const handlePrintReceipt = async () => {
     try {
-      const consommationDetails = await getConsommationById(selectedConsommation.consommationId);
-
-      if (consommationDetails && consommationDetails.patientBill) {
-        patientName = consommationDetails.patientBill.beneficiaryName || 'Unknown';
-        policyNumber = consommationDetails.patientBill.policyIdNumber || ''
+      const selectedConsommation = rows.find(row => selectedRows.includes(row.id));
+      
+      if (!selectedConsommation) return;
+      
+      const allItems = [...selectedConsommationItems];
+      
+      if (allItems.length === 0) {
+        showToast({
+          title: t('noItems', 'No Items'),
+          description: t('noItemsDescription', 'There are no items to print a receipt for'),
+          kind: 'warning',
+        });
+        return;
       }
+      
+      const totalPaidAmount = allItems.reduce((total, item) => {
+        return total + (item.paidAmount || 0);
+      }, 0);
+      
+      let patientName = 'Unknown';
+      let policyNumber = '';
+      
+      try {
+        const consommationDetails = await getConsommationById(selectedConsommation.consommationId);
+
+        if (consommationDetails && consommationDetails.patientBill) {
+          patientName = consommationDetails.patientBill.beneficiaryName || 'Unknown';
+          policyNumber = consommationDetails.patientBill.policyIdNumber || ''
+        }
+      } catch (error) {
+        console.error('Error fetching consommation details:', error);
+      }
+      
+      const paymentData = {
+        amountPaid: totalPaidAmount.toFixed(2),
+        receivedCash: paymentSuccessful ? receivedCash : '',
+        change: paymentSuccessful ? calculateChange(receivedCash, paymentAmount) : '0.00',
+        paymentMethod: paymentMethod,
+        deductedAmount: paymentSuccessful && paymentMethod === 'deposit' ? deductedAmount : '',
+        dateReceived: new Date().toISOString().split('T')[0],
+        collectorName: session?.user?.display || 'Unknown',
+        patientName: patientName,
+        policyNumber: policyNumber
+      };
+      
+      const consommationData = {
+        consommationId: selectedConsommation.consommationId,
+        service: selectedConsommation.service
+      };
+      
+      printReceipt(paymentData, consommationData, allItems);
     } catch (error) {
-      console.error('Error fetching consommation details:', error);
+      console.error('Error preparing receipt:', error);
+      showToast({
+        title: t('printError', 'Print Error'),
+        description: t('printErrorDescription', 'There was an error preparing the receipt'),
+        kind: 'error',
+      });
     }
-    
-    const paymentData = {
-      amountPaid: totalPaidAmount.toFixed(2),
-      receivedCash: paymentSuccessful ? receivedCash : '',
-      change: paymentSuccessful ? calculateChange(receivedCash, paymentAmount) : '0.00',
-      paymentMethod: paymentMethod,
-      deductedAmount: paymentSuccessful && paymentMethod === 'deposit' ? deductedAmount : '',
-      dateReceived: new Date().toISOString().split('T')[0],
-      collectorName: session?.user?.display || 'Unknown',
-      patientName: patientName,
-      policyNumber: policyNumber
-    };
-    
-    const consommationData = {
-      consommationId: selectedConsommation.consommationId,
-      service: selectedConsommation.service
-    };
-    
-    printReceipt(paymentData, consommationData, allItems);
-  } catch (error) {
-    console.error('Error preparing receipt:', error);
-    showToast({
-      title: t('printError', 'Print Error'),
-      description: t('printErrorDescription', 'There was an error preparing the receipt'),
-      kind: 'error',
-    });
-  }
-};
+  };
 
   const handlePaymentSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -617,6 +642,8 @@ const handlePrintReceipt = async () => {
                     <th>{t('quantity', 'Qty')}</th>
                     <th>{t('unitPrice', 'Unit Price')}</th>
                     <th>{t('itemTotal', 'Total')}</th>
+                    <th>{t('insuranceAmount', `Insurance (${insuranceRates.insuranceRate}%)`)}</th>
+                    <th>{t('patientAmount', `Patient (${insuranceRates.patientRate}%)`)}</th>
                     <th>{t('paidAmt', 'Paid Amount')}</th>
                     <th>{t('status', 'Status')}</th>
                   </tr>
@@ -627,6 +654,10 @@ const handlePrintReceipt = async () => {
                     const paidAmt = item.paidAmount || 0;
                     const isPaid = isActuallyPaid(item);
                     const isPartiallyPaid = isItemPartiallyPaid(item);
+                    
+                    // Calculate insurance and patient portions
+                    const insuranceAmount = (itemTotal * insuranceRates.insuranceRate / 100);
+                    const patientAmount = (itemTotal * insuranceRates.patientRate / 100);
 
                     return (
                       <tr key={index} className={item.selected ? styles.selectedItem : ''}>
@@ -636,7 +667,7 @@ const handlePrintReceipt = async () => {
                             checked={item.selected || false}
                             onChange={() => toggleItemSelection(index)}
                             labelText=""
-                            disabled={isPaid} // Use enhanced paid status check
+                            disabled={isPaid}
                           />
                         </td>
                         <td>{item.serviceDate ? new Date(item.serviceDate).toLocaleDateString() : '-'}</td>
@@ -644,6 +675,8 @@ const handlePrintReceipt = async () => {
                         <td>{item.quantity || '1'}</td>
                         <td>{Number(item.unitPrice || 0).toFixed(2)}</td>
                         <td>{Number(itemTotal).toFixed(2)}</td>
+                        <td>{insuranceAmount.toFixed(2)}</td>
+                        <td>{patientAmount.toFixed(2)}</td>
                         <td>{Number(paidAmt).toFixed(2)}</td>
                         <td>
                           <span
@@ -667,7 +700,7 @@ const handlePrintReceipt = async () => {
                     <td colSpan={6}>
                       <strong>{t('selectedItemsTotal', 'Selected Items Total')}</strong>
                     </td>
-                    <td colSpan={2}>
+                    <td colSpan={4}>
                       <strong>{calculateSelectedItemsTotal(selectedConsommationItems).toFixed(2)}</strong>
                     </td>
                   </tr>
@@ -675,7 +708,7 @@ const handlePrintReceipt = async () => {
                     <td colSpan={6}>
                       <strong>{t('totalAmountToPay', 'Total Amount to be paid')}</strong>
                     </td>
-                    <td colSpan={2}>
+                    <td colSpan={4}>
                       <strong>{calculateTotalRemainingAmount(selectedConsommationItems).toFixed(2)}</strong>
                     </td>
                   </tr>
