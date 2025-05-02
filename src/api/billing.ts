@@ -812,10 +812,10 @@ export const getConsommationRates = async (consommationId: string): Promise<{
   insuranceName?: string;
 }> => {
   try {
-    // First get the consommation details to get the insurance card number
+    // Get consommation details
     const consommation = await getConsommationById(consommationId);
     
-    if (!consommation || !consommation.patientBill || !consommation.patientBill.policyIdNumber) {
+    if (!consommation?.patientBill?.policyIdNumber) {
       console.warn('Insurance card number not found in consommation');
       return { insuranceRate: 0, patientRate: 100 };
     }
@@ -824,7 +824,6 @@ export const getConsommationRates = async (consommationId: string): Promise<{
     const insuranceName = consommation.patientBill.insuranceName || '';
     
     try {
-      // Try to get the insurance policy first
       const policyResponse = await openmrsFetch(
         `${BASE_API_URL}/insurancePolicy?insuranceCardNo=${insuranceCardNo}`
       );
@@ -835,7 +834,6 @@ export const getConsommationRates = async (consommationId: string): Promise<{
       
       const policy = policyResponse.data.results[0];
       
-      // Check if policy has insurance information
       if (!policy.insurance || !policy.insurance.insuranceId) {
         throw new Error('Insurance information missing from policy');
       }
@@ -848,7 +846,6 @@ export const getConsommationRates = async (consommationId: string): Promise<{
         throw new Error(`Failed to fetch insurance details for ID: ${insuranceId}`);
       }
       
-      // Get the rate directly from the insurance object
       const currentRate = insuranceData.rate !== null && insuranceData.rate !== undefined 
         ? Number(insuranceData.rate) 
         : 0;
@@ -859,23 +856,8 @@ export const getConsommationRates = async (consommationId: string): Promise<{
         insuranceName: insuranceName || insuranceData.name
       };
     } catch (policyError) {
-      console.warn('Error fetching policy, calculating from bill amounts:', policyError);
+      console.warn('Error fetching policy, trying to match by name:', policyError);
       
-      // Fallback: If we can't get the policy, calculate rates based on the bill amounts
-      if (consommation.insuranceBill && consommation.patientBill) {
-        const totalBill = consommation.insuranceBill.amount + consommation.patientBill.amount;
-        if (totalBill > 0) {
-          const insuranceRate = Math.round((consommation.insuranceBill.amount / totalBill) * 100);
-          
-          return {
-            insuranceRate: insuranceRate,
-            patientRate: 100 - insuranceRate,
-            insuranceName: insuranceName
-          };
-        }
-      }
-      
-      // If all else fails, check if we can match the insurance by name to get its rate
       if (insuranceName) {
         try {
           const insurances = await getInsurances();
@@ -905,10 +887,6 @@ export const getConsommationRates = async (consommationId: string): Promise<{
     }
   } catch (error) {
     console.error('Error fetching consommation rates:', error);
-    // Return default values if we can't get the actual rates
-    return {
-      insuranceRate: 0,
-      patientRate: 100
-    };
+    return { insuranceRate: 0, patientRate: 100 };
   }
 };
