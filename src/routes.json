@@ -51,7 +51,27 @@
       "meta": {
         "columnSpan": 4
       }
-    }
+    },
+    {
+      "name": "insurance-rwanda-summary-dashboard-link",
+      "component": "insuranceDashboardLink",
+      "slot": "patient-chart-dashboard-slot",
+      "order": 12,
+      "meta": {
+        "columns": 1,
+        "columnSpan": 1,
+        "slot": "patient-rwanda-chart-insurance-dashboard-slot",
+        "path": "insurance"
+      }
+    },
+    {
+      "name": "insurance-rwanda-patient-summary",
+      "component": "insurancePatientSummary",
+      "slot": "patient-rwanda-chart-insurance-dashboard-slot",
+      "meta": {
+        "columnSpan": 5
+      }
+    }       
   ],
   "workspaces": []
 }
