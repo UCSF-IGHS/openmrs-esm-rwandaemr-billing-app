@@ -83,8 +83,8 @@
   }
 }
 .paymentFormGrid .paymentFormColumn .formRow .formInput .errorInput:after {
-    display: none; /* This will remove the red circle only in the specific area */
-  }
+  display: none; /* This will remove the red circle only in the specific area */
+}
 
 .readOnlyInput {
   background-color: $ui-03;
@@ -150,6 +150,18 @@
   th {
     background-color: $ui-02;
     font-weight: 600;
+  }
+
+  /* Insurance and patient column highlight styles */
+  th:nth-child(7),
+  th:nth-child(8) {
+    background-color: #f0f4f8;
+    border-bottom: 2px solid #d0e2ff;
+  }
+
+  td:nth-child(7),
+  td:nth-child(8) {
+    background-color: rgba(240, 248, 255, 0.3);
   }
   
   tfoot {
@@ -271,82 +283,122 @@ input[type="text"], input[type="number"], input[type="date"] {
 }
 
 :global {
-    .cds--modal-close {
-      background: none !important;
-    }
+  .cds--modal-close {
+    background: none !important;
   }
-  
-  .successMessage {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 2rem 1rem;
-  }
-  
-  .successIcon {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background-color: #24a148;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
-  
-  .printButton {
-    margin-top: 2rem;
-  }
-  
-  .actionsContainer {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 20px;
-    padding-top: 10px;
-    border-top: 1px solid $ui-03;
-  }
-  
-  .printReceiptButton {
-    display: flex;
-    align-items: center;
-    border: 1px solid #1c8b3b;
-    background: transparent;
-    color: #24a148;
-    padding: 0 16px;
-    height: 40px;
-    border-radius: 4px;
-    transition: all 0.2s;
-    
-    &:hover {
-      background-color: #edf5ff;
-    }
-  }
-  
-  .sectionHeaderWithActions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 24px;
-    margin-bottom: 16px;
-    width: 100%;
-  }
-  
-  .sectionHeaderWithActions h5 {
-    margin: 0;
-    font-weight: 600;
-  }
-  
-  .headerActions {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
+}
 
-  .partiallyPaidStatus {
-    background-color: #fff8e1;
-    color: #ff832b;
-  }
+.successMessage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.successIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: #24a148;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.printButton {
+  margin-top: 2rem;
+}
+
+.actionsContainer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid $ui-03;
+}
+
+.printReceiptButton {
+  display: flex;
+  align-items: center;
+  border: 1px solid #1c8b3b;
+  background: transparent;
+  color: #24a148;
+  padding: 0 16px;
+  height: 40px;
+  border-radius: 4px;
+  transition: all 0.2s;
   
+  &:hover {
+    background-color: #edf5ff;
+  }
+}
+
+.sectionHeaderWithActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.sectionHeaderWithActions h5 {
+  margin: 0;
+  font-weight: 600;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.partiallyPaidStatus {
+  background-color: #fff8e1;
+  color: #ff832b;
+}
+
+/* New styles for insurance rate columns */
+.insuranceRatesInfo {
+  display: none; /* Hide this section as it's not in the second image design */
+}
+
+.ratesContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  margin: 0.5rem 0;
+}
+
+.rateItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rateLabel {
+  font-weight: 400;
+  color: #525252;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.insuranceName {
+  font-weight: normal;
+  color: #6f6f6f;
+  font-style: italic;
+  margin-left: 0.25rem;
+}
+
+.rateValue {
+  font-weight: 600;
+  color: #161616;
+  background-color: #f4f4f4;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}

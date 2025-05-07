@@ -40,6 +40,9 @@ interface Insurance {
   address: string;
   phone: string;
   category: string;
+  rate?: number | null;
+  flatFee?: string | null;
+  voided?: boolean;
   links: Link[];
 }
 

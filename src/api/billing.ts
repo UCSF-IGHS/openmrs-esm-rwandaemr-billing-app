@@ -792,59 +792,93 @@ export const getInsuranceById = async (insuranceId: number): Promise<Insurance |
   }
 };
 
-export async function fetchInsuranceFirms() {
-  const params = new URLSearchParams({ report_id: 'insurance_firm_report' });
+/**
+ * Gets the insurance rates for a consommation from its related insurance policy
+ * @param {string} consommationId - The consommation ID
+ * @returns {Promise<Object>} - The rates object with insurance and patient percentages
+ */
+export const getConsommationRates = async (consommationId: string): Promise<{
+  insuranceRate: number;
+  patientRate: number;
+  insuranceName?: string;
+}> => {
+  try {
+    // Get consommation details
+    const consommation = await getConsommationById(consommationId);
+    
+    if (!consommation?.patientBill?.policyIdNumber) {
+      console.warn('Insurance card number not found in consommation');
+      return { insuranceRate: 0, patientRate: 100 };
+    }
+    
+    const insuranceCardNo = consommation.patientBill.policyIdNumber;
+    const insuranceName = consommation.patientBill.insuranceName || '';
+    
+    try {
+      const policyResponse = await openmrsFetch(
+        `${BASE_API_URL}/insurancePolicy?insuranceCardNo=${insuranceCardNo}`
+      );
 
-  const { data } = await openmrsFetch(`${BASE_MAMBA_API}?${params.toString()}`);
-  return data.results.map((item) => {
-    const record = item.record;
-    const idObj = record.find((i) => i.column === 'insurance_id');
-    const nameObj = record.find((i) => i.column === 'name');
-    return {
-      value: idObj?.value,
-      label: nameObj?.value,
-    };
-  });
-}
-
-export async function fetchAllInsuranceReportData(startDate: string, endDate: string, insuranceId: string) {
-  let page = 1;
-  const pageSize = 50;
-  let allResults: any[] = [];
-  let hasMore = true;
-
-  while (hasMore) {
-    const { results, total } = await fetchInsuranceReport(startDate, endDate, insuranceId, page, pageSize);
-    allResults = [...allResults, ...results];
-    page++;
-    hasMore = allResults.length < total;
+      if (!policyResponse.ok || !policyResponse.data?.results?.length) {
+        throw new Error(`No insurance policy found for card number: ${insuranceCardNo}`);
+      }
+      
+      const policy = policyResponse.data.results[0];
+      
+      if (!policy.insurance || !policy.insurance.insuranceId) {
+        throw new Error('Insurance information missing from policy');
+      }
+      
+      // Get the insurance details with rate
+      const insuranceId = policy.insurance.insuranceId;
+      const insuranceData = await getInsuranceById(insuranceId);
+      
+      if (!insuranceData) {
+        throw new Error(`Failed to fetch insurance details for ID: ${insuranceId}`);
+      }
+      
+      const currentRate = insuranceData.rate !== null && insuranceData.rate !== undefined 
+        ? Number(insuranceData.rate) 
+        : 0;
+      
+      return {
+        insuranceRate: currentRate,
+        patientRate: 100 - currentRate,
+        insuranceName: insuranceName || insuranceData.name
+      };
+    } catch (policyError) {
+      console.warn('Error fetching policy, trying to match by name:', policyError);
+      
+      if (insuranceName) {
+        try {
+          const insurances = await getInsurances();
+          const matchingInsurance = insurances.find(
+            ins => ins.name.toLowerCase() === insuranceName.toLowerCase()
+          );
+          
+          if (matchingInsurance && matchingInsurance.rate !== null && matchingInsurance.rate !== undefined) {
+            const insuranceRate = Number(matchingInsurance.rate);
+            return {
+              insuranceRate: insuranceRate,
+              patientRate: 100 - insuranceRate,
+              insuranceName: insuranceName
+            };
+          }
+        } catch (err) {
+          console.error('Error fetching insurances for fallback:', err);
+        }
+      }
+      
+      // Last resort default
+      return {
+        insuranceRate: 0,
+        patientRate: 100,
+        insuranceName: insuranceName
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching consommation rates:', error);
+    return { insuranceRate: 0, patientRate: 100 };
   }
+};
 
-  return allResults;
-}
-
-export async function fetchInsuranceReport(
-  startDate: string,
-  endDate: string,
-  insuranceId: string,
-  page_number = 1,
-  page_size = 50,
-) {
-  const formattedStart = dayjs(startDate).format('YYYY-MM-DD');
-  const formattedEnd = dayjs(endDate).format('YYYY-MM-DD');
-
-  const params = new URLSearchParams({
-    report_id: 'insurance_bill',
-    insurance_identifier: insuranceId,
-    start_date: formattedStart,
-    end_date: formattedEnd,
-    page_number: String(page_number),
-    page_size: String(page_size),
-  });
-
-  const { data } = await openmrsFetch(`${BASE_MAMBA_API}?${params.toString()}`);
-  return {
-    results: data.results || [],
-    total: data.pagination?.totalRecords || 0,
-  };
-}
