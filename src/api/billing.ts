@@ -1,6 +1,8 @@
 import { openmrsFetch } from '@openmrs/esm-framework';
+import dayjs from 'dayjs';
 
 const BASE_API_URL = '/ws/rest/v1/mohbilling';
+const BASE_MAMBA_API = '/ws/rest/v1/mamba/report';
 
 export interface Department {
   departmentId: number;
@@ -890,3 +892,60 @@ export const getConsommationRates = async (consommationId: string): Promise<{
     return { insuranceRate: 0, patientRate: 100 };
   }
 };
+
+export async function fetchInsuranceFirms() {
+  const params = new URLSearchParams({ report_id: 'insurance_firm_report' });
+
+  const { data } = await openmrsFetch(`${BASE_MAMBA_API}?${params.toString()}`);
+  return data.results.map((item) => {
+    const record = item.record;
+    const idObj = record.find((i) => i.column === 'insurance_id');
+    const nameObj = record.find((i) => i.column === 'name');
+    return {
+      value: idObj?.value,
+      label: nameObj?.value,
+    };
+  });
+}
+
+export async function fetchAllInsuranceReportData(startDate: string, endDate: string, insuranceId: string) {
+  let page = 1;
+  const pageSize = 50;
+  let allResults: any[] = [];
+  let hasMore = true;
+
+  while (hasMore) {
+    const { results, total } = await fetchInsuranceReport(startDate, endDate, insuranceId, page, pageSize);
+    allResults = [...allResults, ...results];
+    page++;
+    hasMore = allResults.length < total;
+  }
+
+  return allResults;
+}
+
+export async function fetchInsuranceReport(
+  startDate: string,
+  endDate: string,
+  insuranceId: string,
+  page_number = 1,
+  page_size = 50,
+) {
+  const formattedStart = dayjs(startDate).format('YYYY-MM-DD');
+  const formattedEnd = dayjs(endDate).format('YYYY-MM-DD');
+
+  const params = new URLSearchParams({
+    report_id: 'insurance_bill',
+    insurance_identifier: insuranceId,
+    start_date: formattedStart,
+    end_date: formattedEnd,
+    page_number: String(page_number),
+    page_size: String(page_size),
+  });
+
+  const { data } = await openmrsFetch(`${BASE_MAMBA_API}?${params.toString()}`);
+  return {
+    results: data.results || [],
+    total: data.pagination?.totalRecords || 0,
+  };
+}
