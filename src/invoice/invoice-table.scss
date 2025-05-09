@@ -6,7 +6,7 @@
 $ui-01: #ffffff !default;
 $ui-02: #f4f4f4 !default;
 $ui-03: #dcdcdc !default;
-$text-02: #525252 !default;
+$text-02: #eb4848 !default;
 
 /* Main widget card to fill width */
 .widgetCard {
@@ -198,4 +198,14 @@ $text-02: #525252 !default;
   justify-content: flex-end;
   width: 100%;
   margin-bottom: 1rem;
+}
+
+.unpaidStatus {
+  background-color: #fff1f1;
+  color: #da1e28;
+}
+
+.paidStatus {
+  background-color: #defbe6;
+  color: #0e6027;
 }
