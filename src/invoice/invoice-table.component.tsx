@@ -21,6 +21,7 @@ import {
   InlineLoading,
   Pagination,
   Modal,
+  Tag,
   type DataTableRow,
 } from '@carbon/react';
 import { isDesktop, useConfig, useDebounce, useLayoutType, usePatient, usePagination, showToast } from '@openmrs/esm-framework';
@@ -58,31 +59,57 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   const usePatientData = Boolean(patientUuid);
   const useInsuranceData = Boolean(insuranceCardNo) && !usePatientData;
   
-  const lineItems = useMemo(() => 
-    usePatientData ? patientBillResponse.bills : 
-    useInsuranceData ? insuranceBillResponse.bills : [],
-  [usePatientData, patientBillResponse.bills, useInsuranceData, insuranceBillResponse.bills]);
+  const lineItems = useMemo(() => {
+    const items = usePatientData ? patientBillResponse.bills : useInsuranceData ? insuranceBillResponse.bills : [];
+
+    const itemsArray = Array.isArray(items) ? items : [];
+
+    return [...itemsArray].sort((a, b) => {
+      if (!a || !b) return 0;
+
+      const getDateValue = (item) => {
+        if (!item.date) return 0;
+
+        if (typeof item.date === 'string' && item.date.includes('Today')) {
+          return new Date().getTime();
+        }
+
+        try {
+          return new Date(item.date).getTime();
+        } catch (e) {
+          return 0;
+        }
+      };
+
+      const dateA = getDateValue(a);
+      const dateB = getDateValue(b);
+
+      return dateB - dateA;
+    });
+  }, [usePatientData, patientBillResponse.bills, useInsuranceData, insuranceBillResponse.bills]);
   
-  const isLoading = usePatientData ? patientBillResponse.isLoading : 
-                   useInsuranceData ? insuranceBillResponse.isLoading : false;
-  const error = usePatientData ? patientBillResponse.error : 
-               useInsuranceData ? insuranceBillResponse.error : null;
-  const isValidating = usePatientData ? patientBillResponse.isValidating : 
-                      useInsuranceData ? insuranceBillResponse.isValidating : false;
-  const mutate = useMemo(() => 
-    usePatientData ? patientBillResponse.mutate : 
-    useInsuranceData ? insuranceBillResponse.mutate : () => {},
-  [usePatientData, patientBillResponse.mutate, useInsuranceData, insuranceBillResponse.mutate]);
+  const isLoading = usePatientData
+    ? patientBillResponse.isLoading
+    : useInsuranceData
+      ? insuranceBillResponse.isLoading
+      : false;
+  const error = usePatientData ? patientBillResponse.error : useInsuranceData ? insuranceBillResponse.error : null;
+  const isValidating = usePatientData
+    ? patientBillResponse.isValidating
+    : useInsuranceData
+      ? insuranceBillResponse.isValidating
+      : false;
+  const mutate = useMemo(
+    () => (usePatientData ? patientBillResponse.mutate : useInsuranceData ? insuranceBillResponse.mutate : () => {}),
+    [usePatientData, patientBillResponse.mutate, useInsuranceData, insuranceBillResponse.mutate],
+  );
   
-  // State for calculator modal
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [currentGlobalBillId, setCurrentGlobalBillId] = useState<string | null>(null);
   
-  // State for calculator items
   const [calculatorItems, setCalculatorItems] = useState([]);
   
-  // Pagination setup
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
   const { paginated, goTo, results, currentPage } = usePagination(lineItems || [], currentPageSize);
   const { pageSizes } = usePaginationInfo(pageSize, lineItems?.length || 0, currentPage, results?.length || 0);
@@ -117,7 +144,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   }, [debouncedSearchTerm, results]);
 
   const tableHeaders = [
-    { key: 'no', header: t('no', 'No') },
     { key: 'globalBillId', header: t('globalBillId', 'Global Bill ID') },
     { key: 'date', header: t('dateOfBill', 'Date of Bill') },
     { key: 'createdBy', header: t('createdBy', 'Created by') },
@@ -134,8 +160,19 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     () =>
       (filteredLineItems || [])?.map((item, index) => {
         if (!item) return null;
+        
+        const statusContent = {
+          content: (
+            <Tag 
+              type={item.paymentStatus === 'PAID' ? 'green' : 'red'} 
+              className={item.paymentStatus === 'PAID' ? styles.paidStatus : styles.unpaidStatus}
+            >
+              {item.paymentStatus || ''}
+            </Tag>
+          )
+        };
+        
         return {
-          no: `${index + 1}`,
           id: `${item.globalBillId || ''}`,
           globalBillId: item.globalBillId || '',
           date: item.date || '',
@@ -146,7 +183,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
           billIdentifier: item.billIdentifier || '',
           patientDueAmount: item.patientDueAmount || '',
           paidAmount: item.paidAmount || '',
-          paymentStatus: item.paymentStatus || ''
+          paymentStatus: statusContent
         };
       }).filter(Boolean) ?? [],
     [filteredLineItems],
@@ -302,7 +339,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   }, []);
 
   const renderConsommationsTable = (globalBillId) => {
-    // Find the corresponding lineItem to check its status
     const currentBill = lineItems.find(item => item.globalBillId?.toString() === globalBillId?.toString());
     const isGlobalBillClosed = currentBill?.paymentStatus === 'PAID';
     
@@ -313,7 +349,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
           patientUuid={patientUuid} 
           insuranceCardNo={insuranceCardNo} 
           onConsommationClick={() => {
-            // Function intentionally left empty
+            
           }}
           onAddNewInvoice={createNewInvoice}
           isGlobalBillClosed={isGlobalBillClosed}
@@ -369,7 +405,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     );
   }
 
-  // Determine if we should get the policyId (insuranceCardNo) from the first bill
   const getPolicyIdFromFirstBill = (): string | undefined => {
     if (lineItems && lineItems.length > 0 && lineItems[0]) {
       return lineItems[0].policyId || '';
@@ -411,7 +446,29 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
                     <TableExpandHeader />
                     {headers.map((header) => (
                       <TableHeader
-                        className={styles.tableHeader}
+                        className={`${styles.tableHeader} ${
+                          header.key === 'globalBillId'
+                            ? styles.colGlobalBillId
+                            : header.key === 'date'
+                              ? styles.colDate
+                              : header.key === 'createdBy'
+                                ? styles.colCreatedBy
+                                : header.key === 'policyId'
+                                  ? styles.colPolicyId
+                                  : header.key === 'admissionDate'
+                                    ? styles.colAdmissionDate
+                                    : header.key === 'dischargeDate'
+                                      ? styles.colDischargeDate
+                                      : header.key === 'billIdentifier'
+                                        ? styles.colBillId
+                                        : header.key === 'patientDueAmount'
+                                          ? styles.colAmount
+                                          : header.key === 'paidAmount'
+                                            ? styles.colPaid
+                                            : header.key === 'paymentStatus'
+                                              ? styles.colStatus
+                                              : ''
+                        }`}
                         {...getHeaderProps({
                           header,
                           isSortable: header.isSortable,
@@ -430,11 +487,26 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
                         isExpanded={expandedRowId === row.id}
                         onExpand={() => handleRowExpand(row)}
                       >
-                        {row.cells.map((cell) => (
-                        <TableCell key={cell.id} className={cell.info.header === 'billIdentifier' ? styles.colBillId : ''}>
-                          {cell.value?.content ?? cell.value}
-                        </TableCell>
-                        ))}
+                        {row.cells.map((cell) => {
+                          // Determine appropriate class for this cell
+                          const cellClassName = `${cell.info.header === 'billIdentifier' ? styles.colBillId : ''} ${
+                            cell.info.header === 'globalBillId' ? styles.colGlobalBillId : ''
+                          } ${cell.info.header === 'date' ? styles.colDate : ''} ${
+                            cell.info.header === 'createdBy' ? styles.colCreatedBy : ''
+                          } ${cell.info.header === 'policyId' ? styles.colPolicyId : ''} ${
+                            cell.info.header === 'admissionDate' ? styles.colAdmissionDate : ''
+                          } ${cell.info.header === 'dischargeDate' ? styles.colDischargeDate : ''} ${
+                            cell.info.header === 'patientDueAmount' ? styles.colAmount : ''
+                          } ${cell.info.header === 'paidAmount' ? styles.colPaid : ''} ${
+                            cell.info.header === 'paymentStatus' ? styles.colStatus : ''
+                          }`.trim();
+
+                          return (
+                            <TableCell key={cell.id} className={cellClassName}>
+                              {cell.value?.content ?? cell.value}
+                            </TableCell>
+                          );
+                        })}
                       </TableExpandRow>
                       {expandedRowId === row.id && (
                         <TableExpandedRow colSpan={headers.length + 1}>
@@ -480,7 +552,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         )}
       </div>
 
-      {/* Calculator Modal for when there are existing items */}
+      {/* Calculator Modal */}
       {isCalculatorOpen && currentGlobalBillId && (
         <Modal
           open={isCalculatorOpen}
