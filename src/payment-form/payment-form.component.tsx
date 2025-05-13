@@ -32,7 +32,6 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 
-// Define the payment form schema using Zod
 const paymentFormSchema = z.object({
   receivedCash: z.string()
     .refine(value => value === '' || /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
@@ -57,7 +56,6 @@ const paymentFormSchema = z.object({
     })
 });
 
-// Type for the form values
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
 interface PaymentFormProps {
@@ -98,7 +96,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     patientRate: 100
   });
   
-  // Set up React Hook Form with Zod validation
   const { 
     control, 
     handleSubmit, 
@@ -116,7 +113,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     }
   });
   
-  // Watch form values for cross-field validation
   const paymentAmount = watch('paymentAmount');
   const receivedCash = watch('receivedCash');
   const deductedAmount = watch('deductedAmount');
@@ -127,7 +123,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       setPaymentMethod('cash');
       setPaymentError('');
       
-      // Reset form with calculated totals
       const totalDueForSelected = calculateTotalDueForSelected(rows, selectedRows);
       reset({
         paymentAmount: totalDueForSelected.toString(),
@@ -135,14 +130,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         deductedAmount: ''
       });
       
-      // Fetch insurance rates for the selected consommation
       if (selectedRows.length > 0) {
         fetchInsuranceRates(selectedRows[0]);
       }
     }
   }, [isOpen, rows, selectedRows, reset]);
 
-  // Function to fetch insurance rates
   const fetchInsuranceRates = async (consommationId) => {
     if (!consommationId) return;
     
@@ -158,15 +151,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     }
   };
 
-  // Dynamic validation for cross-field relationships
   useEffect(() => {
     if (paymentMethod === 'cash' && receivedCash && paymentAmount) {
       const cashAmount = parseFloat(receivedCash);
       const amountToPay = parseFloat(paymentAmount);
       
       if (cashAmount < amountToPay) {
-        // Using setError from react-hook-form would be ideal here,
-        // but for simplicity, we'll update the error message state
         setPaymentError(t('insufficientCash', 'Received cash must be equal to or greater than the payment amount'));
       } else {
         setPaymentError('');
@@ -186,7 +176,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     }
   }, [paymentMethod, receivedCash, deductedAmount, paymentAmount, depositBalance, t]);
 
-  // Additional validation for payment amount vs selected items total
   useEffect(() => {
     if (paymentAmount) {
       const amountToPay = parseFloat(paymentAmount);
@@ -283,12 +272,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     }
   };
 
-  // Check if form is valid for submission
   const isFormValid = () => {
-    // Check if there are validation errors
     if (!isValid || paymentError) return false;
     
-    // Check if there are any selected items that aren't already paid
     const hasUnpaidSelectedItems = selectedConsommationItems.some(
       item => item.selected && !isActuallyPaid(item)
     );
@@ -515,7 +501,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             )}
 
             <div className={styles.paymentFormGrid}>
-              {/* Left side - Collector & Payment Info */}
               <div className={styles.paymentFormColumn}>
                 <FormGroup legendText="">
                   <div className={styles.formRow}>
