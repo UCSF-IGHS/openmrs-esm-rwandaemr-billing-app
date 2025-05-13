@@ -83,8 +83,8 @@
       "meta": {
         "columnSpan": 5
       }
-    }       
-
+    },       
+    {
       "name": "rwanda-admission-patient-summary",
       "component": "admissionHistory",
       "slot": "patient-rwanda-chart-admission-dashboard-slot",

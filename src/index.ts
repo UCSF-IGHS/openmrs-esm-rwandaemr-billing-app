@@ -30,9 +30,10 @@ export const billingSummaryDashboardLink = getSyncLifecycle(
   options,
 );
 
-
 export const insuranceDashboardLink = getSyncLifecycle(
   createDashboardLink({ ...insuranceDashboardMeta, moduleName }),
+  options,
+);
 
 export const admissionSummaryDashboardLink = getSyncLifecycle(
   createDashboardLink({ ...admissionDashboard, moduleName }),
@@ -54,10 +55,8 @@ export const billingPatientSummary = getSyncLifecycle(InvoiceTable, options);
 
 export const billableServicesCardLink = getSyncLifecycle(BillingAdminCardLink, options);
 
-
 export const insurancePatientSummary = getSyncLifecycle(Insurance, options);
 
 export const patientAdmissionFormWorkspace = getSyncLifecycle(PatientAdmissionForm, options);
 
 export const admissionHistory = getSyncLifecycle(AdmissionHistory, options);
-
