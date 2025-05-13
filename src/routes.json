@@ -45,6 +45,18 @@
       }
     },
     {
+      "name": "admission-rwanda-summary-dashboard-link",
+      "component": "admissionSummaryDashboardLink",
+      "slot": "patient-chart-dashboard-slot",
+      "order": 10,
+      "meta": {
+        "columns": 1,
+        "columnSpan": 1,
+        "slot": "patient-rwanda-chart-admission-dashboard-slot",
+        "path": "admission-information"
+      }
+    },
+    {
       "name": "billing-rwanda-patient-summary",
       "component": "billingPatientSummary",
       "slot": "patient-rwanda-chart-billing-dashboard-slot",
@@ -72,6 +84,22 @@
         "columnSpan": 5
       }
     }       
+
+      "name": "rwanda-admission-patient-summary",
+      "component": "admissionHistory",
+      "slot": "patient-rwanda-chart-admission-dashboard-slot",
+      "meta": {
+        "columnSpan": 4
+      }
+    }
+
   ],
-  "workspaces": []
+  "workspaces": [
+    {
+      "name": "patient-admission-workspace",
+      "title": "Admission Information",
+      "component": "patientAdmissionFormWorkspace",
+      "type": "form"
+    }
+  ]
 }
