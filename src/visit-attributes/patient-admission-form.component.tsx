@@ -14,7 +14,7 @@ import {
   getInsuranceById
 } from '../api/billing';
 import styles from './patient-admission-form.scss';
-import { createAdmissionWithGlobalBill, useDiseaseType } from '../api/patient-admission.resource';
+import { createAdmissionWithGlobalBill, getPatientVisits, useDiseaseType } from '../api/patient-admission.resource';
 
 const ADMISSION_TYPES = [
   { id: '1', text: 'Ordinary Admission' },
@@ -337,6 +337,38 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
         subtitle: 'Global bill has been created successfully', 
         kind: 'success' 
       });
+      
+      try {
+        const startOfDay = new Date(data.admissionDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        
+        const endOfDay = new Date(data.admissionDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const visitsResponse = await getPatientVisits(patientUuid, startOfDay, endOfDay);
+        
+        if (visitsResponse && visitsResponse.results && visitsResponse.results.length > 0) {
+          const visit = visitsResponse.results[0];
+          const visitType = visit.visitType?.display || 'Clinic Visit';
+          
+          showSnackbar({
+            title: t('visitCreated', 'Visit Created'),
+            subtitle: t('visitCreatedSuccessfully', `${visitType} has been created successfully`),
+            kind: 'success'
+          });
+        }
+      } catch (visitError) {
+        console.error('Failed to check for patient visits:', visitError);
+        
+        showSnackbar({
+          title: t('visitCheckError', 'Visit Check Error'),
+          subtitle: t('visitCheckErrorMessage', 'Unable to verify if a visit was created. The admission was saved successfully.'),
+          kind: 'warning',
+          isLowContrast: true
+        });
+      }
       
       if (onAdmissionCreated) {
         onAdmissionCreated({
