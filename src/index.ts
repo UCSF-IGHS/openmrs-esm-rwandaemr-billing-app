@@ -9,6 +9,7 @@ import { dashboardMeta, insuranceDashboardMeta, admissionDashboard } from './das
 import Insurance from './insurance/insurance.component';
 import PatientAdmissionForm from './visit-attributes/patient-admission-form.component';
 import AdmissionHistory from './admission-information/admission-history.component';
+import InsuranceForm from './insurance/insurance-forms.component';
 
 const moduleName = '@openmrs/esm-rwandaemr-billing-app';
 
@@ -40,6 +41,10 @@ export const admissionSummaryDashboardLink = getSyncLifecycle(
 
   options,
 );
+
+export const insuranceFormWorkspace = getSyncLifecycle(InsuranceForm, {
+  ...options,
+});
 
 export const billingDashboardLink = getSyncLifecycle(
   createLeftPanelLink({

@@ -100,6 +100,12 @@
       "title": "Admission Information",
       "component": "patientAdmissionFormWorkspace",
       "type": "form"
+    },
+    {
+      "name": "insurance-form-workspace",
+      "title": "Insurance",
+      "component": "insuranceFormWorkspace",
+      "type": "form"
     }
   ]
 }
