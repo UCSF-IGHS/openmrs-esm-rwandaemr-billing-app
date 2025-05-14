@@ -14,12 +14,11 @@ import {
   TableCell,
   TableContainer,
   Tile,
-  Layer,
-  DefinitionTooltip
+  Layer
 } from '@carbon/react';
 import { isDesktop, useLayoutType, usePagination, ErrorState } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
-import { getPatientBills, getConsommationItems } from '../api/billing';
+import { getPatientBills } from '../api/billing';
 import styles from './bill-list-table.scss';
 
 const BillListTable: React.FC = () => {
@@ -53,7 +52,9 @@ const BillListTable: React.FC = () => {
           policyIdNumber: bill.policyIdNumber || '--',
           insuranceName: bill.insuranceName || '--',
           creator: bill.creator || '--',
-          departmentName: bill.departmentName || 'Medical Services'
+          departmentName: bill.departmentName || '--',
+          // Use the service name directly from the response with TypeScript type assertion
+          serviceName: (bill as any).serviceName || bill.departmentName || '--'
         }));
         
         setBills(billsWithDefaults);
@@ -67,53 +68,6 @@ const BillListTable: React.FC = () => {
     
     fetchBills();
   }, [startDate, endDate]);
-
-  useEffect(() => {
-    const fetchServiceItemsForBills = async () => {
-      if (!bills.length || isLoading) return;
-      
-      try {
-        const enrichedBills = [...bills];
-        
-        for (let i = 0; i < Math.min(enrichedBills.length, 10); i++) {
-          const bill = enrichedBills[i];
-          
-          try {
-            const items = await getConsommationItems(bill.patientBillId.toString());
-            
-            if (items && items.length > 0) {
-              bill.serviceItems = items.map(item => ({
-                name: item.itemName,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                total: item.total
-              }));
-              
-              bill.serviceItemsSummary = items.map(item => item.itemName)
-                .filter((name, index, self) => self.indexOf(name) === index)
-                .slice(0, 3)
-                .join(', ') + 
-                (items.length > 3 ? ` + ${items.length - 3} more` : '');
-            }
-          } catch (error) {
-            // eslint-disable-next-line no-console
-            if (process.env.NODE_ENV !== 'production') {
-              console.error(`Error fetching service items for bill ${bill.patientBillId}:`, error);
-            }
-          }
-        }
-        
-        setBills(enrichedBills);
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        if (process.env.NODE_ENV !== 'production') {
-          console.error('Error enriching bills with service items:', error);
-        }
-      }
-    };
-    
-    fetchServiceItemsForBills();
-  }, [bills.length, isLoading, bills]);
 
   const getBillStatus = (bill: any) => {
     if (bill.payments && bill.payments.length > 0) {
@@ -141,8 +95,8 @@ const BillListTable: React.FC = () => {
             case 'beneficiary':
               searchMatch = bill.beneficiaryName?.toLowerCase().includes(lowerSearchString);
               break;
-            case 'insuranceName':
-              searchMatch = bill.insuranceName?.toLowerCase().includes(lowerSearchString);
+            case 'billedItems':
+              searchMatch = bill.serviceName?.toLowerCase().includes(lowerSearchString);
               break;
             case 'policyId':
               searchMatch = bill.policyIdNumber?.toLowerCase().includes(lowerSearchString);
@@ -150,8 +104,8 @@ const BillListTable: React.FC = () => {
             default:
               searchMatch = 
                 bill.beneficiaryName?.toLowerCase().includes(lowerSearchString) ||
-                bill.insuranceName?.toLowerCase().includes(lowerSearchString) ||
-                bill.policyIdNumber?.toLowerCase().includes(lowerSearchString);
+                bill.policyIdNumber?.toLowerCase().includes(lowerSearchString) ||
+                bill.serviceName?.toLowerCase().includes(lowerSearchString);
               break;
           }
         }
@@ -217,11 +171,6 @@ const BillListTable: React.FC = () => {
     {
       header: t('refId', 'Ref ID'),
       key: 'refId'
-    },
-    {
-      header: '',
-      key: 'originalBill',
-      hidden: true
     }
   ];
 
@@ -234,7 +183,7 @@ const BillListTable: React.FC = () => {
   const searchCategories = [
     { id: 'policyId', text: t('policyId', 'Policy ID') },
     { id: 'beneficiary', text: t('beneficiaryName', 'Beneficiary name') },
-    { id: 'insuranceName', text: t('insuranceName', 'Insurance name') }
+    { id: 'billedItems', text: t('billedItems', 'Billed items') }
   ];
 
   const rowData = results?.map((bill, index) => {
@@ -242,7 +191,8 @@ const BillListTable: React.FC = () => {
     
     const status = getBillStatus(bill);
     
-    const billItems = bill.serviceItemsSummary || bill.departmentName || 'Medical Services';
+    // Use the serviceName directly from the bill
+    const billItems = bill.serviceName || bill.departmentName || '--';
     
     return {
       id: `${index}`,
@@ -255,8 +205,7 @@ const BillListTable: React.FC = () => {
       paidAmount: totalPaid.toFixed(2),
       billStatus: status,
       refId: bill.patientBillId?.toString() || '--',
-      billedItems: billItems,
-      originalBill: bill
+      billedItems: billItems
     };
   });
 
@@ -335,7 +284,7 @@ const BillListTable: React.FC = () => {
               label=""
             />
           </div>
-          
+
           <div className={styles.searchContainer}>
             <span className={styles.searchInLabel}>{t('searchIn', 'Search in')}:</span>
             <Dropdown
@@ -351,7 +300,7 @@ const BillListTable: React.FC = () => {
               titleText=""
               label=""
             />
-            
+
             <Search
               className={styles.searchInput}
               id="bill-search"
@@ -374,14 +323,7 @@ const BillListTable: React.FC = () => {
               overflowMenuOnHover={false}
               className={styles.dataTable}
             >
-              {({
-                rows,
-                headers,
-                getTableProps,
-                getTableContainerProps,
-                getHeaderProps,
-                getRowProps,
-              }) => (
+              {({ rows, headers, getTableProps, getTableContainerProps, getHeaderProps, getRowProps }) => (
                 <TableContainer {...getTableContainerProps()}>
                   <Table className={styles.table} {...getTableProps()} aria-label="Recent bills">
                     <TableHead>
@@ -390,7 +332,7 @@ const BillListTable: React.FC = () => {
                           <TableHeader
                             key={header.key}
                             {...getHeaderProps({
-                              header
+                              header,
                             })}
                             className={header.key === 'date' || header.key === 'refId' ? styles.specialPadding : ''}
                           >
@@ -410,7 +352,7 @@ const BillListTable: React.FC = () => {
                                 </TableCell>
                               );
                             }
-                            
+
                             if (cell.info.header === 'refId') {
                               return (
                                 <TableCell key={cell.id} className={`${styles.tableCells} ${styles.refIdCell}`}>
@@ -418,34 +360,7 @@ const BillListTable: React.FC = () => {
                                 </TableCell>
                               );
                             }
-                            
-                            if (cell.info.header === 'billedItems') {
-                              const originalBill = row.cells.find(c => c.info.header === 'originalBill')?.value;
-                              
-                              if (originalBill && originalBill.serviceItems && originalBill.serviceItems.length > 0) {
-                                const tooltipContent = originalBill.serviceItems.map(item => 
-                                  `${item.name} (${item.quantity} × ${item.unitPrice.toFixed(2)} = ${item.total.toFixed(2)})`
-                                ).join('\n');
-                                
-                                return (
-                                  <TableCell key={cell.id} className={styles.tableCells}>
-                                    <DefinitionTooltip
-                                      align="center"
-                                      direction="bottom"
-                                      tooltipText={tooltipContent}
-                                    >
-                                      {cell.value}
-                                    </DefinitionTooltip>
-                                  </TableCell>
-                                );
-                              }
-                              
-                              return (
-                                <TableCell key={cell.id} className={styles.tableCells}>
-                                  {cell.value}
-                                </TableCell>
-                              );
-                            }
+
                             if (cell.info.header === 'billStatus') {
                               const statusClass = cell.value === 'PAID' ? styles.paidStatus : styles.pendingStatus;
                               return (
@@ -454,11 +369,15 @@ const BillListTable: React.FC = () => {
                                 </TableCell>
                               );
                             }
-                            
-                            if (cell.info.header === 'originalBill') {
-                              return null;
+
+                            if (cell.info.header === 'billedItems') {
+                              return (
+                                <TableCell key={cell.id} className={`${styles.tableCells} ${styles.billedItemsCell}`}>
+                                  {cell.value}
+                                </TableCell>
+                              );
                             }
-                            
+
                             return (
                               <TableCell key={cell.id} className={styles.tableCells}>
                                 {cell.value}
