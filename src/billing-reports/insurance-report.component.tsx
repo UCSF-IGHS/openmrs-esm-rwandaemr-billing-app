@@ -20,6 +20,7 @@ import dayjs from 'dayjs';
 import { exportSingleRecordToPDF, exportToExcel, formatValue } from './utils/download-utils';
 import styles from './billing-reports.scss';
 import { useTranslation } from 'react-i18next';
+import { formatToYMD } from './utils/download-utils';
 
 interface ReportRecord {
   column: string;
@@ -82,8 +83,9 @@ const InsuranceReport: React.FC = () => {
     setLoading(true);
     setErrorMessage(null);
     try {
-      const formattedStart = dayjs(filters.startDate).format('YYYY-MM-DD');
-      const formattedEnd = dayjs(filters.endDate).format('YYYY-MM-DD');
+      const formattedStart = formatToYMD(filters.startDate);
+      const formattedEnd = formatToYMD(filters.endDate);
+
       const { results, total } = await fetchInsuranceReport(
         formattedStart,
         formattedEnd,
@@ -116,7 +118,8 @@ const InsuranceReport: React.FC = () => {
     setLoading(true);
     try {
       const { startDate, endDate, insurance } = currentFilters;
-      const allResults = await fetchAllInsuranceReportData(startDate, endDate, insurance);
+      const allResults = await fetchAllInsuranceReportData(formatToYMD(startDate), formatToYMD(endDate), insurance);
+
       exportToExcel(columns, allResults, getValue, 'insurance-report.xlsx');
     } catch (error) {
       console.error('Export failed:', error);
@@ -131,7 +134,7 @@ const InsuranceReport: React.FC = () => {
   };
 
   const getPageSizes = (totalItems: number, currentPageSize: number) => {
-    return [10, 25, 50, 100];
+    return [50];
   };
 
   const headerDisplayMap: Record<string, string> = {
@@ -162,6 +165,32 @@ const InsuranceReport: React.FC = () => {
     OXYGENOTHERAPIE: t('oxygen', 'Oxygen Therapy'),
     IMAGING: t('imaging', 'Imaging'),
     'PROCED.': t('procedure', 'Proced.'),
+  };
+
+  const filterRecordItems = (record: ReportRecord[]): ReportRecord[] => {
+    const filterColumns = [
+      'first_closing_date_id',
+      'household_head_name',
+      'family_code',
+      'beneficiary_level',
+      'company_name',
+      'birth_date',
+      'insurance_id',
+      'global_bill_id',
+      'global_bill_identifier',
+      'MEDICAMENTS',
+      'CONSULTATION',
+      'HOSPITALISATION',
+      'LABORATOIRE',
+      'FORMALITES ADMINISTRATIVES',
+      'AMBULANCE',
+      'CONSOMMABLES',
+      'OXYGENOTHERAPIE',
+      'IMAGING',
+      'PROCED.',
+    ];
+
+    return record.filter((item) => filterColumns.includes(item.column));
   };
 
   useEffect(() => {
@@ -252,40 +281,15 @@ const InsuranceReport: React.FC = () => {
                           <TableExpandedRow colSpan={headers.length + 1}>
                             <div className={styles.expandedContentRow}>
                               {recordMap.has(row.id) &&
-                                recordMap
-                                  .get(row.id)!
-                                  .filter((item) =>
-                                    [
-                                      'first_closing_date_id',
-                                      'household_head_name',
-                                      'family_code',
-                                      'beneficiary_level',
-                                      'company_name',
-                                      'birth_date',
-                                      'insurance_id',
-                                      'global_bill_id',
-                                      'global_bill_identifier',
-                                      'MEDICAMENTS',
-                                      'CONSULTATION',
-                                      'HOSPITALISATION',
-                                      'LABORATOIRE',
-                                      'FORMALITES ADMINISTRATIVES',
-                                      'AMBULANCE',
-                                      'CONSOMMABLES',
-                                      'OXYGENOTHERAPIE',
-                                      'IMAGING',
-                                      'PROCED.',
-                                    ].includes(item.column),
-                                  )
-                                  .map((item, i) => (
-                                    <div className={styles.inlineDetailItem} key={i}>
-                                      <span className={styles.detailLabel}>
-                                        {headerDisplayMap[item.column] || item.column}:
-                                      </span>{' '}
-                                      <span className={styles.detailValue}>{formatValue(item.value)}</span>
-                                      {i !== 9 && <span className={styles.divider}>|</span>}
-                                    </div>
-                                  ))}
+                                filterRecordItems(recordMap.get(row.id)!).map((item, i) => (
+                                  <div className={styles.inlineDetailItem} key={i}>
+                                    <span className={styles.detailLabel}>
+                                      {headerDisplayMap[item.column] || item.column}:
+                                    </span>{' '}
+                                    <span className={styles.detailValue}>{formatValue(item.value)}</span>
+                                    {i !== 9 && <span className={styles.divider}>|</span>}
+                                  </div>
+                                ))}
                             </div>
                             {recordMap.has(row.id) && (
                               <div className={styles.expandedDownloadRow}>

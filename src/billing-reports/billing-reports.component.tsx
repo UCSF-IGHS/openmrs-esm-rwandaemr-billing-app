@@ -21,7 +21,7 @@ const BillingReportsHome: React.FC = () => {
   const userLocation = session?.sessionLocation?.display || t('unknownLocation', 'Unknown Location');
 
   const handleDateChange = (dates) => {
-    if (dates.length > 0) {
+    if (Array.isArray(dates) && dates.length > 0) {
       setSelectedDate(dates[0]);
     }
   };
@@ -91,7 +91,7 @@ const BillingReportsHome: React.FC = () => {
         </div>
 
         {/* Dropdown for Report Selection */}
-        <div style={{ maxWidth: '300px', marginTop: '2rem', marginLeft: '1rem' }}>
+        <div className={styles.reportDropdownWrapper}>
           <Dropdown
             id="report-dropdown"
             titleText={t('selectReportType', 'Select Report Type')}

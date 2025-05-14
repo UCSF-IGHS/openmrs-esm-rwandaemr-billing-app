@@ -1,6 +1,7 @@
 import React from 'react';
 import { DatePicker, DatePickerInput, Dropdown, TextInput, Button } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
+import styles from './billing-reports.scss';
 
 type ReportFilterField =
   | 'startDate'
@@ -147,21 +148,14 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
   };
 
   return (
-    <div style={{ padding: '1.5rem', background: '#f9f9f9', borderRadius: '6px', marginTop: '1rem' }}>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-          gap: '1.5rem',
-          alignItems: 'end',
-        }}
-      >
+    <div className={styles['report-filter-form']}>
+      <div className={styles['report-filter-form__fields']}>
         {fields.map((field) => (
           <div key={field}>{renderField(field)}</div>
         ))}
       </div>
 
-      <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-start' }}>
+      <div className={styles['report-filter-form__button-container']}>
         <Button kind="primary" onClick={handleSearch}>
           {t('search', 'Search')}
         </Button>

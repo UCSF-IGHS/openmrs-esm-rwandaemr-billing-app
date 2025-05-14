@@ -1,6 +1,11 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import dayjs from 'dayjs';
+
+export const formatToYMD = (dateString: string): string => {
+  return dayjs(dateString).format('YYYY-MM-DD');
+};
 
 /**
  * Exports report data to Excel file.
