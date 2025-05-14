@@ -28,6 +28,35 @@ import {
 import { printReceipt } from '../payment-receipt/print-receipt';
 import { type ConsommationListResponse, type ConsommationItem, type RowData } from '../types';
 import styles from './payment-form.scss';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, Controller } from 'react-hook-form';
+
+const paymentFormSchema = z.object({
+  receivedCash: z.string()
+    .refine(value => value === '' || /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
+      message: "Must be a valid number"
+    })
+    .refine(value => value === '' || parseFloat(value) >= 0, {
+      message: "Amount must be a positive number"
+    }),
+  deductedAmount: z.string()
+    .refine(value => value === '' || /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
+      message: "Must be a valid number"
+    })
+    .refine(value => value === '' || parseFloat(value) >= 0, {
+      message: "Amount must be a positive number"
+    }),
+  paymentAmount: z.string()
+    .refine(value => /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
+      message: "Must be a valid number"
+    })
+    .refine(value => parseFloat(value) > 0, {
+      message: "Amount must be greater than zero"
+    })
+});
+
+type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
 interface PaymentFormProps {
   isOpen: boolean;
@@ -56,13 +85,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const session = useSession();
   const collectorUuid = session?.user?.uuid;
 
-  const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [referenceNumber, setReferenceNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentError, setPaymentError] = useState('');
-  const [receivedCash, setReceivedCash] = useState('');
-  const [deductedAmount, setDeductedAmount] = useState('');
   const [depositBalance, setDepositBalance] = useState('1100.00'); // Mock value for demonstration
   const [clientSidePaidItems, setClientSidePaidItems] = useState<Record<string, boolean>>({});
   const [paymentSuccessful, setPaymentSuccessful] = useState(false);
@@ -70,27 +95,47 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     insuranceRate: 0,
     patientRate: 100
   });
+  
+  const { 
+    control, 
+    handleSubmit, 
+    reset, 
+    watch,
+    setValue,
+    formState: { errors, isValid } 
+  } = useForm<PaymentFormValues>({
+    resolver: zodResolver(paymentFormSchema),
+    mode: 'onChange',
+    defaultValues: {
+      paymentAmount: '',
+      receivedCash: '',
+      deductedAmount: ''
+    }
+  });
+  
+  const paymentAmount = watch('paymentAmount');
+  const receivedCash = watch('receivedCash');
+  const deductedAmount = watch('deductedAmount');
 
   useEffect(() => {
     if (isOpen) {
       setPaymentSuccessful(false);
+      setPaymentMethod('cash');
+      setPaymentError('');
       
       const totalDueForSelected = calculateTotalDueForSelected(rows, selectedRows);
-      setPaymentAmount(totalDueForSelected.toString());
-      setPaymentMethod('cash');
-      setReferenceNumber('');
-      setPaymentError('');
-      setReceivedCash('');
-      setDeductedAmount('');
+      reset({
+        paymentAmount: totalDueForSelected.toString(),
+        receivedCash: '',
+        deductedAmount: ''
+      });
       
-      // Fetch insurance rates for the selected consommation
       if (selectedRows.length > 0) {
         fetchInsuranceRates(selectedRows[0]);
       }
     }
-  }, [isOpen, rows, selectedRows]);
+  }, [isOpen, rows, selectedRows, reset]);
 
-  // Function to fetch insurance rates
   const fetchInsuranceRates = async (consommationId) => {
     if (!consommationId) return;
     
@@ -105,6 +150,42 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       });
     }
   };
+
+  useEffect(() => {
+    if (paymentMethod === 'cash' && receivedCash && paymentAmount) {
+      const cashAmount = parseFloat(receivedCash);
+      const amountToPay = parseFloat(paymentAmount);
+      
+      if (cashAmount < amountToPay) {
+        setPaymentError(t('insufficientCash', 'Received cash must be equal to or greater than the payment amount'));
+      } else {
+        setPaymentError('');
+      }
+    } else if (paymentMethod === 'deposit' && deductedAmount && paymentAmount) {
+      const deductAmount = parseFloat(deductedAmount);
+      const amountToPay = parseFloat(paymentAmount);
+      const balance = parseFloat(depositBalance);
+      
+      if (deductAmount < amountToPay) {
+        setPaymentError(t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'));
+      } else if (deductAmount > balance) {
+        setPaymentError(t('insufficientBalance', 'Deducted amount exceeds available balance'));
+      } else {
+        setPaymentError('');
+      }
+    }
+  }, [paymentMethod, receivedCash, deductedAmount, paymentAmount, depositBalance, t]);
+
+  useEffect(() => {
+    if (paymentAmount) {
+      const amountToPay = parseFloat(paymentAmount);
+      const itemsTotal = calculateSelectedItemsTotal(selectedConsommationItems);
+      
+      if (amountToPay > itemsTotal) {
+        setPaymentError(t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items'));
+      }
+    }
+  }, [paymentAmount, selectedConsommationItems, t]);
 
   const isActuallyPaid = (item: ConsommationItem): boolean => {
     if (item.patientServiceBillId && clientSidePaidItems[item.patientServiceBillId]) {
@@ -122,35 +203,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     }
     
     return isItemPaid(item);
-  };
-
-  const getAccurateStatusText = (item) => {
-    const paymentKey = `payment_${item.patientServiceBillId}`;
-    try {
-      const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
-      if (storedPayment.paid) {
-        return t('paid', 'Paid');
-      } else if (storedPayment.paidAmount > 0) {
-        return t('partiallyPaid', 'Partially Paid');
-      }
-    } catch (e) {
-      // Ignore session storage errors
-    }
-    
-    if (item.paid === true) {
-      return t('paid', 'Paid');
-    }
-    
-    const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-    const paidAmount = item.paidAmount || 0;
-    
-    if (paidAmount >= itemTotal) {
-      return t('paid', 'Paid');
-    } else if (paidAmount > 0) {
-      return t('partiallyPaid', 'Partially Paid');
-    }
-    
-    return t('unpaid', 'Unpaid');
   };
 
   const hasPaidItems = () => {
@@ -220,36 +272,43 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     }
   };
 
-  const handlePaymentSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const isFormValid = () => {
+    if (!isValid || paymentError) return false;
+    
+    const hasUnpaidSelectedItems = selectedConsommationItems.some(
+      item => item.selected && !isActuallyPaid(item)
+    );
+    
+    return hasUnpaidSelectedItems && !isSubmitting;
+  };
+
+  const onSubmit = async (data: PaymentFormValues) => {
     setIsSubmitting(true);
     setPaymentError('');
   
     try {
-      if (!paymentAmount || Number(paymentAmount) <= 0) {
-        throw new Error(t('invalidAmount', 'Please enter a valid payment amount'));
+      const selectedItemsTotal = calculateSelectedItemsTotal(selectedConsommationItems);
+      const enteredAmount = parseFloat(data.paymentAmount);
+      
+      // Additional validation checks
+      if (paymentMethod === 'cash' && (!data.receivedCash || parseFloat(data.receivedCash) < enteredAmount)) {
+        throw new Error(t('insufficientCash', 'Received cash amount must be equal to or greater than the payment amount'));
       }
       
-      if (paymentMethod === 'cash') {
-        if (!receivedCash || parseFloat(receivedCash) < parseFloat(paymentAmount)) {
-          throw new Error(t('insufficientCash', 'Received cash amount must be equal to or greater than the payment amount'));
-        }
-      } else if (paymentMethod === 'deposit') {
-        if (!deductedAmount || parseFloat(deductedAmount) <= 0) {
+      if (paymentMethod === 'deposit') {
+        if (!data.deductedAmount || parseFloat(data.deductedAmount) <= 0) {
           throw new Error(t('invalidDeductedAmount', 'Please enter a valid deducted amount'));
         }
         
-        if (parseFloat(deductedAmount) > parseFloat(depositBalance)) {
+        if (parseFloat(data.deductedAmount) > parseFloat(depositBalance)) {
           throw new Error(t('insufficientBalance', 'Deducted amount exceeds available balance'));
         }
         
-        if (parseFloat(deductedAmount) < parseFloat(paymentAmount)) {
+        if (parseFloat(data.deductedAmount) < enteredAmount) {
           throw new Error(t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'));
         }
       }
       
-      const selectedItemsTotal = calculateSelectedItemsTotal(selectedConsommationItems);
-      const enteredAmount = parseFloat(paymentAmount);
       if (enteredAmount > selectedItemsTotal) {
         throw new Error(t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items'));
       }
@@ -407,331 +466,350 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       primaryButtonText={paymentSuccessful ? t('close', 'Close') : t('confirmPayment', 'Confirm Payment')}
       secondaryButtonText={paymentSuccessful ? t('printReceipt', 'Print Receipt') : t('cancel', 'Cancel')}
       onRequestClose={onClose}
-      onRequestSubmit={paymentSuccessful ? onClose : handlePaymentSubmit}
+      onRequestSubmit={paymentSuccessful ? onClose : handleSubmit(onSubmit)}
       onSecondarySubmit={paymentSuccessful ? handlePrintReceipt : onClose}
       primaryButtonDisabled={
         isSubmitting ||
-        (!paymentSuccessful &&
-          selectedConsommationItems.filter((item) => item.selected && !isActuallyPaid(item)).length === 0)
+        (!paymentSuccessful && !isFormValid())
       }
-      size="md"
+      size="lg"
     >
-      {paymentSuccessful ? (
-        <div className={styles.successMessage}>
-          <div className={styles.successIcon}>✓</div>
-          <h3>{t('paymentSuccessful', 'Payment Successful!')}</h3>
-          <p>{t('paymentProcessedSuccessfully', 'Your payment has been processed successfully.')}</p>
-          <Button
-            kind="tertiary"
-            renderIcon={(props) => <Printer size={16} {...props} />}
-            onClick={handlePrintReceipt}
-            className={styles.printButton}
-          >
-            {t('printReceipt', 'Print Receipt')}
-          </Button>
-        </div>
-      ) : (
-        <Form>
-          {paymentError && (
-            <InlineNotification
-              kind="error"
-              title={t('error', 'Error')}
-              subtitle={paymentError}
-              className={styles.errorNotification}
-            />
-          )}
+      <div className={styles.modalContent}>
+        {paymentSuccessful ? (
+          <div className={styles.successMessage}>
+            <div className={styles.successIcon}>✓</div>
+            <h3>{t('paymentSuccessful', 'Payment Successful!')}</h3>
+            <p>{t('paymentProcessedSuccessfully', 'Your payment has been processed successfully.')}</p>
+            <Button
+              kind="tertiary"
+              renderIcon={(props) => <Printer size={16} {...props} />}
+              onClick={handlePrintReceipt}
+              className={styles.printButton}
+            >
+              {t('printReceipt', 'Print Receipt')}
+            </Button>
+          </div>
+        ) : (
+          <Form onSubmit={handleSubmit(onSubmit)}>
+            {paymentError && (
+              <InlineNotification
+                kind="error"
+                title={t('error', 'Error')}
+                subtitle={paymentError}
+                className={styles.errorNotification}
+              />
+            )}
 
-          <div className={styles.paymentFormGrid}>
-            {/* Left side - Collector & Payment Info */}
-            <div className={styles.paymentFormColumn}>
-              <FormGroup legendText="">
-                <div className={styles.formRow}>
-                  <div className={styles.formLabel}>{t('collector', 'Collector')}</div>
-                  <div className={styles.formInput}>
-                    <TextInput id="collector-name" value={session?.user?.display || 'Unknown'} readOnly />
+            <div className={styles.paymentFormGrid}>
+              <div className={styles.paymentFormColumn}>
+                <FormGroup legendText="">
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('collector', 'Collector')}</div>
+                    <div className={styles.formInput}>
+                      <TextInput id="collector-name" value={session?.user?.display || 'Unknown'} readOnly />
+                    </div>
                   </div>
-                </div>
 
-                <div className={styles.formRow}>
-                  <div className={styles.formLabel}>{t('receivedDate', 'Received Date')}</div>
-                  <div className={styles.formInput}>
-                    <TextInput id="received-date" type="date" value={new Date().toISOString().split('T')[0]} />
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('receivedDate', 'Received Date')}</div>
+                    <div className={styles.formInput}>
+                      <TextInput id="received-date" type="date" value={new Date().toISOString().split('T')[0]} />
+                    </div>
                   </div>
-                </div>
 
-                <div className={styles.formRow}>
-                  <div className={styles.formLabel}>{t('paymentMethod', 'Payment Method')}</div>
-                  <div className={styles.formInput}>
-                    <div className={styles.radioGroup}>
-                      <div className={styles.radioOption}>
-                        <input
-                          type="radio"
-                          id="pay-with-deposit"
-                          name="payment-method"
-                          value="deposit"
-                          checked={paymentMethod === 'deposit'}
-                          onChange={() => setPaymentMethod('deposit')}
-                        />
-                        <label htmlFor="pay-with-deposit">{t('payWithDeposit', 'Pay with deposit')}</label>
-                      </div>
-                      <div className={styles.radioOption}>
-                        <input
-                          type="radio"
-                          id="pay-with-cash"
-                          name="payment-method"
-                          value="cash"
-                          checked={paymentMethod === 'cash'}
-                          onChange={() => setPaymentMethod('cash')}
-                        />
-                        <label htmlFor="pay-with-cash">{t('payWithCash', 'Pay with cash')}</label>
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('paymentMethod', 'Payment Method')}</div>
+                    <div className={styles.formInput}>
+                      <div className={styles.radioGroup}>
+                        <div className={styles.radioOption}>
+                          <input
+                            type="radio"
+                            id="pay-with-deposit"
+                            name="payment-method"
+                            value="deposit"
+                            checked={paymentMethod === 'deposit'}
+                            onChange={() => setPaymentMethod('deposit')}
+                          />
+                          <label htmlFor="pay-with-deposit">{t('payWithDeposit', 'Pay with deposit')}</label>
+                        </div>
+                        <div className={styles.radioOption}>
+                          <input
+                            type="radio"
+                            id="pay-with-cash"
+                            name="payment-method"
+                            value="cash"
+                            checked={paymentMethod === 'cash'}
+                            onChange={() => setPaymentMethod('cash')}
+                          />
+                          <label htmlFor="pay-with-cash">{t('payWithCash', 'Pay with cash')}</label>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {paymentMethod === 'cash' && (
+                  {paymentMethod === 'cash' && (
+                    <div className={styles.formRow}>
+                      <div className={styles.formLabel}>{t('receivedCash', 'Received Cash')}</div>
+                      <div className={styles.formInput}>
+                        <Controller
+                          name="receivedCash"
+                          control={control}
+                          render={({ field }) => (
+                            <NumberInput
+                              id="received-cash"
+                              value={field.value}
+                              onChange={(e) => field.onChange(e.target.value)}
+                              min={0}
+                              step={0.01}
+                              invalid={!!errors.receivedCash}
+                              invalidText={errors.receivedCash?.message}
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'deposit' && (
+                    <>
+                      <div className={styles.formRow}>
+                        <div className={styles.formLabel}>{t('deductedAmount', 'Deducted Amount')}</div>
+                        <div className={styles.formInput}>
+                          <Controller
+                            name="deductedAmount"
+                            control={control}
+                            render={({ field }) => (
+                              <NumberInput
+                                id="deducted-amount"
+                                value={field.value}
+                                onChange={(e) => field.onChange(e.target.value)}
+                                min={0}
+                                max={parseFloat(depositBalance)}
+                                step={0.01}
+                                invalid={!!errors.deductedAmount}
+                                invalidText={errors.deductedAmount?.message}
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                      <div className={styles.formRow}>
+                        <div className={styles.formLabel}>{t('balance', 'Balance')}</div>
+                        <div className={styles.formInput}>
+                          <TextInput id="deposit-balance" value={depositBalance} readOnly />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </FormGroup>
+              </div>
+
+              <div className={styles.paymentFormColumn}>
+                <FormGroup legendText="">
                   <div className={styles.formRow}>
-                    <div className={styles.formLabel}>{t('receivedCash', 'Received Cash')}</div>
+                    <div className={styles.formLabel}>{t('amountPaid', 'Amount Paid')}</div>
                     <div className={styles.formInput}>
-                      <NumberInput
-                        id="received-cash"
-                        value={receivedCash}
-                        onChange={(e) => setReceivedCash(e.target.value)}
-                        min={0}
-                        step={0.01}
-                        className={styles.errorInput}
+                      <Controller
+                        name="paymentAmount"
+                        control={control}
+                        render={({ field }) => (
+                          <NumberInput
+                            id="amount-paid"
+                            value={field.value}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            min={0}
+                            max={calculateSelectedItemsTotal(selectedConsommationItems)}
+                            step={0.01}
+                            invalid={!!errors.paymentAmount}
+                            invalidText={errors.paymentAmount?.message}
+                          />
+                        )}
                       />
                     </div>
                   </div>
-                )}
 
-                {paymentMethod === 'deposit' && (
-                  <>
-                    <div className={styles.formRow}>
-                      <div className={styles.formLabel}>{t('deductedAmount', 'Deducted Amount')}</div>
-                      <div className={styles.formInput}>
-                        <NumberInput
-                          id="deducted-amount"
-                          value={deductedAmount}
-                          onChange={(e) => setDeductedAmount(e.target.value)}
-                          min={0}
-                          max={parseFloat(depositBalance)}
-                          step={0.01}
-                          className={styles.errorInput}
-                        />
-                      </div>
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('paidByThirdParty', 'Paid by Third Party')}</div>
+                    <div className={styles.formInput}>
+                      <NumberInput
+                        id="third-party-payment"
+                        value=""
+                        min={0}
+                        step={0.01}
+                        readOnly
+                        className={styles.readOnlyInput}
+                      />
                     </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formLabel}>{t('balance', 'Balance')}</div>
-                      <div className={styles.formInput}>
-                        <TextInput id="deposit-balance" value={depositBalance} readOnly />
-                      </div>
+                  </div>
+
+                  <div className={styles.formRow}>
+                    <div className={styles.formLabel}>{t('rest', 'Rest')}</div>
+                    <div className={styles.formInput}>
+                      <TextInput
+                        id="rest-amount"
+                        value={
+                          paymentMethod === 'cash'
+                            ? calculateChange(receivedCash, paymentAmount)
+                            : (parseFloat(deductedAmount || '0') - parseFloat(paymentAmount || '0')).toFixed(2)
+                        }
+                        className={`${styles.restInput} ${styles.readOnlyInput} ${
+                          (paymentMethod === 'cash' && parseFloat(calculateChange(receivedCash, paymentAmount)) < 0) ||
+                          (paymentMethod === 'deposit' &&
+                            parseFloat(deductedAmount || '0') - parseFloat(paymentAmount || '0') < 0)
+                            ? styles.negativeRest
+                            : ''
+                        }`}
+                        readOnly
+                      />
                     </div>
-                  </>
-                )}
-              </FormGroup>
+                  </div>
+                </FormGroup>
+              </div>
             </div>
 
-            <div className={styles.paymentFormColumn}>
-              <FormGroup legendText="">
-                <div className={styles.formRow}>
-                  <div className={styles.formLabel}>{t('amountPaid', 'Amount Paid')}</div>
-                  <div className={styles.formInput}>
-                    <NumberInput
-                      id="amount-paid"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                      className={`${styles.amountInput} ${parseFloat(paymentAmount) > calculateSelectedItemsTotal(selectedConsommationItems) ? styles.invalidAmount : ''}`}
-                      min={0}
-                      max={calculateSelectedItemsTotal(selectedConsommationItems)}
-                      step={0.01}
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formRow}>
-                  <div className={styles.formLabel}>{t('paidByThirdParty', 'Paid by Third Party')}</div>
-                  <div className={styles.formInput}>
-                    <NumberInput
-                      id="third-party-payment"
-                      value=""
-                      min={0}
-                      step={0.01}
-                      readOnly
-                      className={styles.readOnlyInput}
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formRow}>
-                  <div className={styles.formLabel}>{t('rest', 'Rest')}</div>
-                  <div className={styles.formInput}>
-                    <TextInput
-                      id="rest-amount"
-                      value={
-                        paymentMethod === 'cash'
-                          ? calculateChange(receivedCash, paymentAmount)
-                          : (parseFloat(deductedAmount || '0') - parseFloat(paymentAmount || '0')).toFixed(2)
-                      }
-                      className={`${styles.restInput} ${styles.readOnlyInput} ${
-                        (paymentMethod === 'cash' && parseFloat(calculateChange(receivedCash, paymentAmount)) < 0) ||
-                        (paymentMethod === 'deposit' &&
-                          parseFloat(deductedAmount || '0') - parseFloat(paymentAmount || '0') < 0)
-                          ? styles.negativeRest
-                          : ''
-                      }`}
-                      readOnly
-                    />
-                  </div>
-                </div>
-              </FormGroup>
-            </div>
-          </div>
-
-          <div className={styles.selectedItemsDetails}>
-            <h5>{t('selectedConsommation', 'Selected Consommation')}</h5>
-            <table className={styles.selectedItemsTable}>
-              <thead>
-                <tr>
-                  <th>{t('consomId', 'Consom ID')}</th>
-                  <th>{t('service', 'Service')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows
-                  .filter((row) => selectedRows.includes(row.id))
-                  .map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.consommationId}</td>
-                      <td>{row.service}</td>
+            <div className={styles.selectedItemsDetails}>
+              <h5>{t('selectedConsommation', 'Selected Consommation')}</h5>
+              <div className={styles.responsiveTableWrapper}>
+                <table className={styles.selectedItemsTable}>
+                  <thead>
+                    <tr>
+                      <th>{t('consomId', 'Consom ID')}</th>
+                      <th>{t('service', 'Service')}</th>
                     </tr>
-                  ))}
-              </tbody>
-            </table>
-
-            <div className={styles.sectionHeaderWithActions}>
-              <h5>{t('consommationItems', 'Consommation Items')}</h5>
-              <div className={styles.headerActions}>
-                {isLoadingItems && <span className={styles.loadingIndicator}>{t('loading', '(Loading...)')}</span>}
-                {hasPaidItems() && (
-                  <Button 
-                  kind="ghost"
-                  renderIcon={Printer}
-                  iconDescription={t('printReceipt', 'Print Receipt')}
-                  onClick={handlePrintReceipt}
-                  className={styles.printReceiptButton}
-                  tooltipPosition="left"
-                >
-                  {t('printReceipt', 'Print Receipt')}
-                </Button>
-                )}
+                  </thead>
+                  <tbody>
+                    {rows
+                      .filter((row) => selectedRows.includes(row.id))
+                      .map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.consommationId}</td>
+                          <td>{row.service}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-            {isLoadingItems ? (
-              <div className={styles.loadingItems}>
-                <div className={styles.loadingSpinner}></div>
-                <p>{t('loadingItems', 'Loading consommation items...')}</p>
-              </div>
-            ) : selectedConsommationItems.length > 0 ? (
-              <table className={styles.itemsTable}>
-                <thead>
-                  <tr>
-                    <th></th>
-                    <th>{t('serviceDate', 'Date')}</th>
-                    <th>{t('itemName', 'Item Name')}</th>
-                    <th>{t('quantity', 'Qty')}</th>
-                    <th>{t('unitPrice', 'Unit Price')}</th>
-                    <th>{t('itemTotal', 'Total')}</th>
-                    <th>{t('insuranceAmount', `Insurance (${insuranceRates.insuranceRate}%)`)}</th>
-                    <th>{t('patientAmount', `Patient (${insuranceRates.patientRate}%)`)}</th>
-                    <th>{t('paidAmt', 'Paid Amount')}</th>
-                    <th>{t('status', 'Status')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedConsommationItems.map((item, index) => {
-                    const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-                    const paidAmt = item.paidAmount || 0;
-                    const isPaid = isActuallyPaid(item);
-                    const isPartiallyPaid = isItemPartiallyPaid(item);
-                    
-                    // Calculate insurance and patient portions
-                    const insuranceAmount = (itemTotal * insuranceRates.insuranceRate / 100);
-                    const patientAmount = (itemTotal * insuranceRates.patientRate / 100);
 
-                    return (
-                      <tr key={index} className={item.selected ? styles.selectedItem : ''}>
-                        <td>
-                          <Checkbox
-                            id={`item-select-${index}`}
-                            checked={item.selected || false}
-                            onChange={() => toggleItemSelection(index)}
-                            labelText=""
-                            disabled={isPaid}
-                          />
+              <div className={styles.sectionHeaderWithActions}>
+                <h5>{t('consommationItems', 'Consommation Items')}</h5>
+                <div className={styles.headerActions}>
+                  {isLoadingItems && <span className={styles.loadingIndicator}>{t('loading', '(Loading...)')}</span>}
+                  {hasPaidItems() && (
+                    <Button 
+                      kind="ghost"
+                      renderIcon={Printer}
+                      iconDescription={t('printReceipt', 'Print Receipt')}
+                      onClick={handlePrintReceipt}
+                      className={styles.printReceiptButton}
+                      tooltipPosition="left"
+                      size="sm"
+                    >
+                      {t('printReceipt', 'Print Receipt')}
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              {isLoadingItems ? (
+                <div className={styles.loadingItems}>
+                  <div className={styles.loadingSpinner}></div>
+                  <p>{t('loadingItems', 'Loading consommation items...')}</p>
+                </div>
+              ) : selectedConsommationItems.length > 0 ? (
+                <div className={styles.responsiveTableWrapper}>
+                  <table className={styles.itemsTable}>
+                    <thead>
+                      <tr>
+                        <th></th>
+                        <th>{t('serviceDate', 'Date')}</th>
+                        <th>{t('itemName', 'Item Name')}</th>
+                        <th>{t('quantity', 'Qty')}</th>
+                        <th>{t('unitPrice', 'Unit Price')}</th>
+                        <th>{t('itemTotal', 'Total')}</th>
+                        <th>{t('insuranceAmount', `Ins.(${insuranceRates.insuranceRate}%)`)}</th>
+                        <th>{t('patientAmount', `Pat.(${insuranceRates.patientRate}%)`)}</th>
+                        <th>{t('paidAmt', 'Paid')}</th>
+                        <th>{t('status', 'Status')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedConsommationItems.map((item, index) => {
+                        const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+                        const paidAmt = item.paidAmount || 0;
+                        const isPaid = isActuallyPaid(item);
+                        const isPartiallyPaid = isItemPartiallyPaid(item);
+                        
+                        // Calculate insurance and patient portions
+                        const insuranceAmount = (itemTotal * insuranceRates.insuranceRate / 100);
+                        const patientAmount = (itemTotal * insuranceRates.patientRate / 100);
+
+                        return (
+                          <tr key={index} className={item.selected ? styles.selectedItem : ''}>
+                            <td>
+                              <Checkbox
+                                id={`item-select-${index}`}
+                                checked={item.selected || false}
+                                onChange={() => toggleItemSelection(index)}
+                                labelText=""
+                                disabled={isPaid}
+                              />
+                            </td>
+                            <td>{item.serviceDate ? new Date(item.serviceDate).toLocaleDateString() : '-'}</td>
+                            <td title={item.itemName || '-'}>{item.itemName || '-'}</td>
+                            <td>{item.quantity || '1'}</td>
+                            <td>{Number(item.unitPrice || 0).toFixed(2)}</td>
+                            <td>{Number(itemTotal).toFixed(2)}</td>
+                            <td>{insuranceAmount.toFixed(2)}</td>
+                            <td>{patientAmount.toFixed(2)}</td>
+                            <td>{Number(paidAmt).toFixed(2)}</td>
+                            <td>
+                              <span
+                                className={`${styles.statusBadge} ${
+                                  computePaymentStatus(item) === 'PAID'
+                                    ? styles.paidStatus
+                                    : computePaymentStatus(item) === 'PARTIAL'
+                                      ? styles.partiallyPaidStatus
+                                      : styles.unpaidStatus
+                                }`}
+                              >
+                                {computePaymentStatus(item)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colSpan={5}>
+                          <strong>{t('selectedItemsTotal', 'Selected Items Total')}</strong>
                         </td>
-                        <td>{item.serviceDate ? new Date(item.serviceDate).toLocaleDateString() : '-'}</td>
-                        <td>{item.itemName || '-'}</td>
-                        <td>{item.quantity || '1'}</td>
-                        <td>{Number(item.unitPrice || 0).toFixed(2)}</td>
-                        <td>{Number(itemTotal).toFixed(2)}</td>
-                        <td>{insuranceAmount.toFixed(2)}</td>
-                        <td>{patientAmount.toFixed(2)}</td>
-                        <td>{Number(paidAmt).toFixed(2)}</td>
-                        <td>
-                          <span
-                            className={`${styles.statusBadge} ${
-                              computePaymentStatus(item) === 'PAID'
-                                ? styles.paidStatus
-                                : computePaymentStatus(item) === 'PARTIAL'
-                                  ? styles.partiallyPaidStatus
-                                  : styles.unpaidStatus
-                            }`}
-                          >
-                            {computePaymentStatus(item)}
-                          </span>
+                        <td colSpan={5}>
+                          <strong>{calculateSelectedItemsTotal(selectedConsommationItems).toFixed(2)}</strong>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colSpan={6}>
-                      <strong>{t('selectedItemsTotal', 'Selected Items Total')}</strong>
-                    </td>
-                    <td colSpan={4}>
-                      <strong>{calculateSelectedItemsTotal(selectedConsommationItems).toFixed(2)}</strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td colSpan={6}>
-                      <strong>{t('totalAmountToPay', 'Total Amount to be paid')}</strong>
-                    </td>
-                    <td colSpan={4}>
-                      <strong>{calculateTotalRemainingAmount(selectedConsommationItems).toFixed(2)}</strong>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            ) : (
-              <div className={styles.noItems}>
-                {selectedRows.length > 0
-                  ? t('noItemsFound', 'No items found for this consommation')
-                  : t('selectConsommation', 'Select a consommation to view items')}
-              </div>
-            )}
-
-            <div className={styles.paymentTotals}>
-              {parseFloat(paymentAmount) > calculateSelectedItemsTotal(selectedConsommationItems) && (
-                <div className={styles.paymentError}>
-                  {t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items')}
+                      <tr>
+                        <td colSpan={5}>
+                          <strong>{t('totalAmountToPay', 'Total Amount to be paid')}</strong>
+                        </td>
+                        <td colSpan={5}>
+                          <strong>{calculateTotalRemainingAmount(selectedConsommationItems).toFixed(2)}</strong>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              ) : (
+                <div className={styles.noItems}>
+                  {selectedRows.length > 0
+                    ? t('noItemsFound', 'No items found for this consommation')
+                    : t('selectConsommation', 'Select a consommation to view items')}
                 </div>
               )}
             </div>
-          </div>
-        </Form>
-      )}
+          </Form>
+        )}
+      </div>
     </Modal>
   );
 };

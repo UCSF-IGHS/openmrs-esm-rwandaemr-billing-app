@@ -949,3 +949,56 @@ export async function fetchInsuranceReport(
     total: data.pagination?.totalRecords || 0,
   };
 }
+
+/**
+ * Fetches insurance policy details by card number
+ * @param insuranceCardNumber - The insurance card number
+ * @returns Promise with insurance policy details
+ */
+export const getInsurancePolicyByCardNumber = async (insuranceCardNumber: string): Promise<any> => {
+  try {
+    const response = await openmrsFetch(
+      `${BASE_API_URL}/insurancePolicy?insuranceCardNo=${insuranceCardNumber}&v=full`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching insurance policy by card number:', error);
+    throw error;
+  }
+};
+
+/**
+ * Creates a global bill directly using the required payload format
+ * @param globalBillData - Object containing details for global bill creation
+ * @returns Promise with the created global bill
+ */
+export const createDirectGlobalBill = async (globalBillData: {
+  admissionDate: Date;
+  insurancePolicyId: number;
+  admissionType: number;
+}): Promise<any> => {
+  try {
+    const payload = {
+      admission: {
+        admissionDate: globalBillData.admissionDate.toISOString(),
+        insurancePolicy: {
+          insurancePolicyId: globalBillData.insurancePolicyId
+        },
+        admissionType: globalBillData.admissionType
+      }
+    };
+
+    const response = await openmrsFetch(`${BASE_API_URL}/globalBill`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Error creating global bill:', error);
+    throw error;
+  }
+};
