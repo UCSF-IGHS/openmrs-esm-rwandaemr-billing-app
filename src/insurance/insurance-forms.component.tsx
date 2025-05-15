@@ -21,7 +21,8 @@ import classNames from 'classnames';
 import { closeWorkspace, ResponsiveWrapper, useLayoutType } from '@openmrs/esm-framework';
 import dayjs from 'dayjs';
 import styles from './insurance.scss';
-import { fetchInsuranceFirms, getThirdParties } from '../api/billing';
+import { getThirdParties } from '../api/billing';
+import { fetchInsuranceFirms } from './insurance-resource';
 
 interface InsuranceFormProps {
   closeForm: () => void;
@@ -34,18 +35,31 @@ interface RequiredFieldLabelProps {
   t: TFunction;
 }
 
-const schema = z.object({
-  insuranceFirm: z.string().nonempty('Insurance name is required'),
-  cardNumber: z.string().nonempty('Card number is required'),
-  coverageStartDate: z.string().nonempty('Coverage start date is required'),
-  coverageEndDate: z.string().nonempty('Coverage end date is required'),
-  isAdmitted: z.boolean(),
-  thirdPartyProvider: z.string().nonempty('Third Party Provider is required'),
-  companyName: z.string().nonempty('Company Name is required'),
-  policyOwner: z.string().nonempty('policy Owner is required'),
-  family: z.string().nonempty('Family is required'),
-  category: z.string().nonempty('Category is required'),
-});
+const schema = z
+  .object({
+    insuranceFirm: z.string().nonempty('Insurance name is required'),
+    cardNumber: z.string().nonempty('Card number is required'),
+    coverageStartDate: z.string().nonempty('Coverage start date is required'),
+    coverageEndDate: z.string().nonempty('Coverage end date is required'),
+    isAdmitted: z.boolean(),
+    thirdPartyProvider: z.string().optional(),
+    companyName: z.string().nonempty('Company Name is required'),
+    policyOwner: z.string().nonempty('policy Owner is required'),
+    family: z.string().nonempty('Family is required'),
+    category: z.string().nonempty('Category is required'),
+  })
+  .refine(
+    (data) => {
+      if (data.isAdmitted) {
+        return !!data.thirdPartyProvider;
+      }
+      return true;
+    },
+    {
+      path: ['thirdPartyProvider'],
+      message: 'Third Party Provider is required when Has Third Party is checked',
+    },
+  );
 
 type InsuranceFormSchema = z.infer<typeof schema>;
 
@@ -80,8 +94,11 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
     handleSubmit,
     register,
     control,
+    watch,
     formState: { errors },
   } = methods;
+
+  const hasThirdParty = watch('isAdmitted');
 
   const onSubmit: SubmitHandler<InsuranceFormSchema> = async (data) => {
     setIsSubmitting(true);
@@ -207,7 +224,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
                   render={({ field }) => (
                     <Checkbox
                       id="is-admitted"
-                      labelText={<RequiredFieldLabel label={t('isAdmitted', 'Is admitted?')} t={t} />}
+                      labelText={<RequiredFieldLabel label={t('hasThirdParty', 'Has Third party?')} t={t} />}
                       checked={field.value}
                       onChange={field.onChange}
                       className={styles.sectionField}
@@ -216,23 +233,24 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
                 />
               </div>
             </div>
-
-            <Controller
-              name="thirdPartyProvider"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  id="thirdPartyProvider"
-                  labelText={<RequiredFieldLabel label={t('thirdPartyProvider', 'Third Party Provider')} t={t} />}
-                  {...field}
-                >
-                  <SelectItem disabled hidden value="" text={t('selectAnOption', 'Select an option')} />
-                  {thirdPartyOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value} text={option.label} />
-                  ))}
-                </Select>
-              )}
-            />
+            {hasThirdParty && (
+              <Controller
+                name="thirdPartyProvider"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    id="thirdPartyProvider"
+                    labelText={<RequiredFieldLabel label={t('thirdPartyProvider', 'Third Party Provider')} t={t} />}
+                    {...field}
+                  >
+                    <SelectItem disabled hidden value="" text={t('selectAnOption', 'Select an option')} />
+                    {thirdPartyOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} text={option.label} />
+                    ))}
+                  </Select>
+                )}
+              />
+            )}
 
             <div className={styles.subheading}>{t('ownershipSection', 'Ownership')}</div>
 
