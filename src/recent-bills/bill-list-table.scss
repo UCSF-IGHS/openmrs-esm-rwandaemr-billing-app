@@ -345,3 +345,12 @@ $text-02-color: #525252;
     text-decoration: none;
   }
 }
+
+.billedItemsCell {
+  white-space: normal !important;
+  word-break: break-word;
+  overflow: visible !important;
+  text-overflow: initial !important;
+  min-width: 200px;
+  max-width: none;
+}
