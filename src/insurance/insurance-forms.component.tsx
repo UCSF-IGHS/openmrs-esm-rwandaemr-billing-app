@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, FormProvider, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,15 +14,19 @@ import {
   DatePickerInput,
   FormGroup,
   Checkbox,
+  Select,
+  SelectItem,
 } from '@carbon/react';
 import classNames from 'classnames';
-import { ResponsiveWrapper, useLayoutType } from '@openmrs/esm-framework';
+import { closeWorkspace, ResponsiveWrapper, useLayoutType } from '@openmrs/esm-framework';
 import dayjs from 'dayjs';
 import styles from './insurance.scss';
+import { fetchInsuranceFirms, getThirdParties } from '../api/billing';
 
 interface InsuranceFormProps {
   closeForm: () => void;
   closeFormWithSavedChanges?: () => void;
+  closeWorkspace: () => void;
 }
 
 interface RequiredFieldLabelProps {
@@ -51,6 +55,9 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [insuranceOptions, setInsuranceOptions] = useState<{ value: string; label: string }[]>([]);
+  const [thirdPartyOptions, setThirdPartyOptions] = useState<{ value: string; label: string }[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const methods = useForm<InsuranceFormSchema>({
     mode: 'onChange',
@@ -91,6 +98,27 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
   };
 
   const onError = () => setIsSubmitting(false);
+  useEffect(() => {
+    const loadInsuranceFirms = async () => {
+      const options = await fetchInsuranceFirms();
+      setInsuranceOptions(options);
+    };
+
+    loadInsuranceFirms();
+  }, []);
+
+  useEffect(() => {
+    const loadThirdParties = async () => {
+      const results = await getThirdParties();
+      const mapped = results.map((p) => ({
+        value: String(p.thirdPartyId),
+        label: p.name ?? 'Unknown',
+      }));
+      setThirdPartyOptions(mapped);
+    };
+
+    loadThirdParties();
+  }, []);
 
   return (
     <FormProvider {...methods}>
@@ -99,10 +127,21 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
           <div className={styles.formContainer}>
             <div className={styles.subheading}>{t('insuranceSection', 'Insurance')}</div>
 
-            <TextInput
-              id="insuranceFirm"
-              labelText={<RequiredFieldLabel label={t('insuranceName', 'Insurance Name')} t={t} />}
-              {...register('insuranceFirm')}
+            <Controller
+              name="insuranceFirm"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  id="insuranceFirm"
+                  labelText={<RequiredFieldLabel label={t('insuranceName', 'Insurance Name')} t={t} />}
+                  {...field}
+                >
+                  <SelectItem disabled hidden value="" text={t('selectAnOption', 'Select an option')} />
+                  {insuranceOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value} text={option.label} />
+                  ))}
+                </Select>
+              )}
             />
 
             <TextInput
@@ -178,10 +217,21 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
               </div>
             </div>
 
-            <TextInput
-              id="thirdPartyProvider"
-              labelText={<RequiredFieldLabel label={t('thirdPartyProvider', 'Third Party Provider')} t={t} />}
-              {...register('thirdPartyProvider')}
+            <Controller
+              name="thirdPartyProvider"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  id="thirdPartyProvider"
+                  labelText={<RequiredFieldLabel label={t('thirdPartyProvider', 'Third Party Provider')} t={t} />}
+                  {...field}
+                >
+                  <SelectItem disabled hidden value="" text={t('selectAnOption', 'Select an option')} />
+                  {thirdPartyOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value} text={option.label} />
+                  ))}
+                </Select>
+              )}
             />
 
             <div className={styles.subheading}>{t('ownershipSection', 'Ownership')}</div>
@@ -204,11 +254,24 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
               {...register('family')}
             />
 
-            <TextInput
-              id="category"
-              labelText={<RequiredFieldLabel label={t('category', 'Category')} t={t} />}
-              {...register('category')}
+            <Controller
+              name="category"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  id="category"
+                  labelText={<RequiredFieldLabel label={t('category', 'Category')} t={t} />}
+                  {...field}
+                >
+                  <SelectItem disabled hidden value="" text={t('selectLevelsPlease', 'Select levels please')} />
+                  <SelectItem value="1" text="1" />
+                  <SelectItem value="2" text="2" />
+                  <SelectItem value="3" text="3" />
+                  <SelectItem value="4" text="4" />
+                </Select>
+              )}
             />
+
             {submitError && (
               <InlineNotification
                 kind="error"
@@ -223,9 +286,15 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
 
           <div className={styles.formFooter}>
             <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-              <Button className={styles.button} kind="secondary" onClick={closeForm}>
+              <Button
+                className={styles.button}
+                kind="secondary"
+                onClick={() => closeWorkspace('insurance-form-workspace')}
+                disabled={isLoading}
+              >
                 {t('cancel', 'Cancel')}
               </Button>
+
               <Button className={styles.button} disabled={isSubmitting} kind="primary" type="submit">
                 {isSubmitting ? (
                   <InlineLoading className={styles.spinner} description={t('saving', 'Saving') + '...'} />
