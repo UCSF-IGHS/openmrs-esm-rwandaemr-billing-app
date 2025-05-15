@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm, FormProvider } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { openmrsFetch, showSnackbar, usePatient, useLayoutType } from '@openmrs/esm-framework';
+import { openmrsFetch, showSnackbar, usePatient, useLayoutType, useVisit } from '@openmrs/esm-framework';
 import { 
   getInsurances, 
   fetchGlobalBillsByInsuranceCard,
@@ -63,7 +63,8 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
   closeWorkspaceWithSavedChanges
 }) => {
   const { t } = useTranslation();
-  const { patient } = usePatient(patientUuid);
+  const { patient } = usePatient(patientUuid);  
+  const { mutate: mutateVisitData } = useVisit(patientUuid);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [insurances, setInsurances] = useState<Array<any>>([]);
@@ -332,6 +333,7 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
         insuranceId: selectedInsurance?.insuranceId || 1
       });
       
+      // Show global bill creation success
       showSnackbar({ 
         title: 'Global Bill', 
         subtitle: 'Global bill has been created successfully', 
@@ -350,7 +352,7 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
         const visitsResponse = await getPatientVisits(patientUuid, startOfDay, endOfDay);
         
         if (visitsResponse && visitsResponse.results && visitsResponse.results.length > 0) {
-          const visit = visitsResponse.results[0];
+          const visit = visitsResponse.results[0];  // Get the most recent visit
           const visitType = visit.visitType?.display || 'Clinic Visit';
           
           showSnackbar({
@@ -358,6 +360,8 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
             subtitle: t('visitCreatedSuccessfully', `${visitType} has been created successfully`),
             kind: 'success'
           });
+          
+          mutateVisitData();
         }
       } catch (visitError) {
         console.error('Failed to check for patient visits:', visitError);
@@ -396,7 +400,7 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [onAdmissionCreated, patientUuid, selectedInsurance, insurancePolicyId, existingGlobalBill, t, closeWorkspace, closeWorkspaceWithSavedChanges]);
+  }, [onAdmissionCreated, patientUuid, selectedInsurance, insurancePolicyId, existingGlobalBill, t, closeWorkspace, closeWorkspaceWithSavedChanges, mutateVisitData]);
 
   if (isLoadingData || isLoadingDiseaseTypes) {
     return (
