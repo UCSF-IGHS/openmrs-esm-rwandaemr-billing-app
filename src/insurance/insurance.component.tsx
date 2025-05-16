@@ -128,7 +128,7 @@ const Insurance = ({ patientUuid }) => {
     };
 
     if (patientUuid) loadPolicies();
-  }, [patientUuid, refreshSignal]);
+  }, [patientUuid, refreshSignal, t]);
 
   const headers = [
     { key: 'cardNumber', header: t('membershipNumber', 'Membership Number') },
