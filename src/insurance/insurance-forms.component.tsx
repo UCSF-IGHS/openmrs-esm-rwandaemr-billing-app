@@ -125,7 +125,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
         title: t('insurancePolicySaved', 'Insurance policy saved'),
         kind: 'success',
       });
-
+      window.dispatchEvent(new CustomEvent('insurancePolicyAdded'));
       closeWorkspace('insurance-form-workspace');
     } catch (err: any) {
       setSubmitError(err.message ?? 'Something went wrong');

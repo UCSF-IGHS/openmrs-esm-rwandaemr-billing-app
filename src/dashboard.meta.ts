@@ -11,7 +11,7 @@ export const insuranceDashboardMeta = {
   title: 'Insurance',
   path: 'insurance',
   hideDashboardTitle: false,
-  icon: 'omrs-icon-money',
+  icon: 'omrs-icon-document',
 };
 
 export const admissionDashboard = {
@@ -21,4 +21,3 @@ export const admissionDashboard = {
   hideDashboardTitle: false,
   icon: 'omrs-icon-user-follow',
 };
-

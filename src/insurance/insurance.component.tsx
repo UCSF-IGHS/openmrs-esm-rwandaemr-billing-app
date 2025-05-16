@@ -87,6 +87,18 @@ const Insurance = ({ patientUuid, patientId }) => {
   const pagedEntries = filteredEntries.slice((page - 1) * pageSize, page * pageSize);
 
   useEffect(() => {
+    const handler = () => {
+      setRefreshSignal((prev) => prev + 1);
+    };
+
+    window.addEventListener('insurancePolicyAdded', handler);
+
+    return () => {
+      window.removeEventListener('insurancePolicyAdded', handler);
+    };
+  }, []);
+
+  useEffect(() => {
     const loadPolicies = async () => {
       try {
         const response = await loadInsurancePolicies(patientUuid);
