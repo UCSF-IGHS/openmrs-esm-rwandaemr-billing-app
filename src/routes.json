@@ -52,6 +52,7 @@
         "isFolder": true
       }
     },
+    {
       "component": "insurancePolicyDashboardLink",
       "name": "insurance-policy-home-left-panel-link",
       "slot": "homepage-dashboard-slot",
