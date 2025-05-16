@@ -8,7 +8,11 @@
    {
      "component": "billingAdminHome",
      "route":"billing-admin"
-   }
+   },
+   {
+    "component": "billingReportsDashboard",
+    "route": "billing/reports"
+  }
  ],
   "extensions": [
     {
@@ -28,6 +32,22 @@
       "meta": {
         "name": "billing",
         "title": "Billing",
+        "slot": "rwanda-billing-app-slot",
+        "isFolder": true
+      }
+    },
+    {
+      "component": "root",
+      "name": "billing-report-root",
+      "slot": "rwanda-billing-report-app-slot"
+    },
+    {
+      "component": "billingReportsDashboardLink",
+      "name": "billing-report-home-left-panel-link",
+      "slot": "homepage-dashboard-slot",
+      "meta": {
+        "name": "billing/reports",
+        "title": "Billing Reports",
         "slot": "rwanda-billing-app-slot",
         "isFolder": true
       }
@@ -58,6 +78,7 @@
       "name": "rwanda-billable-services-card-link",
       "slot": "patient-chart-dashboard-slot"
     },
+
     {      
       "slot": "system-admin-page-card-link-slot",
       "component": "billableServicesCardLink",
