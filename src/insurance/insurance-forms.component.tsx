@@ -23,6 +23,7 @@ import dayjs from 'dayjs';
 import styles from './insurance.scss';
 import { getThirdParties } from '../api/billing';
 import { fetchInsuranceFirms, createInsurancePolicy } from './insurance-resource';
+import { launchPatientWorkspace } from '@openmrs/esm-patient-common-lib';
 
 interface InsuranceFormProps {
   patientUuid: string;

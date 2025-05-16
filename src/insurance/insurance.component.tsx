@@ -18,10 +18,10 @@ import { Add } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { CardHeader, EmptyState } from '@openmrs/esm-patient-common-lib';
 import styles from './insurance.scss';
-import DeleteInsuranceModal from './delete-insurance.modal';
 import { launchPatientWorkspace } from '@openmrs/esm-patient-common-lib';
 import { fetchInsuranceFirms, loadInsurancePolicies } from './insurance-resource';
 import dayjs from 'dayjs';
+import EditInsuranceModal from './edit-insurance.workspace';
 
 const Insurance = ({ patientUuid, patientId }) => {
   const { t } = useTranslation();
@@ -29,6 +29,15 @@ const Insurance = ({ patientUuid, patientId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [insuranceIdToNameMap, setInsuranceIdToNameMap] = useState<Record<string, string>>({});
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  interface InsuranceRecord {
+    id: string;
+    cardNumber: string;
+    startDate: string;
+    endDate: string;
+  }
 
   useEffect(() => {
     const loadInsuranceNames = async () => {
@@ -52,20 +61,21 @@ const Insurance = ({ patientUuid, patientId }) => {
   const [pageSize, setPageSize] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const handleAddInsurance = () => {
-    launchPatientWorkspace('insurance-form-workspace', { patientUuid });
+  const onEdit = (record) => {
+    setSelectedRecord(record);
+    setShowEditModal(true);
   };
 
-  const handleEditInsurance = (insuranceId) => {
-    launchPatientWorkspace('insurance-form-workspace', {
-      patientUuid,
-      insuranceId,
-    });
+  const handleSave = async (updatedRecord: InsuranceRecord): Promise<void> => {
+    setEntries((prevEntries) => prevEntries.map((entry) => (entry.id === updatedRecord.id ? updatedRecord : entry)));
+
+    setShowEditModal(false);
+    setSelectedRecord(null);
   };
 
-  const handleDelete = (index) => {
-    DeleteInsuranceModal(entries[index]);
-    setEntries(entries.filter((_, i) => i !== index));
+  const handleClose = () => {
+    setShowEditModal(false);
+    setSelectedRecord(null);
   };
 
   const filteredEntries = entries.filter((entry) =>
@@ -155,13 +165,16 @@ const Insurance = ({ patientUuid, patientId }) => {
               ...entry,
               actions: (
                 <OverflowMenu>
-                  <OverflowMenuItem itemText={t('edit', 'Edit')} onClick={() => handleEditInsurance(entry.id)} />
-                  <OverflowMenuItem
+                  <OverflowMenuItem itemText={t('edit', 'Edit')} onClick={() => onEdit(entry)} />
+
+                  {/* TODO  delete of insurance policy is unsupported for now */}
+
+                  {/* <OverflowMenuItem
                     itemText={t('delete', 'Delete')}
                     hasDivider
                     isDelete
                     onClick={() => handleDelete(entries.findIndex((e) => e.id === entry.id))}
-                  />
+                  /> */}
                 </OverflowMenu>
               ),
             }))}
@@ -193,7 +206,10 @@ const Insurance = ({ patientUuid, patientId }) => {
               </TableContainer>
             )}
           </DataTable>
-
+          <div>
+            {/* Pass the record & handlers to the modal */}
+            {showEditModal && <EditInsuranceModal record={selectedRecord} onClose={handleClose} onSave={handleSave} />}
+          </div>
           <Pagination
             backwardText={t('previousPage', 'Previous page')}
             forwardText={t('nextPage', 'Next page')}
