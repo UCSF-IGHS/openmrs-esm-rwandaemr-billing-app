@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -26,53 +26,20 @@ import {
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { Umbrella } from '@carbon/react/icons';
 import styles from './insurance-policy-table.scss';
-import { getPatientBills } from '../api/billing';
+import { useInsurancePolicy } from './insurance-policy.resource';
 
 export const InsurancePolicyTable: React.FC = () => {
   const { t } = useTranslation();
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
-
-  const [policies, setPolicies] = useState<Array<any>>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [searchString, setSearchString] = useState('');
   const [pageSize, setPageSize] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
-  const [error, setError] = useState(null);
-
   const endDate = new Date().toISOString().split('T')[0];
   const startDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-  useEffect(() => {
-    const fetchBills = async () => {
-      try {
-        setIsLoading(true);
-        const response = await getPatientBills(startDate, endDate, 0, 100);
-
-        const billsWithDefaults = response.results.map((bill) => ({
-          ...bill,
-          patientName: bill.beneficiaryName || '--',
-          policyNumber: bill.policyIdNumber || '--',
-          insurance: bill.insuranceName || '--',
-          creator: bill.creator || '--',
-          departmentName: bill.departmentName || 'Medical Services',
-          cardNumber: bill.policyIdNumber,
-        }));
-
-        setPolicies(billsWithDefaults);
-        setTotalItems(response.results?.length || 0);
-        setIsLoading(false);
-      } catch (err) {
-        setError(err);
-        setIsLoading(false);
-      }
-    };
-
-    fetchBills();
-  }, [startDate, endDate]);
+  const { isLoading, error, data: policies } = useInsurancePolicy(startDate, endDate);
 
   const headerData = [
-    { header: t('policyNumber', 'Insurance Policy No.'), key: 'policyNumber' },
+    { header: t('insuranceCardNo', 'Insurance Policy No.'), key: 'policyNumber' },
     { header: t('insurance', 'Insurance'), key: 'insurance' },
     { header: t('cardNumber', 'Insurance Card No.'), key: 'cardNumber' },
     { header: t('patientName', 'Patient names'), key: 'patientName' },
@@ -87,7 +54,7 @@ export const InsurancePolicyTable: React.FC = () => {
     if (!searchString) return policies;
 
     return policies.filter((policy) => {
-      const searchableFields = [policy.policyNumber, policy.insurance, policy.cardNumber, policy.patientName];
+      const searchableFields = [policy.insuranceCardNo, policy.insurance, policy.patientName];
 
       return searchableFields.some((field) => field.toLowerCase().includes(searchString.toLowerCase()));
     });
@@ -122,7 +89,7 @@ export const InsurancePolicyTable: React.FC = () => {
   const launchCreateInsurancePolicyForm = (patientUuid) => {
     const props = { patientUuid: patientUuid, context: 'creating', mutate: () => {} };
 
-    launchWorkspace('appointments-form-workspace', { ...props });
+    launchWorkspace('insurance-form-workspace', { ...props });
   };
 
   return (
