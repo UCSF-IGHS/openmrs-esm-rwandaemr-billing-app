@@ -1,0 +1,106 @@
+@use '@carbon/layout';
+@use '@carbon/type';
+@use '@carbon/colors';
+@use '@openmrs/esm-styleguide/src/vars' as *;
+
+.pageHeader {
+  border-bottom: 1px solid $ui-03;
+}
+
+.billingWrapper {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  position: relative;
+  background: colors.$white-0;
+}
+
+/* Header Styles */
+.headerWrapper {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  background: colors.$white-0;
+  border-bottom: 1px solid colors.$gray-20;
+}
+
+.headerIcon {
+  width: 48px;
+  height: 48px;
+  margin-right: layout.$spacing-05;
+}
+
+.headerContainer {
+  width: 100%;
+  background-color: colors.$white-0;
+}
+
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: layout.$spacing-05 layout.$spacing-05 layout.$spacing-05;
+  background-color: colors.$white-0;
+}
+
+.leftSection {
+  display: flex;
+  align-items: center;
+  gap: layout.$spacing-03;
+}
+
+.iconContainer {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: colors.$gray-10;
+  border-radius: 50%;
+}
+
+.location {
+  @include type.type-style('body-compact-01');
+  color: colors.$gray-70;
+  margin: 0;
+}
+
+.billingTitle {
+  @include type.type-style('heading-04');
+  color: $text-02;
+  // height: layout.$spacing-12;
+  // width: 100%;
+  // display: flex;
+  // justify-content: space-between;
+}
+
+.rightSection {
+  display: flex;
+  align-items: center;
+}
+
+.content {
+  padding: layout.$spacing-05;
+  width: 100%;
+}
+
+.tableHeaderContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.addInsuranceBtn {
+  margin-left: auto;
+}
