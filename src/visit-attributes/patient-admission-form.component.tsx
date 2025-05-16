@@ -1,24 +1,30 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import classNames from 'classnames';
-import { ComboBox, DatePicker, DatePickerInput, InlineLoading, InlineNotification, Checkbox, TextInput, Button, ButtonSet, Form } from '@carbon/react';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useForm, FormProvider } from 'react-hook-form';
+import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { openmrsFetch, showSnackbar, usePatient, useLayoutType, useVisit } from '@openmrs/esm-framework';
-import { 
-  getInsurances, 
+import { openmrsFetch, showSnackbar, usePatient, useLayoutType, type Visit } from '@openmrs/esm-framework';
+import {
+  getInsurances,
   fetchGlobalBillsByInsuranceCard,
   fetchGlobalBillsByPatient,
   getInsurancePolicyByCardNumber,
-  getInsuranceById
+  getInsuranceById,
 } from '../api/billing';
 import styles from './patient-admission-form.scss';
 import { createAdmissionWithGlobalBill, getPatientVisits, useDiseaseType } from '../api/patient-admission.resource';
+import { InlineNotification } from '@carbon/react';
+import { TextInput } from '@carbon/react';
+import { DatePicker } from '@carbon/react';
+import { InlineLoading } from '@carbon/react';
+import classNames from 'classnames';
+import { z } from 'zod';
+import { ComboBox } from '@carbon/react';
+import { DatePickerInput } from '@carbon/react';
+import { Checkbox } from '@carbon/react';
 
 const ADMISSION_TYPES = [
   { id: '1', text: 'Ordinary Admission' },
-  { id: '2', text: 'DCP Admission' }
+  { id: '2', text: 'DCP Admission' },
 ];
 const BASE_API_URL = '/ws/rest/v1/mohbilling';
 
@@ -27,6 +33,8 @@ type PatientAdmissionFormProps = {
   onAdmissionCreated?: (admissionData: any) => void;
   closeWorkspace: () => void;
   closeWorkspaceWithSavedChanges?: () => void;
+  setExtraVisitInfo: (state) => void;
+  setOnSubmit(onSubmit: (visit: Visit) => Promise<void>): void;
 };
 
 interface RequiredFieldLabelProps {
@@ -39,7 +47,7 @@ const admissionFormSchema = z.object({
   isAdmitted: z.boolean(),
   admissionDate: z.date().refine((date) => date <= new Date(), { message: 'Date cannot be in the future' }),
   diseaseType: z.string().min(1, { message: 'Disease type is required' }),
-  admissionType: z.string().min(1, { message: 'Admission type is required' })
+  admissionType: z.string().min(1, { message: 'Admission type is required' }),
 });
 
 type AdmissionFormValues = z.infer<typeof admissionFormSchema>;
@@ -56,15 +64,16 @@ const RequiredFieldLabel: React.FC<RequiredFieldLabelProps> = ({ label }) => {
   );
 };
 
-const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({ 
-  patientUuid, 
-  onAdmissionCreated, 
+const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
+  patientUuid,
+  onAdmissionCreated,
   closeWorkspace,
-  closeWorkspaceWithSavedChanges
+  closeWorkspaceWithSavedChanges,
+  setExtraVisitInfo,
+  setOnSubmit,
 }) => {
   const { t } = useTranslation();
-  const { patient } = usePatient(patientUuid);  
-  const { mutate: mutateVisitData } = useVisit(patientUuid);
+  const { patient } = usePatient(patientUuid);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [insurances, setInsurances] = useState<Array<any>>([]);
@@ -75,7 +84,7 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
   const [existingGlobalBill, setExistingGlobalBill] = useState<any>(null);
   const isTablet = useLayoutType() === 'tablet';
   const { diseaseType: diseaseTypes, isLoading: isLoadingDiseaseTypes, error: diseaseTypeError } = useDiseaseType();
-  
+
   const methods = useForm<AdmissionFormValues>({
     resolver: zodResolver(admissionFormSchema),
     defaultValues: {
@@ -84,31 +93,31 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
       isAdmitted: false,
       admissionDate: new Date(),
       diseaseType: '',
-      admissionType: ''
-    }
+      admissionType: '',
+    },
   });
-  
+
   const {
     control,
     handleSubmit,
     setValue,
     watch,
-    formState: { errors, isDirty }
+    formState: { errors, isDirty },
   } = methods;
-  
+
   const insuranceCardNumber = watch('insuranceCardNumber');
 
   const extractInsurancePolicyId = (policyResponse: any): number | null => {
     try {
       if (policyResponse?.results && policyResponse.results.length > 0) {
         const policy = policyResponse.results[0];
-        
+
         if (policy.insurancePolicyId) {
           return policy.insurancePolicyId;
         }
-        
+
         if (policy.links && policy.links.length > 0) {
-          const selfLink = policy.links.find(link => link.rel === 'self');
+          const selfLink = policy.links.find((link) => link.rel === 'self');
           if (selfLink && selfLink.uri) {
             const matches = selfLink.uri.match(/\/insurancePolicy\/(\d+)/);
             if (matches && matches[1]) {
@@ -127,27 +136,30 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
   useEffect(() => {
     const loadPatientPolicies = async () => {
       if (!patientUuid) return;
-      
+
       setIsLoadingData(true);
       try {
         const policyData = await fetchGlobalBillsByPatient(patientUuid);
         let patientPolicyInfo = null;
-        
+
         if (policyData && policyData.results && policyData.results.length > 0) {
-          const openGlobalBill = policyData.results.find(bill => bill.closed === false);
-          
+          const openGlobalBill = policyData.results.find((bill) => bill.closed === false);
+
           if (openGlobalBill) {
             setExistingGlobalBill(openGlobalBill);
-            
+
             showSnackbar({
               title: t('existingGlobalBill', 'Existing Global Bill'),
-              subtitle: t('existingGlobalBillMessage', `Patient already has an open global bill (ID: ${openGlobalBill.billIdentifier})`),
-              kind: 'warning'
+              subtitle: t(
+                'existingGlobalBillMessage',
+                `Patient already has an open global bill (ID: ${openGlobalBill.billIdentifier})`,
+              ),
+              kind: 'warning',
             });
-            
+
             if (openGlobalBill.admission?.insurancePolicy) {
               patientPolicyInfo = openGlobalBill.admission.insurancePolicy;
-              
+
               if (openGlobalBill.insurance) {
                 patientPolicyInfo.insurance = openGlobalBill.insurance;
               }
@@ -156,23 +168,21 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
             const latestBill = policyData.results[0];
             if (latestBill.admission?.insurancePolicy) {
               patientPolicyInfo = latestBill.admission.insurancePolicy;
-              
+
               if (latestBill.insurance) {
                 patientPolicyInfo.insurance = latestBill.insurance;
               }
             }
           }
         }
-        
+
         if (!patientPolicyInfo) {
           try {
-            const patientResponse = await openmrsFetch(
-              `${BASE_API_URL}/insurancePolicy?patient=${patientUuid}&v=full`
-            );
-            
+            const patientResponse = await openmrsFetch(`${BASE_API_URL}/insurancePolicy?patient=${patientUuid}&v=full`);
+
             if (patientResponse.data?.results && patientResponse.data.results.length > 0) {
               patientPolicyInfo = patientResponse.data.results[0];
-              
+
               if (patientPolicyInfo.insurance?.insuranceId) {
                 const insuranceDetails = await getInsuranceById(patientPolicyInfo.insurance.insuranceId);
                 if (insuranceDetails) {
@@ -184,25 +194,25 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
             console.error('Error fetching patient policies directly:', err);
           }
         }
-        
+
         if (patientPolicyInfo) {
           setInsurancePolicy(patientPolicyInfo);
-          
+
           const policyId = extractInsurancePolicyId({ results: [patientPolicyInfo] });
           if (policyId) {
             setInsurancePolicyId(policyId);
           }
-          
+
           if (patientPolicyInfo.insuranceCardNo) {
             setValue('insuranceCardNumber', patientPolicyInfo.insuranceCardNo);
           }
-          
+
           if (patientPolicyInfo.insurance?.name) {
             setSelectedInsurance(patientPolicyInfo.insurance);
             setValue('insuranceName', patientPolicyInfo.insurance.name);
           }
         }
-        
+
         const insurancesData = await getInsurances();
         setInsurances(insurancesData);
       } catch (err) {
@@ -212,89 +222,95 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
         setIsLoadingData(false);
       }
     };
-    
+
     loadPatientPolicies();
   }, [patientUuid, setValue, t]);
 
-  const verifyInsuranceCard = useCallback(async (cardNumber: string) => {
-    if (!cardNumber) return;
-    
-    setIsLoading(true);
-    setInsurancePolicyId(null);
-    
-    try {
-      const policyResponse = await getInsurancePolicyByCardNumber(cardNumber);
-      
-      const policyId = extractInsurancePolicyId(policyResponse);
-      
-      if (policyResponse && policyResponse.results && policyResponse.results.length > 0) {
-        const policy = policyResponse.results[0];
-        setInsurancePolicy(policy);
-        
-        if (policyId) {
-          setInsurancePolicyId(policyId);
-          if (policy.insurance) {
-            const insurance = policy.insurance;
-            setSelectedInsurance(insurance);
-            setValue('insuranceName', insurance.name);
-          }
-          
-          if (!existingGlobalBill) {
-            const gbResponse = await fetchGlobalBillsByInsuranceCard(cardNumber);
-            
-            if (gbResponse && gbResponse.results && gbResponse.results.length > 0) {
-              const openGlobalBill = gbResponse.results.find(bill => bill.closed === false);
-              
-              if (openGlobalBill) {
-                setExistingGlobalBill(openGlobalBill);
-                
-                showSnackbar({
-                  title: t('existingGlobalBill', 'Existing Global Bill'),
-                  subtitle: t('existingGlobalBillMessage', `Patient already has an open global bill (ID: ${openGlobalBill.billIdentifier})`),
-                  kind: 'warning'
-                });
+  const verifyInsuranceCard = useCallback(
+    async (cardNumber: string) => {
+      if (!cardNumber) return;
+
+      setIsLoading(true);
+      setInsurancePolicyId(null);
+
+      try {
+        const policyResponse = await getInsurancePolicyByCardNumber(cardNumber);
+
+        const policyId = extractInsurancePolicyId(policyResponse);
+
+        if (policyResponse && policyResponse.results && policyResponse.results.length > 0) {
+          const policy = policyResponse.results[0];
+          setInsurancePolicy(policy);
+
+          if (policyId) {
+            setInsurancePolicyId(policyId);
+            if (policy.insurance) {
+              const insurance = policy.insurance;
+              setSelectedInsurance(insurance);
+              setValue('insuranceName', insurance.name);
+            }
+
+            if (!existingGlobalBill) {
+              const gbResponse = await fetchGlobalBillsByInsuranceCard(cardNumber);
+
+              if (gbResponse && gbResponse.results && gbResponse.results.length > 0) {
+                const openGlobalBill = gbResponse.results.find((bill) => bill.closed === false);
+
+                if (openGlobalBill) {
+                  setExistingGlobalBill(openGlobalBill);
+
+                  showSnackbar({
+                    title: t('existingGlobalBill', 'Existing Global Bill'),
+                    subtitle: t(
+                      'existingGlobalBillMessage',
+                      `Patient already has an open global bill (ID: ${openGlobalBill.billIdentifier})`,
+                    ),
+                    kind: 'warning',
+                  });
+                } else {
+                  showSnackbar({
+                    title: 'Insurance Card',
+                    subtitle: 'Insurance card validated successfully',
+                    kind: 'success',
+                  });
+                }
               } else {
-                showSnackbar({ 
-                  title: 'Insurance Card', 
-                  subtitle: 'Insurance card validated successfully', 
-                  kind: 'success' 
+                showSnackbar({
+                  title: 'Insurance Card',
+                  subtitle: 'Insurance card validated successfully',
+                  kind: 'success',
                 });
               }
-            } else {
-              showSnackbar({ 
-                title: 'Insurance Card', 
-                subtitle: 'Insurance card validated successfully', 
-                kind: 'success' 
-              });
             }
+          } else {
+            showSnackbar({
+              title: 'Insurance Card',
+              subtitle: 'Insurance verified but policy ID not found',
+              kind: 'warning',
+            });
           }
         } else {
-          showSnackbar({ 
-            title: 'Insurance Card', 
-            subtitle: 'Insurance verified but policy ID not found', 
-            kind: 'warning' 
+          setInsurancePolicy(null);
+          showSnackbar({
+            title: 'Insurance Card',
+            subtitle: 'Insurance card not found or invalid',
+            kind: 'warning',
           });
         }
-      } else {
+      } catch (err) {
+        console.error('Error verifying insurance card:', err);
         setInsurancePolicy(null);
-        showSnackbar({ 
-          title: 'Insurance Card', 
-          subtitle: 'Insurance card not found or invalid', 
-          kind: 'warning' 
+        showSnackbar({
+          title: 'Insurance Card Error',
+          subtitle: 'An error occurred while verifying the insurance card',
+          kind: 'error',
         });
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      console.error('Error verifying insurance card:', err);
-      setInsurancePolicy(null);
-      showSnackbar({ 
-        title: 'Insurance Card Error', 
-        subtitle: 'An error occurred while verifying the insurance card', 
-        kind: 'error' 
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [setValue, existingGlobalBill, t]);
+    },
+    [setValue, existingGlobalBill, t],
+  );
 
   React.useEffect(() => {
     if (insuranceCardNumber && insuranceCardNumber.length >= 8 && !isLoadingData) {
@@ -302,25 +318,28 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
     }
   }, [insuranceCardNumber, verifyInsuranceCard, isLoadingData]);
 
-  const onSubmit = useCallback(async (data: AdmissionFormValues) => {
+  const handleFormSubmission = async (data: AdmissionFormValues) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       if (!insurancePolicyId) {
         throw new Error('Insurance policy ID is required. Please verify the insurance card first.');
       }
-      
+
       if (existingGlobalBill) {
         setIsLoading(false);
         showSnackbar({
           title: t('existingGlobalBill', 'Existing Global Bill'),
-          subtitle: t('cannotCreateDuplicateGlobalBill', 'Cannot create a new global bill because patient already has an open one.'),
-          kind: 'error'
+          subtitle: t(
+            'cannotCreateDuplicateGlobalBill',
+            'Cannot create a new global bill because patient already has an open one.',
+          ),
+          kind: 'error',
         });
-        return;
+        return Promise.reject(new Error('Existing global bill'));
       }
-      
+
       const admissionTypeNumber = parseInt(data.admissionType);
       const result = await createAdmissionWithGlobalBill({
         patientUuid: patientUuid,
@@ -330,77 +349,65 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
         admissionType: admissionTypeNumber,
         insuranceCardNumber: data.insuranceCardNumber,
         insurancePolicyId: insurancePolicyId,
-        insuranceId: selectedInsurance?.insuranceId || 1
+        insuranceId: selectedInsurance?.insuranceId || 1,
       });
-      
-      // Show global bill creation success
-      showSnackbar({ 
-        title: 'Global Bill', 
-        subtitle: 'Global bill has been created successfully', 
-        kind: 'success' 
-      });
-      
-      try {
-        const startOfDay = new Date(data.admissionDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        const endOfDay = new Date(data.admissionDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const visitsResponse = await getPatientVisits(patientUuid, startOfDay, endOfDay);
-        
-        if (visitsResponse && visitsResponse.results && visitsResponse.results.length > 0) {
-          const visit = visitsResponse.results[0];  // Get the most recent visit
-          const visitType = visit.visitType?.display || 'Clinic Visit';
-          
-          showSnackbar({
-            title: t('visitCreated', 'Visit Created'),
-            subtitle: t('visitCreatedSuccessfully', `${visitType} has been created successfully`),
-            kind: 'success'
-          });
-          
-          mutateVisitData();
-        }
-      } catch (visitError) {
-        console.error('Failed to check for patient visits:', visitError);
-        
-        showSnackbar({
-          title: t('visitCheckError', 'Visit Check Error'),
-          subtitle: t('visitCheckErrorMessage', 'Unable to verify if a visit was created. The admission was saved successfully.'),
-          kind: 'warning',
-          isLowContrast: true
-        });
-      }
-      
-      if (onAdmissionCreated) {
-        onAdmissionCreated({
+
+      setExtraVisitInfo({
+        admissionData: {
           ...data,
           globalBillId: result.globalBill.globalBillId,
           billIdentifier: result.globalBill.billIdentifier,
           insuranceDetails: selectedInsurance,
-          insurancePolicyId: insurancePolicyId
-        });
+          insurancePolicyId: insurancePolicyId,
+          patientUuid: patientUuid,
+        },
+        handleAdmissionCreated: () => {
+          if (onAdmissionCreated) {
+            onAdmissionCreated({
+              ...data,
+              globalBillId: result.globalBill.globalBillId,
+              billIdentifier: result.globalBill.billIdentifier,
+              insuranceDetails: selectedInsurance,
+              insurancePolicyId: insurancePolicyId,
+            });
+          }
+        },
+      });
+      return result;
+    } catch (err) {
+      console.error('Error creating global bill:', err);
+      showSnackbar({
+        title: 'Global Bill Error',
+        subtitle: 'An error has occurred while creating global bill',
+        kind: 'error',
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onSubmit = useCallback(
+    async (visit: Visit) => {
+      const isValid = await methods.trigger();
+      if (!isValid) {
+        return Promise.reject(new Error('Form validation failed'));
       }
-      
+      const formData = methods.getValues();
+      await handleFormSubmission(formData);
+
       if (closeWorkspaceWithSavedChanges) {
         closeWorkspaceWithSavedChanges();
       } else {
         closeWorkspace();
       }
-    } catch (err) {
-      console.error('Error creating global bill:', err);
-      setError('Failed to create global bill. Please try again.');
-      showSnackbar({ 
-        title: 'Global Bill Error', 
-        subtitle: 'An error has occurred while creating global bill', 
-        kind: 'error' 
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onAdmissionCreated, patientUuid, selectedInsurance, insurancePolicyId, existingGlobalBill, t, closeWorkspace, closeWorkspaceWithSavedChanges, mutateVisitData]);
+    },
+    [methods, closeWorkspace, closeWorkspaceWithSavedChanges, handleFormSubmission],
+  );
+
+  useEffect(() => {
+    setOnSubmit?.(onSubmit);
+  }, [onSubmit, setOnSubmit]);
 
   if (isLoadingData || isLoadingDiseaseTypes) {
     return (
@@ -429,19 +436,18 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
 
   return (
     <FormProvider {...methods}>
-      <Form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
-        <div className={styles.formContainer}>
-          {/* Show warning if there's an existing open global bill */}
+      <div className={styles.form}>
+        <div>
           {existingGlobalBill && (
             <div className={styles.errorContainer}>
               <InlineNotification
                 kind="warning"
                 lowContrast
                 title={t('existingGlobalBill', 'Existing Global Bill')}
-                subtitle={
-                  t('existingGlobalBillMessage', 
-                    `Patient already has an open global bill (ID: ${existingGlobalBill.billIdentifier}). You cannot create a new one.`)
-                }
+                subtitle={t(
+                  'existingGlobalBillMessage',
+                  `Patient already has an open global bill (ID: ${existingGlobalBill.billIdentifier}). You cannot create a new one.`,
+                )}
                 className={styles.error}
               />
             </div>
@@ -518,7 +524,6 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
                   >
                     <DatePickerInput
                       id="admission-date"
-                      placeholder="mm/dd/yyyy"
                       labelText={t('admissionDate', 'Admission Date')}
                       invalid={!!fieldState.error}
                       invalidText={fieldState.error?.message}
@@ -582,7 +587,10 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
                 title={t('insuranceVerified', 'Insurance Verified')}
                 subtitle={
                   insurancePolicyId
-                    ? t('insurancePolicyFound', `Insurance policy ID #${insurancePolicyId} found and will be used for global bill creation`)
+                    ? t(
+                        'insurancePolicyFound',
+                        `Insurance policy ID #${insurancePolicyId} found and will be used for global bill creation`,
+                      )
                     : t('insuranceVerifiedNoPolicy', 'Insurance verified but policy ID not found')
                 }
                 className={styles.error}
@@ -590,21 +598,16 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
             </div>
           )}
         </div>
-        
+
         {/* Button container with cancel and save buttons */}
-        <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-          <Button 
-            className={styles.button}
-            kind="secondary" 
-            onClick={closeWorkspace}
-            disabled={isLoading}
-          >
+        {/* <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
+          <Button className={styles.button} kind="secondary" onClick={closeWorkspace} disabled={isLoading}>
             {t('cancel', 'Cancel')}
           </Button>
-          <Button 
+          <Button
             className={styles.button}
             kind="primary"
-            type="submit" 
+            type="submit"
             disabled={isLoading || !insurancePolicyId || existingGlobalBill !== null}
           >
             {isLoading ? (
@@ -613,8 +616,8 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
               <span>{t('saveAndClose', 'Save & close')}</span>
             )}
           </Button>
-        </ButtonSet>
-      </Form>
+        </ButtonSet> */}
+      </div>
     </FormProvider>
   );
 };
