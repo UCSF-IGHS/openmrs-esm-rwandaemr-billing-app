@@ -21,6 +21,11 @@
       "slot": "rwanda-billing-app-slot"
     },
     {
+      "component": "insurancePolicyRoot",
+      "name": "insurance-policy-root",
+      "slot": "rwanda-insurance-policy-app-slot"
+    },
+    {
       "component": "billingDashboardLink",
       "name": "billing-home-left-panel-link",
       "slot": "homepage-dashboard-slot",
@@ -47,6 +52,32 @@
         "isFolder": true
       }
     },
+      "component": "insurancePolicyDashboardLink",
+      "name": "insurance-policy-home-left-panel-link",
+      "slot": "homepage-dashboard-slot",
+      "meta": {
+        "name": "insurance-policy",
+        "title": "Insurance Policy",
+        "slot": "rwanda-insurance-policy-app-slot",
+        "isFolder": true
+      }
+    },
+    {
+      "component": "billingAdminDashboardLink",
+      "name": "billing-admin-home-left-panel-link",
+      "slot": "homepage-dashboard-slot",
+      "meta": {
+        "name": "billing-admin",
+        "title": "Billing Admin",
+        "slot": "rwanda-billing-app-slot"
+      }
+    },
+    {
+      "component": "billableServicesCardLink",
+      "name": "rwanda-billable-services-card-link",
+      "slot": "patient-chart-dashboard-slot"
+    },
+
     {      
       "slot": "system-admin-page-card-link-slot",
       "component": "billableServicesCardLink",

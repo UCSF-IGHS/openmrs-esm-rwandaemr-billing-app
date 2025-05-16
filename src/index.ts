@@ -9,6 +9,7 @@ import BillingReportsHome from './billing-reports/billing-reports.component';
 import { admissionDashboard, dashboardMeta } from './dashboard.meta';
 import PatientAdmissionForm from './visit-attributes/patient-admission-form.component';
 import AdmissionHistory from './admission-information/admission-history.component';
+import InsurancePolicyRootComponent from './insurance-root.component';
 
 const moduleName = '@openmrs/esm-rwandaemr-billing-app';
 
@@ -53,3 +54,10 @@ export const billableServicesCardLink = getSyncLifecycle(BillingAdminCardLink, o
 export const patientAdmissionFormWorkspace = getSyncLifecycle(PatientAdmissionForm, options);
 
 export const admissionHistory = getSyncLifecycle(AdmissionHistory, options);
+
+export const insurancePolicyDashboardLink = getSyncLifecycle(
+  createLeftPanelLink({ name: 'insurance-policy', title: 'Insurance policy' }),
+  options,
+);
+
+export const insurancePolicyRoot = getSyncLifecycle(InsurancePolicyRootComponent, options);

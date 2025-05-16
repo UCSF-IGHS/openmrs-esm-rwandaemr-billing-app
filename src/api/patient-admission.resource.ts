@@ -400,3 +400,30 @@ export const closeGlobalBill = async (globalBillId: string): Promise<any> => {
     throw error;
   }
 };
+
+/**
+ * Fetches patient visits within a specified date range
+ * @param patientUuid - The patient's UUID
+ * @param fromDate - The start date to check for visits (optional)
+ * @param toDate - The end date to check for visits (optional)
+ * @returns Promise with patient visits data
+ */
+export const getPatientVisits = async (patientUuid: string, fromDate?: Date, toDate?: Date): Promise<any> => {
+  try {
+    let url = `${restBaseUrl}/visit?patient=${patientUuid}&includeInactive=false&v=full`;
+    
+    if (fromDate) {
+      url += `&fromStartDate=${fromDate.toISOString()}`;
+    }
+    
+    if (toDate) {
+      url += `&toStartDate=${toDate.toISOString()}`;
+    }
+    
+    const response = await openmrsFetch(url);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching patient visits:', error);
+    throw error;
+  }
+};
