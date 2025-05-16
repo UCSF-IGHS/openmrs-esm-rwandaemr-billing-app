@@ -7,7 +7,7 @@ import BillingAdminHome from './billing-admin/billing-home/billing-home-componen
 import InvoiceTable from './invoice/invoice-table.component';
 import { dashboardMeta, insuranceDashboardMeta, admissionDashboard } from './dashboard.meta';
 import Insurance from './insurance/insurance.component';
-import PatientAdmissionForm from './visit-attributes/patient-admission-form.component';
+import PatientAdmissionForm from './visit-attributes/admission-history.component';
 import AdmissionHistory from './admission-information/admission-history.component';
 import InsuranceForm from './insurance/insurance-forms.component';
 import InsurancePolicyRootComponent from './insurance-root.component';

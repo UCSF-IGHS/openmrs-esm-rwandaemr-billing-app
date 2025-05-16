@@ -10,17 +10,11 @@ import {
   getInsurancePolicyByCardNumber,
   getInsuranceById,
 } from '../api/billing';
-import styles from './patient-admission-form.scss';
-import { createAdmissionWithGlobalBill, getPatientVisits, useDiseaseType } from '../api/patient-admission.resource';
+import styles from './visit-form-admission-section.scss';
+import { createAdmissionWithGlobalBill, useDiseaseType } from '../api/patient-admission.resource';
 import { InlineNotification } from '@carbon/react';
-import { TextInput } from '@carbon/react';
-import { DatePicker } from '@carbon/react';
-import { InlineLoading } from '@carbon/react';
-import classNames from 'classnames';
+import { TextInput, DatePicker, InlineLoading, ComboBox, DatePickerInput, Checkbox } from '@carbon/react';
 import { z } from 'zod';
-import { ComboBox } from '@carbon/react';
-import { DatePickerInput } from '@carbon/react';
-import { Checkbox } from '@carbon/react';
 
 const ADMISSION_TYPES = [
   { id: '1', text: 'Ordinary Admission' },
@@ -28,7 +22,7 @@ const ADMISSION_TYPES = [
 ];
 const BASE_API_URL = '/ws/rest/v1/mohbilling';
 
-type PatientAdmissionFormProps = {
+type VisitFormAdmissionSectionProps = {
   patientUuid: string;
   onAdmissionCreated?: (admissionData: any) => void;
   closeWorkspace: () => void;
@@ -64,7 +58,7 @@ const RequiredFieldLabel: React.FC<RequiredFieldLabelProps> = ({ label }) => {
   );
 };
 
-const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
+const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
   patientUuid,
   onAdmissionCreated,
   closeWorkspace,
@@ -318,74 +312,77 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
     }
   }, [insuranceCardNumber, verifyInsuranceCard, isLoadingData]);
 
-  const handleFormSubmission = async (data: AdmissionFormValues) => {
-    setIsLoading(true);
-    setError(null);
+  const handleFormSubmission = useCallback(
+    async (data: AdmissionFormValues) => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      if (!insurancePolicyId) {
-        throw new Error('Insurance policy ID is required. Please verify the insurance card first.');
-      }
+      try {
+        if (!insurancePolicyId) {
+          throw new Error('Insurance policy ID is required. Please verify the insurance card first.');
+        }
 
-      if (existingGlobalBill) {
-        setIsLoading(false);
+        if (existingGlobalBill) {
+          setIsLoading(false);
+          showSnackbar({
+            title: t('existingGlobalBill', 'Existing Global Bill'),
+            subtitle: t(
+              'cannotCreateDuplicateGlobalBill',
+              'Cannot create a new global bill because patient already has an open one.',
+            ),
+            kind: 'error',
+          });
+          return Promise.reject(new Error('Existing global bill'));
+        }
+
+        const admissionTypeNumber = parseInt(data.admissionType);
+        const result = await createAdmissionWithGlobalBill({
+          patientUuid: patientUuid,
+          isAdmitted: data.isAdmitted,
+          admissionDate: data.admissionDate,
+          diseaseType: data.diseaseType,
+          admissionType: admissionTypeNumber,
+          insuranceCardNumber: data.insuranceCardNumber,
+          insurancePolicyId: insurancePolicyId,
+          insuranceId: selectedInsurance?.insuranceId || 1,
+        });
+
+        setExtraVisitInfo({
+          admissionData: {
+            ...data,
+            globalBillId: result.globalBill.globalBillId,
+            billIdentifier: result.globalBill.billIdentifier,
+            insuranceDetails: selectedInsurance,
+            insurancePolicyId: insurancePolicyId,
+            patientUuid: patientUuid,
+          },
+          handleAdmissionCreated: () => {
+            if (onAdmissionCreated) {
+              onAdmissionCreated({
+                ...data,
+                globalBillId: result.globalBill.globalBillId,
+                billIdentifier: result.globalBill.billIdentifier,
+                insuranceDetails: selectedInsurance,
+                insurancePolicyId: insurancePolicyId,
+              });
+            }
+          },
+        });
+        return result;
+      } catch (err) {
+        console.error('Error creating global bill:', err);
         showSnackbar({
-          title: t('existingGlobalBill', 'Existing Global Bill'),
-          subtitle: t(
-            'cannotCreateDuplicateGlobalBill',
-            'Cannot create a new global bill because patient already has an open one.',
-          ),
+          title: 'Global Bill Error',
+          subtitle: 'An error has occurred while creating global bill',
           kind: 'error',
         });
-        return Promise.reject(new Error('Existing global bill'));
+        throw err;
+      } finally {
+        setIsLoading(false);
       }
-
-      const admissionTypeNumber = parseInt(data.admissionType);
-      const result = await createAdmissionWithGlobalBill({
-        patientUuid: patientUuid,
-        isAdmitted: data.isAdmitted,
-        admissionDate: data.admissionDate,
-        diseaseType: data.diseaseType,
-        admissionType: admissionTypeNumber,
-        insuranceCardNumber: data.insuranceCardNumber,
-        insurancePolicyId: insurancePolicyId,
-        insuranceId: selectedInsurance?.insuranceId || 1,
-      });
-
-      setExtraVisitInfo({
-        admissionData: {
-          ...data,
-          globalBillId: result.globalBill.globalBillId,
-          billIdentifier: result.globalBill.billIdentifier,
-          insuranceDetails: selectedInsurance,
-          insurancePolicyId: insurancePolicyId,
-          patientUuid: patientUuid,
-        },
-        handleAdmissionCreated: () => {
-          if (onAdmissionCreated) {
-            onAdmissionCreated({
-              ...data,
-              globalBillId: result.globalBill.globalBillId,
-              billIdentifier: result.globalBill.billIdentifier,
-              insuranceDetails: selectedInsurance,
-              insurancePolicyId: insurancePolicyId,
-            });
-          }
-        },
-      });
-      return result;
-    } catch (err) {
-      console.error('Error creating global bill:', err);
-      showSnackbar({
-        title: 'Global Bill Error',
-        subtitle: 'An error has occurred while creating global bill',
-        kind: 'error',
-      });
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [insurancePolicyId, existingGlobalBill, t, selectedInsurance, setExtraVisitInfo, patientUuid, onAdmissionCreated],
+  );
 
   const onSubmit = useCallback(
     async (visit: Visit) => {
@@ -409,7 +406,7 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
     setOnSubmit?.(onSubmit);
   }, [onSubmit, setOnSubmit]);
 
-  if (isLoadingData || isLoadingDiseaseTypes) {
+  if (isLoadingData || isLoadingDiseaseTypes || isLoading) {
     return (
       <InlineLoading
         status="active"
@@ -622,4 +619,4 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
   );
 };
 
-export default PatientAdmissionForm;
+export default VisitFormAdmissionSection;
