@@ -8,13 +8,11 @@ import InvoiceTable from './invoice/invoice-table.component';
 import { admissionDashboard, dashboardMeta } from './dashboard.meta';
 import PatientAdmissionForm from './visit-attributes/patient-admission-form.component';
 import AdmissionHistory from './admission-information/admission-history.component';
+import InsurancePolicyRootComponent from './insurance-root.component';
 
 const moduleName = '@openmrs/esm-rwandaemr-billing-app';
 
-const options = {
-  featureName: 'RwandaEMR Billing',
-  moduleName,
-};
+const options = { featureName: 'RwandaEMR Billing', moduleName };
 
 export const importTranslation = require.context('../translations', false, /.json$/, 'lazy');
 
@@ -35,10 +33,7 @@ export const admissionSummaryDashboardLink = getSyncLifecycle(
 );
 
 export const billingDashboardLink = getSyncLifecycle(
-  createLeftPanelLink({
-    name: 'billing',
-    title: 'Billing',
-  }),
+  createLeftPanelLink({ name: 'billing', title: 'Billing' }),
   options,
 );
 
@@ -51,3 +46,10 @@ export const billableServicesCardLink = getSyncLifecycle(BillingAdminCardLink, o
 export const patientAdmissionFormWorkspace = getSyncLifecycle(PatientAdmissionForm, options);
 
 export const admissionHistory = getSyncLifecycle(AdmissionHistory, options);
+
+export const insurancePolicyDashboardLink = getSyncLifecycle(
+  createLeftPanelLink({ name: 'insurance-policy', title: 'Insurance policy' }),
+  options,
+);
+
+export const insurancePolicyRoot = getSyncLifecycle(InsurancePolicyRootComponent, options);

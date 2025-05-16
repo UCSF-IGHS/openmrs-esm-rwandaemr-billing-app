@@ -8,9 +8,27 @@ interface Owner {
   uuid: string;
   display: string;
   links: Link[];
+  person?: {
+    uuid: string;
+    display: string;
+    gender: string;
+    age: number;
+    birthdate: string;
+    birthdateEstimated: boolean;
+    preferredName: {
+      display: string;
+      uuid: string;
+    };
+    preferredAddress: {
+      display: string;
+      uuid: string;
+    };
+    links: Link[];
+  };
+  attributes?: Array<{ uuid: string; display: string; links: Link[] }>;
 }
 
-interface InsurancePolicy {
+export interface InsurancePolicy {
   insuranceCardNo: string;
   coverageStartDate: string;
   expirationDate: string;
