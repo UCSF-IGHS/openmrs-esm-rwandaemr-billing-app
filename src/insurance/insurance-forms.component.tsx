@@ -18,13 +18,16 @@ import {
   SelectItem,
 } from '@carbon/react';
 import classNames from 'classnames';
-import { closeWorkspace, ResponsiveWrapper, useLayoutType } from '@openmrs/esm-framework';
+import { closeWorkspace, ResponsiveWrapper, useLayoutType, showSnackbar } from '@openmrs/esm-framework';
 import dayjs from 'dayjs';
 import styles from './insurance.scss';
 import { getThirdParties } from '../api/billing';
-import { fetchInsuranceFirms } from './insurance-resource';
+import { fetchInsuranceFirms, createInsurancePolicy } from './insurance-resource';
 
 interface InsuranceFormProps {
+  patientUuid: string;
+  patientId: string;
+  insuranceId?: string;
   closeForm: () => void;
   closeFormWithSavedChanges?: () => void;
   closeWorkspace: () => void;
@@ -37,11 +40,11 @@ interface RequiredFieldLabelProps {
 
 const schema = z
   .object({
-    insuranceFirm: z.string().nonempty('Insurance name is required'),
+    insuranceName: z.string().nonempty('Insurance name is required'),
     cardNumber: z.string().nonempty('Card number is required'),
-    coverageStartDate: z.string().nonempty('Coverage start date is required'),
-    coverageEndDate: z.string().nonempty('Coverage end date is required'),
-    isAdmitted: z.boolean(),
+    coverageStartDate: z.date({ required_error: 'Coverage start date is required' }),
+    coverageEndDate: z.date({ required_error: 'Coverage end date is required' }),
+    hasThirdParty: z.boolean(),
     thirdPartyProvider: z.string().optional(),
     companyName: z.string().nonempty('Company Name is required'),
     policyOwner: z.string().nonempty('policy Owner is required'),
@@ -50,7 +53,7 @@ const schema = z
   })
   .refine(
     (data) => {
-      if (data.isAdmitted) {
+      if (data.hasThirdParty) {
         return !!data.thirdPartyProvider;
       }
       return true;
@@ -63,7 +66,7 @@ const schema = z
 
 type InsuranceFormSchema = z.infer<typeof schema>;
 
-const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithSavedChanges }) => {
+const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWithSavedChanges }) => {
   const { t } = useTranslation();
   const isTablet = useLayoutType() === 'tablet';
 
@@ -77,11 +80,11 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
     mode: 'onChange',
     resolver: zodResolver(schema),
     defaultValues: {
-      insuranceFirm: '',
+      insuranceName: '',
       cardNumber: '',
-      coverageStartDate: '',
-      coverageEndDate: '',
-      isAdmitted: false,
+      coverageStartDate: null,
+      coverageEndDate: null,
+      hasThirdParty: false,
       thirdPartyProvider: '',
       companyName: '',
       policyOwner: '',
@@ -98,15 +101,31 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
     formState: { errors },
   } = methods;
 
-  const hasThirdParty = watch('isAdmitted');
+  const hasThirdParty = watch('hasThirdParty');
 
   const onSubmit: SubmitHandler<InsuranceFormSchema> = async (data) => {
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      // TODO: Replace with actual save logic
-      closeFormWithSavedChanges?.();
+      const payload = {
+        insurance: {
+          insuranceId: Number(data.insuranceName),
+        },
+        owner: patientUuid,
+        insuranceCardNo: data.cardNumber,
+        coverageStartDate: dayjs(data.coverageStartDate).format('YYYY-MM-DD'),
+        expirationDate: dayjs(data.coverageEndDate).format('YYYY-MM-DD'),
+      };
+
+      await createInsurancePolicy(payload, patientUuid);
+
+      showSnackbar({
+        title: t('insurancePolicySaved', 'Insurance policy saved'),
+        kind: 'success',
+      });
+
+      closeWorkspace('insurance-form-workspace');
     } catch (err: any) {
       setSubmitError(err.message ?? 'Something went wrong');
     } finally {
@@ -114,7 +133,10 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
     }
   };
 
-  const onError = () => setIsSubmitting(false);
+  const onError = (errors: any) => {
+    setIsSubmitting(false);
+  };
+
   useEffect(() => {
     const loadInsuranceFirms = async () => {
       const options = await fetchInsuranceFirms();
@@ -139,17 +161,17 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
 
   return (
     <FormProvider {...methods}>
-      <Form onSubmit={handleSubmit(onSubmit, onError)} className={styles.form}>
+      <form onSubmit={handleSubmit(onSubmit, onError)} className={styles.form}>
         <div className={styles.form}>
           <div className={styles.formContainer}>
             <div className={styles.subheading}>{t('insuranceSection', 'Insurance')}</div>
 
             <Controller
-              name="insuranceFirm"
+              name="insuranceName"
               control={control}
               render={({ field }) => (
                 <Select
-                  id="insuranceFirm"
+                  id="insuranceName"
                   labelText={<RequiredFieldLabel label={t('insuranceName', 'Insurance Name')} t={t} />}
                   {...field}
                 >
@@ -219,7 +241,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
             <div className={styles.formRow}>
               <div className={styles.formColumn}>
                 <Controller
-                  name="isAdmitted"
+                  name="hasThirdParty"
                   control={control}
                   render={({ field }) => (
                     <Checkbox
@@ -313,7 +335,15 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
                 {t('cancel', 'Cancel')}
               </Button>
 
-              <Button className={styles.button} disabled={isSubmitting} kind="primary" type="submit">
+              <Button
+                className={styles.button}
+                disabled={isSubmitting}
+                kind="primary"
+                type="button"
+                onClick={() => {
+                  handleSubmit(onSubmit, onError)();
+                }}
+              >
                 {isSubmitting ? (
                   <InlineLoading className={styles.spinner} description={t('saving', 'Saving') + '...'} />
                 ) : (
@@ -323,7 +353,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ closeForm, closeFormWithS
             </ButtonSet>
           </div>
         </div>
-      </Form>
+      </form>
     </FormProvider>
   );
 };

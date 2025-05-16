@@ -104,3 +104,28 @@
     margin-bottom: 0.5rem;
     font-size: 1rem;
 }
+
+.headerRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.addBtn {
+    margin-left: auto;
+}
+
+/* Card container */
+.widgetCard {
+    border: 1px solid $ui-03;
+    width: 100%;
+    border-bottom: none;
+}
+
+/* Right-aligned header actions */
+.headerActions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
