@@ -23,12 +23,12 @@ import { fetchInsuranceFirms, loadInsurancePolicies } from './insurance-resource
 import dayjs from 'dayjs';
 import EditInsuranceModal from './edit-insurance.workspace';
 
-const Insurance = ({ patientUuid, patientId }) => {
+const Insurance = ({ patientUuid }) => {
   const { t } = useTranslation();
   const [entries, setEntries] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshSignal, setRefreshSignal] = useState(0);
-  const [insuranceIdToNameMap, setInsuranceIdToNameMap] = useState<Record<string, string>>({});
+  const [, setInsuranceIdToNameMap] = useState<Record<string, string>>({});
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -172,7 +172,7 @@ const Insurance = ({ patientUuid, patientId }) => {
         <>
           <DataTable
             headers={headers}
-            rows={pagedEntries.map((entry, index) => ({
+            rows={pagedEntries.map((entry) => ({
               id: entry.id,
               ...entry,
               actions: (

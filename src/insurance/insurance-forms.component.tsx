@@ -6,13 +6,11 @@ import { type TFunction, useTranslation } from 'react-i18next';
 import {
   Button,
   ButtonSet,
-  Form,
   InlineLoading,
   InlineNotification,
   TextInput,
   DatePicker,
   DatePickerInput,
-  FormGroup,
   Checkbox,
   Select,
   SelectItem,
@@ -23,7 +21,6 @@ import dayjs from 'dayjs';
 import styles from './insurance.scss';
 import { getThirdParties } from '../api/billing';
 import { fetchInsuranceFirms, createInsurancePolicy } from './insurance-resource';
-import { launchPatientWorkspace } from '@openmrs/esm-patient-common-lib';
 
 interface InsuranceFormProps {
   patientUuid: string;
@@ -125,17 +122,31 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
         title: t('insurancePolicySaved', 'Insurance policy saved'),
         kind: 'success',
       });
+
       window.dispatchEvent(new CustomEvent('insurancePolicyAdded'));
       closeWorkspace('insurance-form-workspace');
     } catch (err: any) {
-      setSubmitError(err.message ?? 'Something went wrong');
+      const backendMessage =
+        err?.response?.data?.error?.message ?? err?.responseBody?.error?.message ?? err?.message ?? '';
+
+      const isDuplicate = backendMessage.includes('Duplicate entry') && backendMessage.includes('insurance_card_no');
+
+      if (isDuplicate) {
+        const duplicateMsg = t('duplicateCardNumber', 'An insurance policy with this Card Number already exists.');
+
+        methods.setError('cardNumber', {
+          type: 'manual',
+          message: duplicateMsg,
+        });
+
+        setSubmitError(duplicateMsg);
+        methods.setFocus('cardNumber');
+      } else {
+        setSubmitError(t('errorSavingInsurance', 'Error saving insurance'));
+      }
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const onError = (errors: any) => {
-    setIsSubmitting(false);
   };
 
   useEffect(() => {
@@ -162,7 +173,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(onSubmit, onError)} className={styles.form}>
+      <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
         <div className={styles.form}>
           <div className={styles.formContainer}>
             <div className={styles.subheading}>{t('insuranceSection', 'Insurance')}</div>
@@ -342,7 +353,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                 kind="primary"
                 type="button"
                 onClick={() => {
-                  handleSubmit(onSubmit, onError)();
+                  handleSubmit(onSubmit)();
                 }}
               >
                 {isSubmitting ? (
