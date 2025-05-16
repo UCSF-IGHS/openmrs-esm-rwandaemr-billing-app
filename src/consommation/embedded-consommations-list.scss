@@ -175,20 +175,22 @@ $disabled-03: #8d8d8d !default;
   display: inline-block;
   padding: 4px 8px;
   border-radius: 4px;
-  color: white;
   font-weight: bold;
 }
 
 .paidStatus {
-  background-color: #09852c;
+  background-color: #defbe6;
+  color: #0e6027;
 }
 
 .partiallyPaidStatus {
-  background-color: #ff8c00;
+  background-color: #fff8e1;
+  color: #b28704;
 }
 
 .unpaidStatus {
-  background-color: #c00811;
+  background-color: #fff1f1;
+  color: #da1e28;
 }
 
 :global {

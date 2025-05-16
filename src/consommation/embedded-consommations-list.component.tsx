@@ -11,18 +11,20 @@ import {
   DataTableSkeleton,
   Button,
   Checkbox,
+  Tag,
+  Pagination
 } from '@carbon/react';
 import { isDesktop, showToast, useLayoutType, useSession, usePagination } from '@openmrs/esm-framework';
 import { getConsommationsByGlobalBillId, getConsommationItems, getConsommationById } from '../api/billing';
 import { 
   isItemPaid, 
   isItemPartiallyPaid, 
-  calculateTotalDueForSelected
+  calculateTotalDueForSelected,
+  areAllItemsPaid
 } from '../utils/billing-calculations';
 import { type ConsommationListResponse, type ConsommationItem, type RowData } from '../types';
 import styles from './embedded-consommations-list.scss';
 import PaymentForm from '../payment-form/payment-form.component';
-import { Pagination } from '@carbon/react';
 import { AddIcon } from '@openmrs/esm-framework';
 
 interface EmbeddedConsommationsListProps {
@@ -51,6 +53,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedConsommationItems, setSelectedConsommationItems] = useState<ConsommationItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [consommationStatuses, setConsommationStatuses] = useState<Record<string, string>>({});
   
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
@@ -63,6 +66,60 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     try {
       const data = await getConsommationsByGlobalBillId(globalBillId);
       setConsommations(data);
+      
+      const newStatusMap: Record<string, string> = {};
+      
+      if (data && data.results && data.results.length > 0) {
+        await Promise.all(data.results.map(async (consommation) => {
+          const consommationId = consommation.consommationId?.toString() || '';
+          if (!consommationId) return;
+          
+          try {
+            const consommationKey = `consommation_status_${consommationId}`;
+            const storedStatus = JSON.parse(sessionStorage.getItem(consommationKey) || '{}');
+            if (storedStatus.paid) {
+              newStatusMap[consommationId] = 'FULLY PAID';
+              return;
+            }
+          } catch (e) {
+            // Ignore session storage errors
+          }
+          
+          try {
+            const allItemsPaid = await areAllItemsPaid(consommationId);
+            if (allItemsPaid) {
+              newStatusMap[consommationId] = 'FULLY PAID';
+              return;
+            }
+          } catch (error) {
+            console.error(`Error checking items for consommation ${consommationId}:`, error);
+          }
+          
+          try {
+            const fullConsommation = await getConsommationById(consommationId);
+            
+            const rawPatientDue = Number(fullConsommation?.patientBill?.amount ?? 0);
+            const rawPaidAmount = Number(
+              fullConsommation?.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
+            );
+            
+            if (rawPaidAmount >= rawPatientDue && rawPatientDue > 0) {
+              newStatusMap[consommationId] = 'FULLY PAID';
+            } else if (rawPaidAmount === 0) {
+              newStatusMap[consommationId] = 'UNPAID';
+            } else if (rawPaidAmount > 0 && rawPaidAmount < rawPatientDue) {
+              newStatusMap[consommationId] = 'PARTIALLY PAID';
+            } else {
+              newStatusMap[consommationId] = 'UNPAID';
+            }
+          } catch (error) {
+            console.error(`Error getting full consommation details for ${consommationId}:`, error);
+            newStatusMap[consommationId] = 'UNPAID';
+          }
+        }));
+      }
+      
+      setConsommationStatuses(newStatusMap);
     } catch (error) {
       showToast({
         title: t('error', 'Error'),
@@ -85,7 +142,6 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     { key: 'createdDate', header: t('date', 'Date') },
     { key: 'consommationId', header: t('id', 'ID') },
     { key: 'service', header: t('service', 'Service') },
-    // Removed "createdBy" column
     { key: 'insuranceCardNo', header: t('cardNo', 'Card #') },
     { key: 'insuranceDue', header: t('insurance', 'Insurance') },
     { key: 'thirdPartyDue', header: t('total', 'Total') },
@@ -94,15 +150,48 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     { key: 'status', header: t('status', 'Status') },
   ];
 
-  // Generate table rows data
-  const rows = useMemo<RowData[]>(() => 
-    consommations?.results?.map((item, index) => ({
+const rows = useMemo<RowData[]>(() => 
+  consommations?.results?.map((item, index) => {
+    const statusText = (() => {
+      const consommationId = item.consommationId?.toString() || '';
+      
+      const calculatedStatus = consommationStatuses[consommationId];
+      if (calculatedStatus) {
+        return calculatedStatus;
+      }
+      
+      try {
+        const consommationKey = `consommation_status_${consommationId}`;
+        const storedStatus = JSON.parse(sessionStorage.getItem(consommationKey) || '{}');
+        if (storedStatus.paid) {
+          return 'FULLY PAID';
+        }
+      } catch (e) {
+        // Ignore session storage errors
+      }
+      
+      const rawPatientDue = Number(item.patientBill?.amount ?? 0);
+      const rawPaidAmount = Number(
+        item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
+      );
+      
+      if (rawPaidAmount >= rawPatientDue && rawPatientDue > 0) {
+        return 'FULLY PAID';
+      } else if (rawPaidAmount === 0) {
+        return 'UNPAID';
+      } else if (rawPaidAmount > 0 && rawPaidAmount < rawPatientDue) {
+        return 'PARTIALLY PAID';
+      } else {
+        return 'UNPAID';
+      }
+    })();
+
+    return {
       id: item.consommationId?.toString() || '',
       index: index + 1,
       createdDate: item.createdDate ? new Date(item.createdDate).toLocaleDateString() : '-',
       consommationId: item.consommationId?.toString() || '-',
       service: item?.department?.name || '-',
-      // Removed "createdBy" field
       insuranceCardNo: item.patientBill?.policyIdNumber || insuranceCardNo || '-',
       insuranceDue: Number(item.insuranceBill?.amount ?? 0).toFixed(2),
       thirdPartyDue: Number(item.thirdPartyBill?.amount ?? 0).toFixed(2),
@@ -116,22 +205,13 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       paidAmount: Number(
         item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
       ).toFixed(2),
-      status: (() => {
-        const rawPatientDue = Number(item.patientBill?.amount ?? 0);
-        const rawPaidAmount = Number(item.patientBill?.payments?.[0]?.amountPaid ?? 0);
-        if (rawPaidAmount >= rawPatientDue && rawPatientDue > 0) {
-          return t('fullyPaid', 'FULLY PAID');
-        } else if (rawPaidAmount === 0) {
-          return t('unpaid', 'UNPAID');
-        } else if (rawPaidAmount > 0 && rawPaidAmount < rawPatientDue) {
-          return t('partiallyPaid', 'PARTIALLY PAID');
-        } else {
-          return t('unpaid', 'UNPAID');
-        }
-      })(),
+      status: statusText,
       rawPatientDue: Number(item.patientBill?.amount ?? 0),
-      rawPaidAmount: Number(item.patientBill?.payments?.[0]?.amountPaid ?? 0),
-  })) || [], [consommations?.results, insuranceCardNo, t]);
+      rawPaidAmount: Number(
+        item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
+      ),
+    };
+  }) || [], [consommations?.results, insuranceCardNo, t, consommationStatuses]);
 
   const pageSize = 10;
   const { paginated, goTo, results: paginatedRows, currentPage } = usePagination(rows, pageSize);
@@ -278,6 +358,39 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       const selectedRow = selectedRows?.[0];
       if (selectedRow) {
         await fetchConsommationItems(selectedRow);
+        
+        const allItemsPaid = selectedConsommationItems.every(item => {
+          try {
+            const paymentKey = `payment_${item.patientServiceBillId}`;
+            const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
+            if (storedPayment.paid) {
+              return true;
+            }
+          } catch (e) {
+            // Ignore errors
+          }
+          
+          if (item.paid) {
+            return true;
+          }
+          
+          const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+          const paidAmount = item.paidAmount || 0;
+          return paidAmount >= itemTotal;
+        });
+        
+        if (allItemsPaid) {
+          const consommationKey = `consommation_status_${selectedRow}`;
+          sessionStorage.setItem(consommationKey, JSON.stringify({ 
+            paid: true, 
+            timestamp: new Date().toISOString() 
+          }));
+          
+          setConsommationStatuses(prev => ({
+            ...prev,
+            [selectedRow]: 'FULLY PAID'
+          }));
+        }
       }
     } catch (error) {
       console.error('Error refreshing data after payment:', error);
@@ -471,9 +584,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
               {t('consommationsList', 'Consommations List for Global Bill')} #{globalBillId}
             </h4>
             {isGlobalBillClosed && (
-              <span className={styles.closedBillNotice}>
-                {t('closedBill', 'This bill is closed')}
-              </span>
+              <span className={styles.closedBillNotice}>{t('closedBill', 'This bill is closed')}</span>
             )}
           </div>
           <Button
@@ -526,7 +637,21 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
                           key={cell.id}
                           onClick={cell.info.header === 'select' ? (e: any) => e.stopPropagation() : undefined}
                         >
-                          {cell.value}
+                          {cell.info.header === 'status' ? (
+                            <Tag
+                              type={
+                                cell.value.includes('FULLY PAID')
+                                  ? 'green'
+                                  : cell.value.includes('PARTIALLY')
+                                    ? 'purple'
+                                    : 'red'
+                              }
+                            >
+                              {cell.value}
+                            </Tag>
+                          ) : (
+                            cell.value
+                          )}
                         </TableCell>
                       ))}
                     </TableRow>
