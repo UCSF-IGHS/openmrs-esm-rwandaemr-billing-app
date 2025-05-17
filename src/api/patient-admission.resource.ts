@@ -77,15 +77,15 @@ const extractInsurancePolicyId = (policyResponse: any): number | null => {
   try {
     if (policyResponse?.results && policyResponse.results.length > 0) {
       const policy = policyResponse.results[0];
-      
+
       // First check if policy has insurancePolicyId property
       if (policy.insurancePolicyId) {
         return policy.insurancePolicyId;
       }
-      
+
       // If not, try to extract from links
       if (policy.links && policy.links.length > 0) {
-        const selfLink = policy.links.find(link => link.rel === 'self');
+        const selfLink = policy.links.find((link) => link.rel === 'self');
         if (selfLink && selfLink.uri) {
           const matches = selfLink.uri.match(/\/insurancePolicy\/(\d+)/);
           if (matches && matches[1]) {
@@ -127,15 +127,11 @@ export function useDiseaseType() {
 export const usePatientAdmissions = (patientUuid: string): AdmissionsResponse => {
   // Using the globalBill endpoint since the admission endpoint returns empty
   const apiUrl = `${BASE_API_URL}/globalBill?patient=${patientUuid}&v=full`;
-  
-  const { data, error, isValidating, mutate } = useSWR<{ data: any }>(
-    patientUuid ? apiUrl : null,
-    openmrsFetch,
-    {
-      errorRetryCount: 2,
-      revalidateOnFocus: true,
-    }
-  );
+
+  const { data, error, isValidating, mutate } = useSWR<{ data: any }>(patientUuid ? apiUrl : null, openmrsFetch, {
+    errorRetryCount: 2,
+    revalidateOnFocus: true,
+  });
 
   // Map the global bill data to the AdmissionDisplay interface
   const mapAdmissions = (rawData): Array<AdmissionDisplay> => {
@@ -147,7 +143,7 @@ export const usePatientAdmissions = (patientUuid: string): AdmissionsResponse =>
       // Map admission type (numeric) to string representation
       const admissionTypeMap = {
         1: 'Ordinary Admission',
-        2: 'DCP Admission'
+        2: 'DCP Admission',
       };
 
       // Extract data from the global bill's admission information
@@ -156,7 +152,7 @@ export const usePatientAdmissions = (patientUuid: string): AdmissionsResponse =>
       const insurance = bill.insurance || insurancePolicy.insurance || {};
       const admissionType = admission?.admissionType || 1;
       const patient = admission?.patient || {};
-      
+
       return {
         id: bill.globalBillId?.toString() || '',
         uuid: bill.uuid || '',
@@ -168,7 +164,7 @@ export const usePatientAdmissions = (patientUuid: string): AdmissionsResponse =>
         admissionDate: admission.admissionDate || bill.createdDate || '',
         admissionTypeDetail: admission?.diseaseType?.display || 'Ordinary Clinic',
         globalBillId: bill.globalBillId?.toString() || '',
-        isClosed: bill.closed || false
+        isClosed: bill.closed || false,
       };
     });
   };
@@ -180,7 +176,7 @@ export const usePatientAdmissions = (patientUuid: string): AdmissionsResponse =>
     isValidating,
     mutate,
   };
-}
+};
 
 /**
  * Fetches insurance policy details by card number
@@ -191,14 +187,14 @@ export const usePatientAdmissions = (patientUuid: string): AdmissionsResponse =>
 export const getInsurancePolicyByCardNumber = async (insuranceCardNumber: string): Promise<any> => {
   try {
     const response = await openmrsFetch(
-      `${BASE_API_URL}/insurancePolicy?insuranceCardNo=${insuranceCardNumber}&v=full`
+      `${BASE_API_URL}/insurancePolicy?insuranceCardNo=${insuranceCardNumber}&v=full`,
     );
-    
+
     if (response.data?.results && response.data.results.length > 0) {
       const policy = response.data.results[0];
-      
+
       if (!policy.insurancePolicyId && policy.links && policy.links.length > 0) {
-        const selfLink = policy.links.find(link => link.rel === 'self');
+        const selfLink = policy.links.find((link) => link.rel === 'self');
         if (selfLink && selfLink.uri) {
           const matches = selfLink.uri.match(/\/insurancePolicy\/(\d+)/);
           if (matches && matches[1]) {
@@ -207,7 +203,7 @@ export const getInsurancePolicyByCardNumber = async (insuranceCardNumber: string
         }
       }
     }
-    
+
     return response.data;
   } catch (error) {
     console.error('Error fetching insurance policy:', error);
@@ -223,12 +219,12 @@ export const getInsurancePolicyByCardNumber = async (insuranceCardNumber: string
 export const checkOpenGlobalBills = async (patientUuid: string): Promise<any> => {
   try {
     const response = await openmrsFetch(`${BASE_API_URL}/globalBill?patient=${patientUuid}&v=full`);
-    
+
     if (response.data?.results && response.data.results.length > 0) {
-      const openGlobalBill = response.data.results.find(bill => bill.closed === false);
+      const openGlobalBill = response.data.results.find((bill) => bill.closed === false);
       return openGlobalBill || null;
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error checking open global bills:', error);
@@ -257,15 +253,15 @@ export const createDirectGlobalBill = async (data: any): Promise<any> => {
         return openGlobalBill;
       }
     }
-    
+
     const payload = {
       admission: {
         admissionDate: data.admissionDate?.toISOString(),
         insurancePolicy: {
-          insurancePolicyId: data.insurancePolicyId
+          insurancePolicyId: data.insurancePolicyId,
         },
-        admissionType: data.admissionType
-      }
+        admissionType: data.admissionType,
+      },
     };
 
     const response = await openmrsFetch(`${BASE_API_URL}/globalBill`, {
@@ -290,7 +286,7 @@ export const createDirectGlobalBill = async (data: any): Promise<any> => {
 export const createAdmissionWithGlobalBill = async (data: any): Promise<any> => {
   try {
     let insurancePolicyId = data.insurancePolicyId;
-    
+
     if (!insurancePolicyId && data.insuranceCardNumber) {
       try {
         const policyResponse = await getInsurancePolicyByCardNumber(data.insuranceCardNumber);
@@ -299,29 +295,28 @@ export const createAdmissionWithGlobalBill = async (data: any): Promise<any> => 
         console.error('Error getting policy ID from card number:', err);
       }
     }
-    
+
     if (!insurancePolicyId) {
       throw new Error('Insurance policy ID is required for global bill creation');
     }
-    
+
     if (data.patientUuid) {
       const openGlobalBill = await checkOpenGlobalBills(data.patientUuid);
       if (openGlobalBill) {
         return { globalBill: openGlobalBill };
       }
     }
-    
+
     const globalBill = await createDirectGlobalBill({
       patientUuid: data.patientUuid,
       admissionDate: data.admissionDate,
       insurancePolicyId: insurancePolicyId,
-      admissionType: data.admissionType
+      admissionType: data.admissionType,
     });
-    
-    
+
     // Return the global bill
     return {
-      globalBill
+      globalBill,
     };
   } catch (error) {
     console.error('Error creating admission with global bill:', error);
@@ -372,7 +367,7 @@ export const dischargePatient = async (admissionId: string, dischargeDate: Date)
       },
       body: { dischargeDate: dischargeDate.toISOString() },
     });
-    
+
     return response.data;
   } catch (error) {
     console.error('Error discharging patient:', error);
@@ -393,7 +388,7 @@ export const closeGlobalBill = async (globalBillId: string): Promise<any> => {
         'Content-Type': 'application/json',
       },
     });
-    
+
     return response.data;
   } catch (error) {
     console.error('Error closing global bill:', error);
@@ -411,15 +406,15 @@ export const closeGlobalBill = async (globalBillId: string): Promise<any> => {
 export const getPatientVisits = async (patientUuid: string, fromDate?: Date, toDate?: Date): Promise<any> => {
   try {
     let url = `${restBaseUrl}/visit?patient=${patientUuid}&includeInactive=false&v=full`;
-    
+
     if (fromDate) {
       url += `&fromStartDate=${fromDate.toISOString()}`;
     }
-    
+
     if (toDate) {
       url += `&toStartDate=${toDate.toISOString()}`;
     }
-    
+
     const response = await openmrsFetch(url);
     return response.data;
   } catch (error) {

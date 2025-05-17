@@ -62,7 +62,7 @@
       "slot": "system-admin-page-card-link-slot",
       "component": "billableServicesCardLink",
       "name": "rwanda-billable-services-admin-card-link"
-  },
+    },
     {
       "name": "billing-rwanda-summary-dashboard-link",
       "component": "billingSummaryDashboardLink",
@@ -122,6 +122,11 @@
       "meta": {
         "columnSpan": 4
       }
+    },
+    {
+      "name": "admission-checkin-form",
+      "slot": "visit-form-bottom-slot",
+      "component": "visitFormInsurancePolicyFields"
     }
 
   ],
