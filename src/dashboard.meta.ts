@@ -6,6 +6,14 @@ export const dashboardMeta = {
   icon: 'omrs-icon-money',
 };
 
+export const insuranceDashboardMeta = {
+  slot: 'patient-chart-dashboard-slot',
+  title: 'Insurance',
+  path: 'insurance',
+  hideDashboardTitle: false,
+  icon: 'omrs-icon-table',
+};
+
 export const admissionDashboard = {
   slot: 'patient-chart-dashboard-slot',
   title: 'Admission',

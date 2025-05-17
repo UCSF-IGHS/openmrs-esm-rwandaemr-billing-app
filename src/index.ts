@@ -6,9 +6,11 @@ import BillingAdminCardLink from './billing-admin-card-link.component';
 import BillingAdminHome from './billing-admin/billing-home/billing-home-component';
 import InvoiceTable from './invoice/invoice-table.component';
 import BillingReportsHome from './billing-reports/billing-reports.component';
-import { admissionDashboard, dashboardMeta } from './dashboard.meta';
+import { dashboardMeta, insuranceDashboardMeta, admissionDashboard } from './dashboard.meta';
+import Insurance from './insurance/insurance.component';
 import PatientAdmissionForm from './visit-attributes/patient-admission-form.component';
 import AdmissionHistory from './admission-information/admission-history.component';
+import InsuranceForm from './insurance/insurance-forms.component';
 import InsurancePolicyRootComponent from './insurance-root.component';
 
 const moduleName = '@openmrs/esm-rwandaemr-billing-app';
@@ -28,10 +30,20 @@ export const billingSummaryDashboardLink = getSyncLifecycle(
   options,
 );
 
-export const admissionSummaryDashboardLink = getSyncLifecycle(
-  createDashboardLink({ ...admissionDashboard, moduleName }),
+export const insuranceDashboardLink = getSyncLifecycle(
+  createDashboardLink({ ...insuranceDashboardMeta, moduleName }),
   options,
 );
+
+export const admissionSummaryDashboardLink = getSyncLifecycle(
+  createDashboardLink({ ...admissionDashboard, moduleName }),
+
+  options,
+);
+
+export const insuranceFormWorkspace = getSyncLifecycle(InsuranceForm, {
+  ...options,
+});
 
 export const billingDashboardLink = getSyncLifecycle(
   createLeftPanelLink({ name: 'billing', title: 'Billing' }),
@@ -50,6 +62,8 @@ export const billingReportsHome = getSyncLifecycle(BillingReportsHome, options);
 export const billingPatientSummary = getSyncLifecycle(InvoiceTable, options);
 
 export const billableServicesCardLink = getSyncLifecycle(BillingAdminCardLink, options);
+
+export const insurancePatientSummary = getSyncLifecycle(Insurance, options);
 
 export const patientAdmissionFormWorkspace = getSyncLifecycle(PatientAdmissionForm, options);
 

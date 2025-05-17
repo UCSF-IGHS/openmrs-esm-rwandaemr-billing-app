@@ -117,6 +117,26 @@
       }
     },
     {
+      "name": "insurance-rwanda-summary-dashboard-link",
+      "component": "insuranceDashboardLink",
+      "slot": "patient-chart-dashboard-slot",
+      "order": 12,
+      "meta": {
+        "columns": 1,
+        "columnSpan": 1,
+        "slot": "patient-rwanda-chart-insurance-dashboard-slot",
+        "path": "insurance"
+      }
+    },
+    {
+      "name": "insurance-rwanda-patient-summary",
+      "component": "insurancePatientSummary",
+      "slot": "patient-rwanda-chart-insurance-dashboard-slot",
+      "meta": {
+        "columnSpan": 5
+      }
+    },       
+    {
       "name": "rwanda-admission-patient-summary",
       "component": "admissionHistory",
       "slot": "patient-rwanda-chart-admission-dashboard-slot",
@@ -124,12 +144,19 @@
         "columnSpan": 4
       }
     }
+
   ],
   "workspaces": [
     {
       "name": "patient-admission-workspace",
       "title": "Admission Information",
       "component": "patientAdmissionFormWorkspace",
+      "type": "form"
+    },
+    {
+      "name": "insurance-form-workspace",
+      "title": "Insurance",
+      "component": "insuranceFormWorkspace",
       "type": "form"
     }
   ]
