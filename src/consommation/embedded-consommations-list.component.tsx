@@ -150,68 +150,68 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     { key: 'status', header: t('status', 'Status') },
   ];
 
-const rows = useMemo<RowData[]>(() => 
-  consommations?.results?.map((item, index) => {
-    const statusText = (() => {
-      const consommationId = item.consommationId?.toString() || '';
-      
-      const calculatedStatus = consommationStatuses[consommationId];
-      if (calculatedStatus) {
-        return calculatedStatus;
-      }
-      
-      try {
-        const consommationKey = `consommation_status_${consommationId}`;
-        const storedStatus = JSON.parse(sessionStorage.getItem(consommationKey) || '{}');
-        if (storedStatus.paid) {
-          return 'FULLY PAID';
+  const rows = useMemo<RowData[]>(() => 
+    consommations?.results?.map((item, index) => {
+      const statusText = (() => {
+        const consommationId = item.consommationId?.toString() || '';
+        
+        const calculatedStatus = consommationStatuses[consommationId];
+        if (calculatedStatus) {
+          return calculatedStatus;
         }
-      } catch (e) {
-        // Ignore session storage errors
-      }
-      
-      const rawPatientDue = Number(item.patientBill?.amount ?? 0);
-      const rawPaidAmount = Number(
-        item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
-      );
-      
-      if (rawPaidAmount >= rawPatientDue && rawPatientDue > 0) {
-        return 'FULLY PAID';
-      } else if (rawPaidAmount === 0) {
-        return 'UNPAID';
-      } else if (rawPaidAmount > 0 && rawPaidAmount < rawPatientDue) {
-        return 'PARTIALLY PAID';
-      } else {
-        return 'UNPAID';
-      }
-    })();
-
-    return {
-      id: item.consommationId?.toString() || '',
-      index: index + 1,
-      createdDate: item.createdDate ? new Date(item.createdDate).toLocaleDateString() : '-',
-      consommationId: item.consommationId?.toString() || '-',
-      service: item?.department?.name || '-',
-      insuranceCardNo: item.patientBill?.policyIdNumber || insuranceCardNo || '-',
-      insuranceDue: Number(item.insuranceBill?.amount ?? 0).toFixed(2),
-      thirdPartyDue: Number(item.thirdPartyBill?.amount ?? 0).toFixed(2),
-      patientDue: Number(
-        Math.max(
-          0,
-          (item.patientBill?.amount ?? 0) -
-          (item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0)
-        )
-      ).toFixed(2),
-      paidAmount: Number(
-        item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
-      ).toFixed(2),
-      status: statusText,
-      rawPatientDue: Number(item.patientBill?.amount ?? 0),
-      rawPaidAmount: Number(
-        item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
-      ),
-    };
-  }) || [], [consommations?.results, insuranceCardNo, t, consommationStatuses]);
+        
+        try {
+          const consommationKey = `consommation_status_${consommationId}`;
+          const storedStatus = JSON.parse(sessionStorage.getItem(consommationKey) || '{}');
+          if (storedStatus.paid) {
+            return 'FULLY PAID';
+          }
+        } catch (e) {
+          // Ignore session storage errors
+        }
+        
+        const rawPatientDue = Number(item.patientBill?.amount ?? 0);
+        const rawPaidAmount = Number(
+          item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
+        );
+        
+        if (rawPaidAmount >= rawPatientDue && rawPatientDue > 0) {
+          return 'FULLY PAID';
+        } else if (rawPaidAmount === 0) {
+          return 'UNPAID';
+        } else if (rawPaidAmount > 0 && rawPaidAmount < rawPatientDue) {
+          return 'PARTIALLY PAID';
+        } else {
+          return 'UNPAID';
+        }
+      })();
+  
+      return {
+        id: item.consommationId?.toString() || '',
+        index: index + 1,
+        createdDate: item.createdDate ? new Date(item.createdDate).toLocaleDateString() : '-',
+        consommationId: item.consommationId?.toString() || '-',
+        service: item?.department?.name || '-',
+        insuranceCardNo: item.patientBill?.policyIdNumber || insuranceCardNo || '-',
+        insuranceDue: Number(item.insuranceBill?.amount ?? 0).toFixed(2),
+        thirdPartyDue: Number(item.thirdPartyBill?.amount ?? 0).toFixed(2),
+        patientDue: Number(
+          Math.max(
+            0,
+            (item.patientBill?.amount ?? 0) -
+            (item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0)
+          )
+        ).toFixed(2),
+        paidAmount: Number(
+          item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
+        ).toFixed(2),
+        status: statusText,
+        rawPatientDue: Number(item.patientBill?.amount ?? 0),
+        rawPaidAmount: Number(
+          item.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
+        ),
+      };
+    }) || [], [consommations?.results, insuranceCardNo, consommationStatuses]);
 
   const pageSize = 10;
   const { paginated, goTo, results: paginatedRows, currentPage } = usePagination(rows, pageSize);
