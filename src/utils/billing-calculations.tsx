@@ -3,6 +3,7 @@
  * 
  */
 
+import { getConsommationItems } from '../api/billing';
 import { type ConsommationItem } from '../types';
 
 /**
@@ -167,4 +168,37 @@ export const computePaymentStatus = (item: ConsommationItem): 'PAID' | 'PARTIAL'
   if (paidAmount >= itemTotal) return 'PAID';
   if (paidAmount > 0 && paidAmount < itemTotal) return 'PARTIAL';
   return 'UNPAID';
+};
+
+export const areAllItemsPaid = async (consommationId: string) => {
+  try {
+    const items = await getConsommationItems(consommationId);
+    
+    if (!items || items.length === 0) {
+      return false;
+    }
+    
+    return items.every(item => {
+      try {
+        const paymentKey = `payment_${item.patientServiceBillId}`;
+        const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
+        if (storedPayment.paid) {
+          return true;
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+      
+      if (item.paid) {
+        return true;
+      }
+      
+      const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+      const paidAmount = item.paidAmount || 0;
+      return paidAmount >= itemTotal;
+    });
+  } catch (error) {
+    console.error('Error checking item payment status:', error);
+    return false;
+  }
 };
