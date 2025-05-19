@@ -73,11 +73,6 @@
         "slot": "rwanda-billing-app-slot"
       }
     },
-    {
-      "component": "billableServicesCardLink",
-      "name": "rwanda-billable-services-card-link",
-      "slot": "patient-chart-dashboard-slot"
-    },
 
     {      
       "slot": "system-admin-page-card-link-slot",

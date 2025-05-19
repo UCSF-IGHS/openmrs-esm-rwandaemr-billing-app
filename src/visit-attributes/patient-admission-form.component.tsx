@@ -97,6 +97,7 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
   } = methods;
   
   const insuranceCardNumber = watch('insuranceCardNumber');
+  const isAdmitted = watch('isAdmitted');
 
   const extractInsurancePolicyId = (policyResponse: any): number | null => {
     try {
@@ -297,10 +298,10 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
   }, [setValue, existingGlobalBill, t]);
 
   React.useEffect(() => {
-    if (insuranceCardNumber && insuranceCardNumber.length >= 8 && !isLoadingData) {
+    if (insuranceCardNumber && insuranceCardNumber.length >= 8 && !isLoadingData && !isAdmitted) {
       verifyInsuranceCard(insuranceCardNumber);
     }
-  }, [insuranceCardNumber, verifyInsuranceCard, isLoadingData]);
+  }, [insuranceCardNumber, verifyInsuranceCard, isLoadingData, isAdmitted]);
 
   const onSubmit = useCallback(async (data: AdmissionFormValues) => {
     setIsLoading(true);
@@ -476,6 +477,7 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
                     onChange={(e) => {
                       field.onChange(e.target.value);
                     }}
+                    readOnly={isAdmitted}
                     invalid={!!errors.insuranceCardNumber}
                     invalidText={errors.insuranceCardNumber?.message}
                     className={styles.sectionField}
@@ -551,27 +553,30 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
             </div>
           </div>
 
-          <div className={styles.formRow}>
-            <div className={styles.formColumn}>
-              <Controller
-                name="admissionType"
-                control={control}
-                render={({ field }) => (
-                  <ComboBox
-                    titleText={<RequiredFieldLabel label={t('admissionType', 'Admission Type')} />}
-                    id="admission-type"
-                    items={ADMISSION_TYPES}
-                    itemToString={(item) => (item ? item.text : '')}
-                    onChange={({ selectedItem }) => field.onChange(selectedItem?.id || '')}
-                    invalid={!!errors.admissionType}
-                    invalidText={errors.admissionType?.message}
-                    className={styles.sectionField}
-                    placeholder={t('selectAdmissionType', 'Please select admission type')}
-                  />
-                )}
-              />
+          {/* Only show Admission Type when isAdmitted is true */}
+          {isAdmitted && (
+            <div className={styles.formRow}>
+              <div className={styles.formColumn}>
+                <Controller
+                  name="admissionType"
+                  control={control}
+                  render={({ field }) => (
+                    <ComboBox
+                      titleText={<RequiredFieldLabel label={t('admissionType', 'Admission Type')} />}
+                      id="admission-type"
+                      items={ADMISSION_TYPES}
+                      itemToString={(item) => (item ? item.text : '')}
+                      onChange={({ selectedItem }) => field.onChange(selectedItem?.id || '')}
+                      invalid={!!errors.admissionType}
+                      invalidText={errors.admissionType?.message}
+                      className={styles.sectionField}
+                      placeholder={t('selectAdmissionType', 'Please select admission type')}
+                    />
+                  )}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Status information about insurance verification */}
           {insurancePolicy && (
