@@ -67,21 +67,8 @@ export async function createInsurancePolicy(payload, patientUuid): Promise<any> 
   }
 }
 
-//get patientId
-
-export async function getPatientIdentifier(patientUuid: string): Promise<string | null> {
-  const response = await openmrsFetch(`${BASE_APIS_URL}/patient/${patientUuid}?v=full`);
-  const data = await response.json();
-
-  const identifier = data.identifiers.find((id: any) => id.identifierType.display === 'OpenMRS Identification Number');
-
-  const resolvedId = identifier ? identifier.identifier : null;
-
-  return resolvedId;
-}
-
-export async function fetchInsurancePolicies(patientId: string) {
-  const response = await openmrsFetch(`${BASE_API_URL}/insurancePolicy?patientId=${patientId}&v=full`, {
+export async function fetchInsurancePolicies(patientUuid: string) {
+  const response = await openmrsFetch(`${BASE_API_URL}/insurancePolicy?patient=${patientUuid}&v=full`, {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -97,20 +84,6 @@ export async function fetchInsurancePolicies(patientId: string) {
 }
 
 export async function loadInsurancePolicies(patientUuid: string) {
-  let patientId = await getPatientIdentifier(patientUuid);
-
-  if (!patientId) {
-    return;
-  }
-
-  // Extract only the numeric part from patientId (assuming format: ident-144327)
-  const numericPatientIdMatch = patientId.match(/\d+$/);
-  if (!numericPatientIdMatch) {
-    console.error('Could not extract numeric patientId from:', patientId);
-    return;
-  }
-  const numericPatientId = numericPatientIdMatch[0];
-
-  const insurancePolicies = await fetchInsurancePolicies(numericPatientId);
+  const insurancePolicies = await fetchInsurancePolicies(patientUuid);
   return insurancePolicies;
 }
