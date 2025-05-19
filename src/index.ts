@@ -64,6 +64,7 @@ export const billingPatientSummary = getSyncLifecycle(InvoiceTable, options);
 export const billableServicesCardLink = getSyncLifecycle(BillingAdminCardLink, options);
 
 export const insurancePatientSummary = getSyncLifecycle(Insurance, options);
+export const admissionCheckinForm = getSyncLifecycle(PatientAdmissionForm, options);
 
 export const patientAdmissionFormWorkspace = getSyncLifecycle(PatientAdmissionForm, options);
 
@@ -75,3 +76,8 @@ export const insurancePolicyDashboardLink = getSyncLifecycle(
 );
 
 export const insurancePolicyRoot = getSyncLifecycle(InsurancePolicyRootComponent, options);
+
+export const visitFormInsurancePolicyFields = getAsyncLifecycle(
+  () => import('./visit-attributes/patient-admission-fields.extension'),
+  options,
+);
