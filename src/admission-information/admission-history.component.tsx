@@ -51,17 +51,22 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
   const filteredAdmissions = React.useMemo(() => {
     const resultsArray = Array.isArray(results) ? results : [];
     
-    if (!debouncedSearchTerm) {
-      return resultsArray;
+    let filtered = resultsArray;
+    if (debouncedSearchTerm) {
+      const searchLower = debouncedSearchTerm.toLowerCase();
+      filtered = resultsArray.filter(admission => 
+        (admission.patientName && admission.patientName.toLowerCase().includes(searchLower)) ||
+        (admission.billIdentifier && admission.billIdentifier.toLowerCase().includes(searchLower)) ||
+        (admission.insuranceName && admission.insuranceName.toLowerCase().includes(searchLower)) ||
+        (admission.cardNumber && admission.cardNumber.toLowerCase().includes(searchLower))
+      );
     }
 
-    const searchLower = debouncedSearchTerm.toLowerCase();
-    return resultsArray.filter(admission => 
-      (admission.patientName && admission.patientName.toLowerCase().includes(searchLower)) ||
-      (admission.billIdentifier && admission.billIdentifier.toLowerCase().includes(searchLower)) ||
-      (admission.insuranceName && admission.insuranceName.toLowerCase().includes(searchLower)) ||
-      (admission.cardNumber && admission.cardNumber.toLowerCase().includes(searchLower))
-    );
+    return filtered.sort((a, b) => {
+      if (!a.isClosed && b.isClosed) return -1;
+      if (a.isClosed && !b.isClosed) return 1;
+      return 0;
+    });
   }, [debouncedSearchTerm, results]);
 
   const tableHeaders = [
