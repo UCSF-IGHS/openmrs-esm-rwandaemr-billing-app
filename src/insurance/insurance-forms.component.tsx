@@ -114,6 +114,12 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
         insuranceCardNo: data.cardNumber,
         coverageStartDate: dayjs(data.coverageStartDate).format('YYYY-MM-DD'),
         expirationDate: dayjs(data.coverageEndDate).format('YYYY-MM-DD'),
+        beneficiaries: [
+          {
+            patient: patientUuid,
+            policyIdNumber: data.cardNumber,
+          },
+        ],
       };
 
       await createInsurancePolicy(payload, patientUuid);
