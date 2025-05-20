@@ -32,8 +32,14 @@ export interface InsurancePolicy {
   insuranceCardNo: string;
   coverageStartDate: string;
   expirationDate: string;
+  insurance?: {
+    uuid: string;
+    name: string;
+    links: Link[];
+  };
   owner: Owner;
   links: Link[];
+  insurancePolicyId: string;
 }
 
 interface Admission {
