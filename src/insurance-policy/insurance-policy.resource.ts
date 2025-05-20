@@ -1,6 +1,8 @@
-import { formatDate, openmrsFetch } from '@openmrs/esm-framework';
+import { formatDate, openmrsFetch, restBaseUrl } from '@openmrs/esm-framework';
 import useSWR from 'swr';
 import type { InsurancePolicy } from '../types';
+import { useEffect, useState } from 'react';
+import useSWRInfinite from 'swr';
 
 interface MappedInsurancePolicy {
   insuranceCardNo: string;
@@ -30,13 +32,14 @@ const mapInsurancePolicyProperties = (policy: InsurancePolicy): MappedInsuranceP
   };
 };
 
-export const useInsurancePolicy = (startDate: string, endDate: string) => {
-  const url = `/ws/rest/v1/mohbilling/insurancePolicy?v=full`;
+export const useInsurancePolicy = (startDate: string, endDate: string, pagesize: number, page: number) => {
+  const startIndex = page - 1;
 
-  const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: { results: Array<InsurancePolicy> } }>(
-    url,
-    openmrsFetch,
-  );
+  const url = `/ws/rest/v1/mohbilling/insurancePolicy?v=full&totalCount=true&limit=${pagesize}&startIndex=${startIndex}`;
+
+  const { data, error, isLoading, isValidating, mutate } = useSWR<{
+    data: { results: Array<InsurancePolicy>; totalCount };
+  }>(url, openmrsFetch);
 
   const mappedResults = data?.data.results?.map((policy) => mapInsurancePolicyProperties(policy));
 
@@ -46,5 +49,6 @@ export const useInsurancePolicy = (startDate: string, endDate: string) => {
     isLoading,
     isValidating,
     mutate,
+    totalCount: data?.data.totalCount ?? 0,
   };
 };
