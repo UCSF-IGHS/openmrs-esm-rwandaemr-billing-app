@@ -46,25 +46,6 @@ $disabled-03: #8d8d8d !default;
   }
 }
 
-/* Custom styling for disabled checkboxes */
-:global(.cds--checkbox:disabled + .cds--checkbox-label) {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-:global(.cds--checkbox:disabled + .cds--checkbox-label::before) {
-  border-color: $disabled-02;
-  background-color: $disabled-01;
-}
-
-:global(.cds--checkbox:disabled:checked + .cds--checkbox-label::before) {
-  background-color: $disabled-03;
-}
-
-:global(.cds--checkbox-label[data-disabled="true"]) {
-  color: $disabled-03;
-}
-
 .actionsContainer {
   display: flex;
   justify-content: space-between;
@@ -95,62 +76,6 @@ $disabled-03: #8d8d8d !default;
   color: $text-02;
   font-style: italic;
 }
-
-:global(.cds--data-table-container) {
-  width: 100% !important;
-  min-width: 100% !important;
-  overflow-x: hidden !important;
-}
-
-:global(.cds--table-container) {
-  width: 100% !important;
-  min-width: 100% !important;
-  overflow-x: hidden !important;
-}
-
-:global(.cds--data-table) {
-  width: 100% !important;
-  min-width: 100% !important;
-}
-
-:global(.cds--data-table-header) {
-  width: 100% !important;
-}
-
-:global(.cds--table-header-row) {
-  width: 100% !important;
-}
-
-:global(.cds--data-table-content) {
-  width: 100% !important;
-}
-
-:global(.cds--data-table td) {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 1px !important;
-}
-
-:global(.cds--table-header-label) {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 1px !important;
-}
-
-:global(.cds--data-table th) {
-  padding: 0 1px !important;
-}
-
-@media (max-width: 1200px) {
-  :global(.cds--data-table-container) {
-    overflow-x: auto !important;
-  }
-  
-  :global(.cds--table-container) {
-    overflow-x: auto !important;
-  }
   
   .actionsContainer {
     flex-direction: column;
@@ -162,7 +87,7 @@ $disabled-03: #8d8d8d !default;
     width: 100%;
     justify-content: space-between;
   }
-}
+
 
 @media (max-width: 768px) {
   .totals {
@@ -197,41 +122,6 @@ $disabled-03: #8d8d8d !default;
   .cds--modal-close {
     background: none !important;
   }
-}
-
-/* When inside an expanded row, compress the table and remove fixed widths */
-:global(.cds--table-expand__content) .table,
-:global(.cds--table-expand__content) .table * {
-  table-layout: fixed !important; 
-  width: 100% !important;
-}
-
-/* Ensure the cells in embedded table take only the space they need */
-:global(.cds--table-expand__content) .table th,
-:global(.cds--table-expand__content) .table td {
-  padding: 0 4px !important;
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: none !important;
-}
-
-/* Adjust cell widths for better spacing */
-:global(.cds--table-expand__content) .table th:first-child,
-:global(.cds--table-expand__content) .table td:first-child {
-  width: 40px !important; /* Checkbox column */
-}
-
-:global(.cds--table-expand__content) .table th:nth-child(2),
-:global(.cds--table-expand__content) .table td:nth-child(2) {
-  width: 40px !important; /* # column */
-}
-
-/* Handle text overflow properly */
-:global(.cds--table-expand__content) .table th,
-:global(.cds--table-expand__content) .table td {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Add these styles to your embedded-consommations-list.scss file */

@@ -76,7 +76,6 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
   const [selectedInsurance, setSelectedInsurance] = useState<any>(null);
   const [insurancePolicyId, setInsurancePolicyId] = useState<number | null>(null);
   const [existingGlobalBill, setExistingGlobalBill] = useState<any>(null);
-  const isTablet = useLayoutType() === 'tablet';
   const { diseaseType: diseaseTypes, isLoading: isLoadingDiseaseTypes, error: diseaseTypeError } = useDiseaseType();
 
   const methods = useForm<AdmissionFormValues>({

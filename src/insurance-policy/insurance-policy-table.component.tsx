@@ -20,6 +20,7 @@ import {
   ExtensionSlot,
   isDesktop,
   launchWorkspace,
+  useDebounce,
   useLayoutType,
   usePagination,
 } from '@openmrs/esm-framework';
@@ -27,16 +28,26 @@ import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { Umbrella } from '@carbon/react/icons';
 import styles from './insurance-policy-table.scss';
 import { useInsurancePolicy } from './insurance-policy.resource';
+import { TableToolbarSearch } from '@carbon/react';
 
 export const InsurancePolicyTable: React.FC = () => {
   const { t } = useTranslation();
-  const layout = useLayoutType();
-  const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const [searchString, setSearchString] = useState('');
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
-  const endDate = new Date().toISOString().split('T')[0];
-  const startDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  const layout = useLayoutType();
+  const isTablet = layout === 'tablet';
+  const isPhone = layout === 'phone';
+  const tableSize = isTablet ? 'lg' : isPhone ? 'lg' : 'sm';
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm);
+
+  // Format dates properly for the API
+  const endDate = new Date().toISOString();
+  const startDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+
   const {
     isLoading,
     error,
@@ -44,42 +55,33 @@ export const InsurancePolicyTable: React.FC = () => {
     totalCount,
   } = useInsurancePolicy(startDate, endDate, pageSize, currentPage);
 
-  const headerData = [
-    { header: t('insuranceCardNo', 'Insurance Policy No.'), key: 'policyNumber' },
+  const tableHeaders = [
+    { header: t('insurancePolicyNo', 'Insurance Policy No.'), key: 'insurancePolicyNo' },
     { header: t('insurance', 'Insurance'), key: 'insurance' },
-    { header: t('cardNumber', 'Insurance Card No.'), key: 'cardNumber' },
-    { header: t('patientName', 'Patient names'), key: 'patientName' },
+    { header: t('cardNumber', 'Insurance Card No.'), key: 'insuranceCardNo' },
+    { header: t('patientName', 'Patient Name'), key: 'patientName' },
     { header: t('age', 'Age'), key: 'age' },
     { header: t('gender', 'Gender'), key: 'gender' },
     { header: t('birthdate', 'Birthdate'), key: 'birthdate' },
   ];
 
+  const { paginated, goTo, results } = usePagination(policies, pageSize);
+
   const filteredPolicies = React.useMemo(() => {
-    if (!policies?.length) return policies;
+    if (!debouncedSearchTerm) return policies || [];
 
-    if (!searchString) return policies;
-
-    return policies.filter((policy) => {
-      const searchableFields = [policy.insuranceCardNo, policy.insurance, policy.patientName];
-
-      return searchableFields.some((field) => field.toLowerCase().includes(searchString.toLowerCase()));
-    });
-  }, [policies, searchString]);
-
-  const { paginated, goTo, results } = usePagination(filteredPolicies, pageSize);
-
-  const handleSearch = useCallback(
-    (e) => {
-      setCurrentPage(1);
-      goTo(1);
-      setSearchString(e.target.value);
-    },
-    [goTo],
-  );
+    const searchLower = debouncedSearchTerm.toLowerCase();
+    return (results || []).filter(
+      (policy) =>
+        (policy.patientName && policy?.patientName.toLowerCase().includes(searchLower)) ||
+        (policy.insurance && policy?.insurance.toLowerCase().includes(searchLower)) ||
+        (policy.insuranceCardNo && policy?.insuranceCardNo.toLowerCase().includes(searchLower)),
+    );
+  }, [debouncedSearchTerm, results, policies]);
 
   if (isLoading) {
     return (
-      <DataTableSkeleton rowCount={pageSize} columnCount={headerData.length} showHeader={false} showToolbar={false} />
+      <DataTableSkeleton rowCount={pageSize} columnCount={tableHeaders.length} showHeader={false} showToolbar={false} />
     );
   }
 
@@ -112,40 +114,63 @@ export const InsurancePolicyTable: React.FC = () => {
             buttonProps: {
               kind: 'primary',
               renderIcon: (props) => <Umbrella size={32} {...props} />,
-              size: responsiveSize,
+              size: tableSize,
             },
           }}
         />
       </div>
 
-      <div style={{ margin: '1rem 0' }}>
-        <Search
-          labelText=""
-          placeholder={t('searchPolicies', 'Search policies')}
-          onChange={handleSearch}
-          size={responsiveSize}
-        />
-      </div>
-
       {filteredPolicies?.length > 0 ? (
         <>
-          <DataTable rows={results} headers={headerData} size="sm" useZebraStyles>
-            {({ rows, headers, getTableProps, getTableContainerProps, getHeaderProps, getRowProps }) => (
-              <TableContainer {...getTableContainerProps()}>
+          <DataTable
+            headers={tableHeaders}
+            isSortable
+            rows={filteredPolicies.map((policy) => ({
+              id: policy.insuranceCardNo,
+              insurancePolicyNo: policy.insurancePolicyNo,
+              insurance: policy.insurance,
+              insuranceCardNo: policy.insuranceCardNo,
+              patientName: policy.patientName,
+              age: policy.age || '--',
+              gender: policy.gender || '--',
+              birthdate: policy.birthdate || '--',
+            }))}
+            size={tableSize}
+            useZebraStyles
+          >
+            {({ rows, headers, getHeaderProps, getRowProps, getTableProps }) => (
+              <TableContainer className={styles.tableContainer}>
+                <TableToolbarSearch
+                  className={styles.searchbox}
+                  expanded
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                  placeholder={t('searchThisTable', 'Search this table')}
+                  size={tableSize}
+                  persistent
+                  light
+                />
                 <Table {...getTableProps()}>
                   <TableHead>
                     <TableRow>
                       {headers.map((header) => (
-                        <TableHeader {...getHeaderProps({ header })}>{header.header}</TableHeader>
+                        <TableHeader
+                          key={header.key}
+                          {...getHeaderProps({
+                            header,
+                            // isSortable: header.isSortable,
+                          })}
+                        >
+                          {header.header?.content ?? header.header}
+                        </TableHeader>
                       ))}
                     </TableRow>
                   </TableHead>
-                  <TableBody>
+                  <TableBody style={{ overflow: 'hidden', padding: '1rem !important' }}>
                     {rows.map((row) => (
-                      <TableRow {...getRowProps({ row })}>
-                        {row.cells.map((cell) => (
-                          <TableCell key={cell.id}>{cell.value}</TableCell>
-                        ))}
+                      <TableRow {...getRowProps({ row })} key={row.id}>
+                        {row.cells.map((cell) => {
+                          return <TableCell key={cell.id}>{cell.value?.content ?? cell.value}</TableCell>;
+                        })}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -154,22 +179,24 @@ export const InsurancePolicyTable: React.FC = () => {
             )}
           </DataTable>
 
-          <Pagination
-            forwardText={t('nextPage', 'Next page')}
-            backwardText={t('previousPage', 'Previous page')}
-            page={currentPage}
-            pageSize={pageSize}
-            pageSizes={[50]}
-            totalItems={totalCount}
-            size="sm"
-            onChange={({ page, pageSize: newPageSize }) => {
-              if (newPageSize !== pageSize) {
-                setPageSize(newPageSize);
-              }
-              setCurrentPage(page);
-              goTo(page);
-            }}
-          />
+          {pageSize && (
+            <Pagination
+              forwardText={t('nextPage', 'Next page')}
+              backwardText={t('previousPage', 'Previous page')}
+              page={currentPage}
+              pageSize={pageSize}
+              pageSizes={[50]}
+              totalItems={totalCount}
+              size="sm"
+              onChange={({ page, pageSize: newPageSize }) => {
+                if (newPageSize !== pageSize) {
+                  setPageSize(newPageSize);
+                }
+                setCurrentPage(page);
+                goTo(page);
+              }}
+            />
+          )}
         </>
       ) : (
         <Layer>
