@@ -33,10 +33,16 @@ export const InsurancePolicyTable: React.FC = () => {
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const [searchString, setSearchString] = useState('');
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
   const endDate = new Date().toISOString().split('T')[0];
   const startDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const { isLoading, error, data: policies } = useInsurancePolicy(startDate, endDate);
+  const {
+    isLoading,
+    error,
+    data: policies,
+    totalCount,
+  } = useInsurancePolicy(startDate, endDate, pageSize, currentPage);
 
   const headerData = [
     { header: t('insuranceCardNo', 'Insurance Policy No.'), key: 'policyNumber' },
@@ -60,10 +66,11 @@ export const InsurancePolicyTable: React.FC = () => {
     });
   }, [policies, searchString]);
 
-  const { paginated, goTo, results, currentPage } = usePagination(filteredPolicies, pageSize);
+  const { paginated, goTo, results } = usePagination(filteredPolicies, pageSize);
 
   const handleSearch = useCallback(
     (e) => {
+      setCurrentPage(1);
       goTo(1);
       setSearchString(e.target.value);
     },
@@ -147,23 +154,22 @@ export const InsurancePolicyTable: React.FC = () => {
             )}
           </DataTable>
 
-          {paginated && (
-            <Pagination
-              forwardText={t('nextPage', 'Next page')}
-              backwardText={t('previousPage', 'Previous page')}
-              page={currentPage}
-              pageSize={pageSize}
-              pageSizes={[10, 20, 30, 40, 50]}
-              totalItems={filteredPolicies?.length}
-              size="sm"
-              onChange={({ page, pageSize: newPageSize }) => {
-                if (newPageSize !== pageSize) {
-                  setPageSize(newPageSize);
-                }
-                goTo(page);
-              }}
-            />
-          )}
+          <Pagination
+            forwardText={t('nextPage', 'Next page')}
+            backwardText={t('previousPage', 'Previous page')}
+            page={currentPage}
+            pageSize={pageSize}
+            pageSizes={[50]}
+            totalItems={totalCount}
+            size="sm"
+            onChange={({ page, pageSize: newPageSize }) => {
+              if (newPageSize !== pageSize) {
+                setPageSize(newPageSize);
+              }
+              setCurrentPage(page);
+              goTo(page);
+            }}
+          />
         </>
       ) : (
         <Layer>
