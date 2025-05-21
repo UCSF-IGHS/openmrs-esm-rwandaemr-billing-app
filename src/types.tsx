@@ -191,3 +191,9 @@ export interface BillPaymentRequest {
   };
   paidItems: BillPaymentItem[];
 }
+
+export interface InsurancePolicyRecord {
+  insuranceCardNo: string;
+  coverageStartDate: string;
+  expirationDate: string;
+}

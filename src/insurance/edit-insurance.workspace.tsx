@@ -2,21 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { Modal, TextInput } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
 import { showSnackbar } from '@openmrs/esm-framework';
-
-interface InsuranceRecord {
-  id: string;
-  cardNumber: string;
-  startDate: string;
-  endDate: string;
-}
+import { updateInsurancePolicy, useInsurancePolicy } from '../insurance-policy/insurance-policy.resource';
+import type { InsurancePolicyRecord } from '../types';
 
 interface EditInsuranceModalProps {
-  record: InsuranceRecord | null;
+  record: InsurancePolicyRecord | null;
+  policyId: string;
   onClose: () => void;
-  onSave: (updatedRecord: InsuranceRecord) => Promise<void>;
+  parentMutate?: () => void; // Add this prop
 }
 
-const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose, onSave }) => {
+const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose, policyId, parentMutate }) => {
   const { t } = useTranslation();
 
   const [cardNumber, setCardNumber] = useState('');
@@ -25,31 +21,32 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
 
   useEffect(() => {
     if (record) {
-      setCardNumber(record.cardNumber || '');
-      setStartDate(record.startDate || '');
-      setEndDate(record.endDate || '');
+      setCardNumber(record.insuranceCardNo || '');
+      setStartDate(record.coverageStartDate || '');
+      setEndDate(record.expirationDate || '');
     }
   }, [record]);
 
   const handleSubmit = async () => {
     if (!record) return;
 
-    const updatedRecord: InsuranceRecord = {
+    const updatedRecord = {
       ...record,
-      cardNumber,
-      startDate,
-      endDate,
+      insuranceCardNo: cardNumber,
+      coverageStartDate: startDate,
+      expirationDate: endDate,
     };
 
     try {
-      await onSave(updatedRecord);
-
-      showSnackbar({
-        title: t('insurancePolicyUpdated', 'Insurance policy Updated'),
-        kind: 'success',
-      });
-
-      onClose?.();
+      const response = await updateInsurancePolicy(updatedRecord, policyId);
+      if (response) {
+        showSnackbar({
+          title: t('insurancePolicyUpdated', 'Insurance policy Updated'),
+          kind: 'success',
+        });
+        parentMutate?.();
+        onClose?.();
+      }
     } catch (error) {
       showSnackbar({
         title: t('updateFailed', 'Failed to Updated insurance policy'),

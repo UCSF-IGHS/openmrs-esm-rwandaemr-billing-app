@@ -31,13 +31,7 @@ const Insurance = ({ patientUuid }) => {
   const [, setInsuranceIdToNameMap] = useState<Record<string, string>>({});
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-
-  interface InsuranceRecord {
-    id: string;
-    cardNumber: string;
-    startDate: string;
-    endDate: string;
-  }
+  const [selectedPolicyNo, setSelectedPolicyNo] = useState(null);
 
   useEffect(() => {
     const loadInsuranceNames = async () => {
@@ -62,15 +56,13 @@ const Insurance = ({ patientUuid }) => {
   const [totalRecords, setTotalRecords] = useState(0);
 
   const onEdit = (record) => {
-    setSelectedRecord(record);
+    setSelectedPolicyNo(record.insurancePolicyNo);
+    setSelectedRecord({
+      insuranceCardNo: record.cardNumber,
+      coverageStartDate: dayjs(record.startDate).format('YYYY-MM-DD'),
+      expirationDate: dayjs(record.endDate).format('YYYY-MM-DD'),
+    });
     setShowEditModal(true);
-  };
-
-  const handleSave = async (updatedRecord: InsuranceRecord): Promise<void> => {
-    setEntries((prevEntries) => prevEntries.map((entry) => (entry.id === updatedRecord.id ? updatedRecord : entry)));
-
-    setShowEditModal(false);
-    setSelectedRecord(null);
   };
 
   const handleClose = () => {
@@ -113,6 +105,7 @@ const Insurance = ({ patientUuid }) => {
             endDate: dayjs(policy.expirationDate).format('YYYY-MM-DD'),
             hasThirdParty: policy.thirdPartyProvider ? t('yes', 'Yes') : t('no', 'No'),
             thirdPartyProvider: policy.thirdPartyProvider?.name ?? t('notAvailable', 'N/A'),
+            insurancePolicyNo: policy.insurancePolicyId,
           }));
 
         setEntries(mapped);
@@ -216,7 +209,9 @@ const Insurance = ({ patientUuid }) => {
           </DataTable>
           <div>
             {/* Pass the record & handlers to the modal */}
-            {showEditModal && <EditInsuranceModal record={selectedRecord} onClose={handleClose} onSave={handleSave} />}
+            {showEditModal && (
+              <EditInsuranceModal record={selectedRecord} onClose={handleClose} policyId={selectedPolicyNo} />
+            )}
           </div>
           <Pagination
             backwardText={t('previousPage', 'Previous page')}
