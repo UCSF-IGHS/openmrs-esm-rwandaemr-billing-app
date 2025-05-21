@@ -44,10 +44,6 @@ const schema = z
     coverageEndDate: z.date({ required_error: 'Coverage end date is required' }),
     hasThirdParty: z.boolean(),
     thirdPartyProvider: z.string().optional(),
-    companyName: z.string().nonempty('Company Name is required'),
-    policyOwner: z.string().nonempty('policy Owner is required'),
-    family: z.string().nonempty('Family is required'),
-    category: z.string().nonempty('Category is required'),
   })
   .refine(
     (data) => {
@@ -84,10 +80,6 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
       coverageEndDate: null,
       hasThirdParty: false,
       thirdPartyProvider: '',
-      companyName: '',
-      policyOwner: '',
-      family: '',
-      category: '',
     },
   });
 
@@ -291,44 +283,6 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                 )}
               />
             )}
-
-            <div className={styles.subheading}>{t('ownershipSection', 'Ownership')}</div>
-
-            <TextInput
-              id="companyName"
-              labelText={<RequiredFieldLabel label={t('companyName', 'Company Name')} t={t} />}
-              {...register('companyName')}
-            />
-
-            <TextInput
-              id="policyOwner"
-              labelText={<RequiredFieldLabel label={t('policyOwner', 'Policy Owner')} t={t} />}
-              {...register('policyOwner')}
-            />
-
-            <TextInput
-              id="family"
-              labelText={<RequiredFieldLabel label={t('family', 'Family')} t={t} />}
-              {...register('family')}
-            />
-
-            <Controller
-              name="category"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  id="category"
-                  labelText={<RequiredFieldLabel label={t('category', 'Category')} t={t} />}
-                  {...field}
-                >
-                  <SelectItem disabled hidden value="" text={t('selectLevelsPlease', 'Select levels please')} />
-                  <SelectItem value="1" text="1" />
-                  <SelectItem value="2" text="2" />
-                  <SelectItem value="3" text="3" />
-                  <SelectItem value="4" text="4" />
-                </Select>
-              )}
-            />
 
             {submitError && (
               <InlineNotification

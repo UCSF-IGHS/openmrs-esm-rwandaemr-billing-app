@@ -113,10 +113,6 @@ const Insurance = ({ patientUuid }) => {
             endDate: dayjs(policy.expirationDate).format('YYYY-MM-DD'),
             hasThirdParty: policy.thirdPartyProvider ? t('yes', 'Yes') : t('no', 'No'),
             thirdPartyProvider: policy.thirdPartyProvider?.name ?? t('notAvailable', 'N/A'),
-            companyName: policy.companyName ?? '',
-            policyOwner: policy.policyOwner ?? '',
-            affiliationCode: policy.family ?? '',
-            category: policy.category ?? '',
           }));
 
         setEntries(mapped);
