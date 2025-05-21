@@ -81,3 +81,8 @@ export const visitFormInsurancePolicyFields = getAsyncLifecycle(
   () => import('./visit-attributes/patient-admission-fields.extension'),
   options,
 );
+
+export const patientInsurancePolicyTag = getAsyncLifecycle(
+  () => import('./patient-insurance-tag/patient-insurance-tag.component'),
+  options,
+);
