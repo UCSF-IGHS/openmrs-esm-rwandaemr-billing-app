@@ -44,9 +44,6 @@ const schema = z
     coverageEndDate: z.date({ required_error: 'Coverage end date is required' }),
     hasThirdParty: z.boolean(),
     thirdPartyProvider: z.string().optional(),
-    companyName: z.string().nonempty('Company Name is required'),
-    policyOwner: z.string().nonempty('policy Owner is required'),
-    family: z.string().nonempty('Family is required'),
   })
   .refine(
     (data) => {
@@ -83,9 +80,6 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
       coverageEndDate: null,
       hasThirdParty: false,
       thirdPartyProvider: '',
-      companyName: '',
-      policyOwner: '',
-      family: '',
     },
   });
 
@@ -289,26 +283,6 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                 )}
               />
             )}
-
-            <div className={styles.subheading}>{t('ownershipSection', 'Ownership')}</div>
-
-            <TextInput
-              id="companyName"
-              labelText={<RequiredFieldLabel label={t('companyName', 'Company Name')} t={t} />}
-              {...register('companyName')}
-            />
-
-            <TextInput
-              id="policyOwner"
-              labelText={<RequiredFieldLabel label={t('policyOwner', 'Policy Owner')} t={t} />}
-              {...register('policyOwner')}
-            />
-
-            <TextInput
-              id="family"
-              labelText={<RequiredFieldLabel label={t('family', 'Family')} t={t} />}
-              {...register('family')}
-            />
 
             {submitError && (
               <InlineNotification
