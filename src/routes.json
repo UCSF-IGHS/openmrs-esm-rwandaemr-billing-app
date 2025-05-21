@@ -143,8 +143,12 @@
       "name": "admission-checkin-form",
       "slot": "visit-form-bottom-slot",
       "component": "visitFormInsurancePolicyFields"
+    },
+    {
+      "name": "patient-insurance-policy-tag",
+      "slot": "patient-banner-tags-slot",
+      "component": "patientInsurancePolicyTag"
     }
-
   ],
   "workspaces": [
     {
