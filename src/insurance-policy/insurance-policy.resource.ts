@@ -1,6 +1,6 @@
 import { formatDate, openmrsFetch } from '@openmrs/esm-framework';
 import useSWR from 'swr';
-import type { InsurancePolicy } from '../types';
+import type { InsurancePolicy, InsurancePolicyRecord } from '../types';
 
 interface MappedInsurancePolicy {
   insuranceCardNo: string;
@@ -11,6 +11,7 @@ interface MappedInsurancePolicy {
   gender: string;
   age: number;
   patientName: string;
+  patientUuid: string;
   insurance: string;
   birthdate: string;
   insurancePolicyNo: string;
@@ -21,6 +22,7 @@ const mapInsurancePolicyProperties = (policy: InsurancePolicy): MappedInsuranceP
     insuranceCardNo: policy.insuranceCardNo,
     coverageStartDate: formatDate(new Date(policy.coverageStartDate)),
     patientName: policy.owner.person.preferredName.display,
+    patientUuid: policy.owner.person.uuid,
     expirationDate: formatDate(new Date(policy.expirationDate)),
     ownerName: policy.owner.person.display,
     ownerUuid: policy.owner.uuid,
@@ -32,14 +34,21 @@ const mapInsurancePolicyProperties = (policy: InsurancePolicy): MappedInsuranceP
   };
 };
 
-export const useInsurancePolicy = (startDate: string, endDate: string, pagesize: number, page: number) => {
+export const useInsurancePolicy = (
+  startDate?: string,
+  endDate?: string,
+  searchTerm?: string,
+  pagesize?: number,
+  page?: number,
+) => {
   const startIndex = page - 1;
 
   const url = `/ws/rest/v1/mohbilling/insurancePolicy?v=full&totalCount=true&limit=${pagesize}&startIndex=${startIndex}`;
+  const urlWithSearchTerm = `/ws/rest/v1/mohbilling/insurancePolicy?v=full&totalCount=true&limit=${pagesize}&startIndex=${startIndex}&insuranceCardNo=${searchTerm}`;
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<{
     data: { results: Array<InsurancePolicy>; totalCount };
-  }>(url, openmrsFetch);
+  }>(searchTerm ? urlWithSearchTerm : url, openmrsFetch);
 
   const mappedResults = data?.data.results?.map((policy) => {
     return mapInsurancePolicyProperties(policy);
@@ -53,4 +62,21 @@ export const useInsurancePolicy = (startDate: string, endDate: string, pagesize:
     mutate,
     totalCount: data?.data.totalCount ?? 0,
   };
+};
+
+export const updateInsurancePolicy = async (insurancePolicy: InsurancePolicyRecord, policyId) => {
+  const url = `/ws/rest/v1/mohbilling/insurancePolicy/${policyId}`;
+  const response = await openmrsFetch(url, {
+    method: 'POST',
+    body: JSON.stringify(insurancePolicy),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to update insurance policy');
+  }
+
+  return response.json();
 };

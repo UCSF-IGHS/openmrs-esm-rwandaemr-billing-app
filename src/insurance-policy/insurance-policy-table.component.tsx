@@ -1,10 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
   DataTableSkeleton,
   Pagination,
-  Search,
   Table,
   TableHead,
   TableRow,
@@ -20,7 +19,6 @@ import {
   ExtensionSlot,
   isDesktop,
   launchWorkspace,
-  useDebounce,
   useLayoutType,
   usePagination,
 } from '@openmrs/esm-framework';
@@ -29,10 +27,26 @@ import { Umbrella } from '@carbon/react/icons';
 import styles from './insurance-policy-table.scss';
 import { useInsurancePolicy } from './insurance-policy.resource';
 import { TableToolbarSearch } from '@carbon/react';
+import { Tag } from '@carbon/react';
+import { TableExpandHeader } from '@carbon/react';
+import { TableExpandRow } from '@carbon/react';
+import { TableExpandedRow } from '@carbon/react';
+import { OverflowMenu } from '@carbon/react';
+import { OverflowMenuItem } from '@carbon/react';
+import EditInsuranceModal from '../insurance/edit-insurance.workspace';
+import dayjs from 'dayjs';
+
+interface InsuranceRecord {
+  id: string;
+  patientUuid: string;
+  cardNumber: string;
+  startDate: string;
+  endDate: string;
+  policyId: string;
+}
 
 export const InsurancePolicyTable: React.FC = () => {
   const { t } = useTranslation();
-  const [searchString, setSearchString] = useState('');
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -42,42 +56,67 @@ export const InsurancePolicyTable: React.FC = () => {
   const tableSize = isTablet ? 'lg' : isPhone ? 'lg' : 'sm';
 
   const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm);
 
-  // Format dates properly for the API
   const endDate = new Date().toISOString();
   const startDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
-
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [selectedPolicyNo, setSelectedPolicyNo] = useState(null);
   const {
     isLoading,
     error,
     data: policies,
     totalCount,
-  } = useInsurancePolicy(startDate, endDate, pageSize, currentPage);
+    mutate: tableMutate, // Get mutate function
+  } = useInsurancePolicy(startDate, endDate, searchTerm, pageSize, currentPage);
 
   const tableHeaders = [
-    { header: t('insurancePolicyNo', 'Insurance Policy No.'), key: 'insurancePolicyNo' },
+    { header: t('policyNo', 'Policy No.'), key: 'policyNo' },
     { header: t('insurance', 'Insurance'), key: 'insurance' },
     { header: t('cardNumber', 'Insurance Card No.'), key: 'insuranceCardNo' },
+    { header: t('expirationDate', 'Expiration Date'), key: 'expirationDate' },
+    { header: t('expiryStatus', 'Expiry status'), key: 'expiryStatus' },
     { header: t('patientName', 'Patient Name'), key: 'patientName' },
     { header: t('age', 'Age'), key: 'age' },
     { header: t('gender', 'Gender'), key: 'gender' },
-    { header: t('birthdate', 'Birthdate'), key: 'birthdate' },
+    { key: 'actions', header: t('actions', 'Actions') },
   ];
 
   const { paginated, goTo, results } = usePagination(policies, pageSize);
 
-  const filteredPolicies = React.useMemo(() => {
-    if (!debouncedSearchTerm) return policies || [];
-
-    const searchLower = debouncedSearchTerm.toLowerCase();
-    return (results || []).filter(
-      (policy) =>
-        (policy.patientName && policy?.patientName.toLowerCase().includes(searchLower)) ||
-        (policy.insurance && policy?.insurance.toLowerCase().includes(searchLower)) ||
-        (policy.insuranceCardNo && policy?.insuranceCardNo.toLowerCase().includes(searchLower)),
-    );
-  }, [debouncedSearchTerm, results, policies]);
+  const onEdit = (policy) => {
+    setSelectedPolicyNo(policy.insurancePolicyNo);
+    setSelectedRecord({
+      insuranceCardNo: policy.insuranceCardNo,
+      coverageStartDate: dayjs(policy.coverageStartDate).format('YYYY-MM-DD'),
+      expirationDate: dayjs(policy.expirationDate).format('YYYY-MM-DD'),
+    });
+    setShowEditModal(true);
+  };
+  const tableRows = results.map((policy, index) => ({
+    id: index,
+    policyNo: policy.insurancePolicyNo,
+    coverageStartDate: policy.coverageStartDate,
+    expirationDate: policy.expirationDate,
+    expiryStatus: {
+      content: (
+        <Tag type={new Date(policy.expirationDate) < new Date() ? 'red' : 'green'}>
+          {new Date(policy.expirationDate) < new Date() ? 'Expired' : 'Valid'}
+        </Tag>
+      ),
+    },
+    insurance: policy.insurance,
+    insuranceCardNo: policy.insuranceCardNo,
+    patientName: policy.patientName,
+    age: policy.age || '--',
+    gender: policy.gender || '--',
+    birthdate: policy.birthdate || '--',
+    actions: (
+      <OverflowMenu>
+        <OverflowMenuItem itemText={t('edit', 'Edit')} onClick={() => onEdit(policy)} />
+      </OverflowMenu>
+    ),
+  }));
 
   if (isLoading) {
     return (
@@ -101,6 +140,11 @@ export const InsurancePolicyTable: React.FC = () => {
     launchWorkspace('insurance-form-workspace', { ...props });
   };
 
+  const handleClose = () => {
+    setShowEditModal(false);
+    setSelectedRecord(null);
+  };
+
   return (
     <div>
       <div className={styles.tableHeaderContainer}>
@@ -109,7 +153,7 @@ export const InsurancePolicyTable: React.FC = () => {
           name="patient-search-button-slot"
           state={{
             selectPatientAction: launchCreateInsurancePolicyForm,
-            buttonText: t('addInsurance', 'Add insurance'),
+            buttonText: t('addPolicy', 'Add policy'),
             overlayHeader: t('createNewInsurancePolicy', 'Create new insurance policy'),
             buttonProps: {
               kind: 'primary',
@@ -120,31 +164,16 @@ export const InsurancePolicyTable: React.FC = () => {
         />
       </div>
 
-      {filteredPolicies?.length > 0 ? (
+      {results?.length > 0 ? (
         <>
-          <DataTable
-            headers={tableHeaders}
-            isSortable
-            rows={filteredPolicies.map((policy) => ({
-              id: policy.insuranceCardNo,
-              insurancePolicyNo: policy.insurancePolicyNo,
-              insurance: policy.insurance,
-              insuranceCardNo: policy.insuranceCardNo,
-              patientName: policy.patientName,
-              age: policy.age || '--',
-              gender: policy.gender || '--',
-              birthdate: policy.birthdate || '--',
-            }))}
-            size={tableSize}
-            useZebraStyles
-          >
+          <DataTable headers={tableHeaders} isSortable rows={tableRows} size={tableSize} useZebraStyles>
             {({ rows, headers, getHeaderProps, getRowProps, getTableProps }) => (
               <TableContainer className={styles.tableContainer}>
                 <TableToolbarSearch
                   className={styles.searchbox}
                   expanded
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                  placeholder={t('searchThisTable', 'Search this table')}
+                  placeholder={t('searchThisTable', 'Search policy by card number')}
                   size={tableSize}
                   persistent
                   light
@@ -152,32 +181,61 @@ export const InsurancePolicyTable: React.FC = () => {
                 <Table {...getTableProps()}>
                   <TableHead>
                     <TableRow>
-                      {headers.map((header) => (
+                      <TableExpandHeader />
+                      {headers.map((header: any) => (
                         <TableHeader
-                          key={header.key}
                           {...getHeaderProps({
                             header,
-                            // isSortable: header.isSortable,
+                            isSortable: header.isSortable,
                           })}
+                          className={isDesktop ? styles.desktopHeader : styles.tabletHeader}
+                          key={`${header.key}`}
                         >
                           {header.header?.content ?? header.header}
                         </TableHeader>
                       ))}
+                      <TableHeader></TableHeader>
                     </TableRow>
                   </TableHead>
                   <TableBody style={{ overflow: 'hidden', padding: '1rem !important' }}>
-                    {rows.map((row) => (
-                      <TableRow {...getRowProps({ row })} key={row.id}>
-                        {row.cells.map((cell) => {
-                          return <TableCell key={cell.id}>{cell.value?.content ?? cell.value}</TableCell>;
-                        })}
-                      </TableRow>
-                    ))}
+                    {rows.map((row, index) => {
+                      return (
+                        <React.Fragment key={row.id}>
+                          <TableExpandRow
+                            className={isDesktop ? styles.desktopRow : styles.tabletRow}
+                            {...getRowProps({ row })}
+                          >
+                            {row.cells.map((cell) => {
+                              return <TableCell key={cell.id}>{cell.value?.content ?? cell.value}</TableCell>;
+                            })}
+                          </TableExpandRow>
+
+                          {row.isExpanded ? (
+                            <TableExpandedRow colSpan={headers.length + 2}>
+                              <ExpandedPolicyDetails policy={results[index]} />
+                            </TableExpandedRow>
+                          ) : (
+                            <TableExpandedRow className={styles.hiddenRow} colSpan={headers.length + 2} />
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
             )}
           </DataTable>
+
+          <div>
+            {showEditModal && (
+              <EditInsuranceModal
+                record={selectedRecord}
+                onClose={handleClose}
+                policyId={selectedPolicyNo}
+                parentMutate={tableMutate} // Pass mutate function
+              />
+            )}
+          </div>
 
           {pageSize && (
             <Pagination
@@ -208,6 +266,29 @@ export const InsurancePolicyTable: React.FC = () => {
           </Tile>
         </Layer>
       )}
+    </div>
+  );
+};
+
+const ExpandedPolicyDetails = ({ policy }) => {
+  const { t } = useTranslation();
+
+  return (
+    <div style={{ padding: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+        <p>
+          <strong>{t('coverageStartDate', 'Coverage Start Date')}: </strong>
+          {policy.coverageStartDate || '--'}
+        </p>
+        <p>
+          <strong>{t('birthdate', 'Birth Date')}: </strong>
+          {policy.birthdate || '--'}
+        </p>
+        <p>
+          <strong>{t('ownerName', 'Policy Owner')}: </strong>
+          {policy.ownerName || '--'}
+        </p>
+      </div>
     </div>
   );
 };
