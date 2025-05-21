@@ -47,7 +47,6 @@ const schema = z
     companyName: z.string().nonempty('Company Name is required'),
     policyOwner: z.string().nonempty('policy Owner is required'),
     family: z.string().nonempty('Family is required'),
-    category: z.string().nonempty('Category is required'),
   })
   .refine(
     (data) => {
@@ -87,7 +86,6 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
       companyName: '',
       policyOwner: '',
       family: '',
-      category: '',
     },
   });
 
@@ -310,24 +308,6 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
               id="family"
               labelText={<RequiredFieldLabel label={t('family', 'Family')} t={t} />}
               {...register('family')}
-            />
-
-            <Controller
-              name="category"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  id="category"
-                  labelText={<RequiredFieldLabel label={t('category', 'Category')} t={t} />}
-                  {...field}
-                >
-                  <SelectItem disabled hidden value="" text={t('selectLevelsPlease', 'Select levels please')} />
-                  <SelectItem value="1" text="1" />
-                  <SelectItem value="2" text="2" />
-                  <SelectItem value="3" text="3" />
-                  <SelectItem value="4" text="4" />
-                </Select>
-              )}
             />
 
             {submitError && (

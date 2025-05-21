@@ -116,7 +116,6 @@ const Insurance = ({ patientUuid }) => {
             companyName: policy.companyName ?? '',
             policyOwner: policy.policyOwner ?? '',
             affiliationCode: policy.family ?? '',
-            category: policy.category ?? '',
           }));
 
         setEntries(mapped);
