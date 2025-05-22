@@ -1,22 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Dropdown, Form, NumberInput, TextInput, Button, InlineLoading, Tile } from '@carbon/react';
+import { openmrsFetch, useConfig } from '@openmrs/esm-framework';
 import {
-  Dropdown,
-  Form,
-  NumberInput,
-  TextInput,
-  Button,
-  InlineLoading,
-  Tile
-} from '@carbon/react';
-import { useConfig } from '@openmrs/esm-framework';
-import { 
-  getServices, 
-  getServiceCategories, 
+  getServices,
+  getServiceCategories,
   getBillableServices,
-  type HopService, 
+  type HopService,
   type ServiceCategory,
-  type BillableService
+  type BillableService,
+  getBillableServiceId,
 } from '../api/billing';
 import styles from './service-calculator.scss';
 
@@ -34,48 +27,43 @@ interface NormalizedService {
   originalData: any;
 }
 
-const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ 
-  patientUuid, 
-  insuranceCardNo, 
-  onClose, 
-  onSave 
-}) => {
+const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insuranceCardNo, onClose, onSave }) => {
   const { t } = useTranslation();
   const config = useConfig();
   const defaultCurrency = config?.defaultCurrency || 'RWF';
-  
+
   const [departmentUuid, setDepartmentUuid] = useState('');
   const [serviceCategoryId, setServiceCategoryId] = useState('');
   const [serviceId, setServiceId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [drugFrequency, setDrugFrequency] = useState('');
-  
+
   const [departments, setDepartments] = useState<HopService[]>([]);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
   const [isLoadingServiceCategories, setIsLoadingServiceCategories] = useState(false);
   const [isLoadingBillableServices, setIsLoadingBillableServices] = useState(false);
-  
+
   const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([]);
   const [billableServices, setBillableServices] = useState<NormalizedService[]>([]);
-  
+
   const [errors, setErrors] = useState({
     departmentUuid: '',
     serviceCategoryId: '',
     serviceId: '',
     quantity: '',
   });
-  
+
   const [calculatorItems, setCalculatorItems] = useState([]);
   const [total, setTotal] = useState(0);
-  
+
   useEffect(() => {
     const fetchDepartments = async () => {
       setIsLoadingDepartments(true);
       try {
         const services = await getServices();
-        
+
         if (services && services.length > 0) {
-          const transformedDepts = services.map(dept => ({
+          const transformedDepts = services.map((dept) => ({
             ...dept,
             uuid: dept.serviceId.toString(),
           }));
@@ -89,99 +77,98 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({
         setIsLoadingDepartments(false);
       }
     };
-    
+
     fetchDepartments();
   }, []);
-  
-  const fetchServiceCategories = useCallback(async (departmentId: string) => {
-    if (!departmentId) return;
-    
-    setIsLoadingServiceCategories(true);
-    setServiceCategories([]);
+
+  const fetchServiceCategories = useCallback(
+    async (departmentId: string) => {
+      if (!departmentId) return;
+
+      setIsLoadingServiceCategories(true);
+      setServiceCategories([]);
+      setBillableServices([]);
+      setServiceCategoryId('');
+      setServiceId('');
+
+      try {
+        const ipCardNumber = insuranceCardNo || '0';
+
+        const categories = await getServiceCategories(departmentId, ipCardNumber);
+
+        if (categories && categories.results && categories.results.length > 0) {
+          setServiceCategories(categories.results);
+        } else {
+          console.error('Failed to fetch service categories: No data returned');
+        }
+      } catch (error) {
+        console.error('Error fetching service categories:', error);
+      } finally {
+        setIsLoadingServiceCategories(false);
+      }
+    },
+    [insuranceCardNo],
+  );
+
+  const fetchBillableServices = useCallback(async (serviceCategoryId: string) => {
+    if (!serviceCategoryId) return;
+
+    setIsLoadingBillableServices(true);
     setBillableServices([]);
-    setServiceCategoryId('');
     setServiceId('');
-    
+
     try {
-      const ipCardNumber = insuranceCardNo || '0';
-      
-      const categories = await getServiceCategories(departmentId, ipCardNumber);
-      
-      if (categories && categories.results && categories.results.length > 0) {
-        setServiceCategories(categories.results);
+      const services = await getBillableServices(serviceCategoryId);
+
+      if (services && services.results && services.results.length > 0) {
+        const formattedServices = services.results
+          .filter((service) => service != null)
+          .map((service, index) => {
+            const id = service.serviceId || index + 1;
+            const serviceName = service.facilityServicePrice?.name || (service as any).name || `Service ${index + 1}`;
+
+            const servicePrice = service.facilityServicePrice?.fullPrice || (service as any).maximaToPay || 0;
+
+            return {
+              serviceId: id,
+              name: serviceName || `Unknown Service ${id}`,
+              price: servicePrice,
+              originalData: service,
+            };
+          });
+
+        setBillableServices(formattedServices);
       } else {
-        console.error('Failed to fetch service categories: No data returned');
+        console.warn('No billable services found or invalid response format');
       }
     } catch (error) {
-      console.error('Error fetching service categories:', error);
+      console.error('Error fetching billable services:', error);
     } finally {
-      setIsLoadingServiceCategories(false);
+      setIsLoadingBillableServices(false);
     }
-  }, [insuranceCardNo]);
-  
-const fetchBillableServices = useCallback(async (serviceCategoryId: string) => {
-  if (!serviceCategoryId) return;
-  
-  setIsLoadingBillableServices(true);
-  setBillableServices([]);
-  setServiceId('');
-  
-  try {
-    const services = await getBillableServices(serviceCategoryId);
-    
-    if (services && services.results && services.results.length > 0) {
-      const formattedServices = services.results
-        .filter(service => service != null)
-        .map((service, index) => {
-          const id = service.serviceId || index + 1;
-          const serviceName = service.facilityServicePrice?.name || 
-                            (service as any).name || 
-                            `Service ${index + 1}`;
-                            
-          const servicePrice = service.facilityServicePrice?.fullPrice || 
-                             (service as any).maximaToPay || 
-                             0;
-          
-          return {
-            serviceId: id,
-            name: serviceName,
-            price: servicePrice,
-            originalData: service
-          };
-        });
-      
-      setBillableServices(formattedServices);
-    } else {
-      console.error('Failed to fetch billable services: No data returned');
-    }
-  } catch (error) {
-    console.error('Error fetching billable services:', error);
-  } finally {
-    setIsLoadingBillableServices(false);
-  }
-}, []);
-  
+  }, []);
+
   useEffect(() => {
     if (departmentUuid) {
       fetchServiceCategories(departmentUuid);
     }
   }, [departmentUuid, fetchServiceCategories]);
-  
+
   useEffect(() => {
     if (serviceCategoryId) {
       fetchBillableServices(serviceCategoryId);
     }
   }, [serviceCategoryId, fetchBillableServices]);
-  
+
   const getBillableServiceById = (serviceId: string) => {
     if (!serviceId) {
       return null;
     }
-    
-    const service = billableServices.find(service => service.serviceId.toString() === serviceId);
+
+    const service = billableServices.find((service) => service.serviceId.toString() === serviceId);
     return service;
   };
-  
+
   const validateForm = () => {
     const newErrors = {
       departmentUuid: '',
@@ -189,107 +176,127 @@ const fetchBillableServices = useCallback(async (serviceCategoryId: string) => {
       serviceId: '',
       quantity: '',
     };
-    
+
     if (!departmentUuid) {
       newErrors.departmentUuid = t('departmentRequired', 'Department is required');
     }
-    
+
     if (!serviceCategoryId) {
       newErrors.serviceCategoryId = t('serviceCategoryRequired', 'Service Category is required');
     }
-    
+
     if (!serviceId) {
       newErrors.serviceId = t('serviceRequired', 'Service is required');
     }
-    
+
     if (!quantity || quantity < 1) {
       newErrors.quantity = t('quantityRequired', 'Quantity must be at least 1');
     }
-    
+
     setErrors(newErrors);
-    return !Object.values(newErrors).some(error => error);
+    return !Object.values(newErrors).some((error) => error);
   };
-  
-  const addService = () => {
+
+  const addService = async () => {
     if (!validateForm()) return;
-    
-    const service = getBillableServiceById(serviceId);
-    if (!service) {
-      console.error('Service not found for ID:', serviceId);
-      return;
+
+    try {
+      const service = getBillableServiceById(serviceId);
+      if (!service) {
+        console.error('Service not found for ID:', serviceId);
+        return;
+      }
+
+      let billableServiceId = null;
+      try {
+        billableServiceId = await getBillableServiceId(serviceCategoryId, serviceId);
+
+        if (billableServiceId === null) {
+          console.error('Failed to retrieve billable service ID');
+          console.warn('Continuing without billable service ID - this may cause errors when saving');
+        }
+      } catch (error) {
+        console.error('Error retrieving billable service ID:', error);
+        console.warn('Continuing without billable service ID - this may cause errors when saving');
+      }
+
+      const existingIndex = calculatorItems.findIndex((item) => item.serviceId.toString() === serviceId);
+
+      let updatedItems;
+      if (existingIndex >= 0) {
+        updatedItems = [...calculatorItems];
+        updatedItems[existingIndex] = {
+          ...updatedItems[existingIndex],
+          quantity: updatedItems[existingIndex].quantity + quantity,
+          drugFrequency: drugFrequency || updatedItems[existingIndex].drugFrequency,
+        };
+      } else {
+        const department = departments.find((d) => d.serviceId.toString() === departmentUuid);
+        const serviceCategory = serviceCategories.find((c) => c.serviceCategoryId?.toString() === serviceCategoryId);
+
+        const hopServiceId = department?.serviceId || parseInt(departmentUuid, 10);
+
+        const newItem = {
+          id: serviceId,
+          serviceId: Number(service.serviceId),
+          name: service.name,
+          price: service.price,
+          totalPrice: service.price * quantity,
+          departmentName: department?.name || '',
+          departmentId: Number(departmentUuid),
+          serviceCategoryId: Number(serviceCategoryId),
+          serviceCategoryName: serviceCategory?.name || '',
+          originalData: service.originalData,
+          quantity,
+          drugFrequency: drugFrequency || '',
+          isDrug: departmentUuid === '11',
+          serviceDate: new Date().toISOString(),
+          itemType: service.originalData?.facilityServicePrice?.itemType || 1,
+          billableServiceId: billableServiceId,
+          facilityServicePriceId: parseInt(serviceId, 10),
+          hopServiceId: hopServiceId,
+        };
+
+        updatedItems = [...calculatorItems, newItem];
+      }
+
+      setCalculatorItems(updatedItems);
+      onSave && onSave(updatedItems);
+
+      setServiceId('');
+      setQuantity(1);
+      setDrugFrequency('');
+    } catch (error) {
+      console.error('Error adding service:', error);
     }
-    
-    const existingIndex = calculatorItems.findIndex(item => item.serviceId.toString() === serviceId);
-    
-    let updatedItems;
-    if (existingIndex >= 0) {
-      updatedItems = [...calculatorItems];
-      updatedItems[existingIndex] = {
-        ...updatedItems[existingIndex],
-        quantity: updatedItems[existingIndex].quantity + quantity,
-        drugFrequency: drugFrequency || updatedItems[existingIndex].drugFrequency,
-      };
-    } else {
-      const department = departments.find(d => d.serviceId.toString() === departmentUuid);
-      const serviceCategory = serviceCategories.find(c => c.serviceCategoryId?.toString() === serviceCategoryId);
-      
-      const newItem = {
-        id: serviceId,
-        serviceId: Number(service.serviceId),
-        name: service.name,
-        price: service.price,
-        departmentName: department?.name || '',
-        departmentId: Number(departmentUuid),
-        serviceCategoryId: Number(serviceCategoryId),
-        serviceCategoryName: serviceCategory?.name || '',
-        originalData: service.originalData,
-        quantity,
-        drugFrequency: drugFrequency || '',
-        isDrug: departmentUuid === '11',
-        serviceDate: new Date().toISOString(),
-        itemType: service.originalData?.facilityServicePrice?.itemType || 1
-      };
-      
-      updatedItems = [...calculatorItems, newItem];
-    }
-    
-    setCalculatorItems(updatedItems);
-    onSave && onSave(updatedItems);
-    
-    setServiceId('');
-    setQuantity(1);
-    setDrugFrequency('');
   };
-  
+
   useEffect(() => {
-    const newTotal = calculatorItems.reduce(
-      (sum, item) => sum + (item.totalPrice || (item.price * item.quantity)), 
-      0
-    );
+    const newTotal = calculatorItems.reduce((sum, item) => sum + (item.totalPrice || item.price * item.quantity), 0);
     setTotal(newTotal);
   }, [calculatorItems]);
-  
+
   const removeItem = (index) => {
     const updatedItems = [...calculatorItems];
     updatedItems.splice(index, 1);
     setCalculatorItems(updatedItems);
-    
+
     onSave && onSave(updatedItems);
   };
-  
+
   const updateItemQuantity = (index, newQuantity) => {
     if (newQuantity < 1) return;
-    
+
     const updatedItems = [...calculatorItems];
     updatedItems[index] = {
       ...updatedItems[index],
       quantity: newQuantity,
     };
     setCalculatorItems(updatedItems);
-    
+
     onSave && onSave(updatedItems);
   };
-  
+
   // Update drug frequency
   const updateDrugFrequency = (index, frequency) => {
     const updatedItems = [...calculatorItems];
@@ -298,7 +305,7 @@ const fetchBillableServices = useCallback(async (serviceCategoryId: string) => {
       drugFrequency: frequency,
     };
     setCalculatorItems(updatedItems);
-    
+
     onSave && onSave(updatedItems);
   };
 
@@ -371,8 +378,8 @@ const fetchBillableServices = useCallback(async (serviceCategoryId: string) => {
                 itemToString={(id) => {
                   if (!id) return '';
                   const service = billableServices.find((s) => s.serviceId?.toString() === id);
-                  if (!service) return '';
-                  return `${service.name} (${service.price} ${defaultCurrency})`;
+                  if (!service) return `Service ID: ${id}`;
+                  return `${service.name || 'Unnamed Service'} (${service.price || 0} ${defaultCurrency})`;
                 }}
                 invalid={!!errors.serviceId}
                 invalidText={errors.serviceId}
