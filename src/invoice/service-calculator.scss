@@ -317,10 +317,6 @@ $danger: var(--omrs-color-danger, #da1e28);
   background-color: $ui-01;
 }
 
-:global(.cds--list-box__field) {
-  height: 2rem;
-}
-
 :global(.cds--text-input) {
   height: 2rem;
   background-color: $ui-01;

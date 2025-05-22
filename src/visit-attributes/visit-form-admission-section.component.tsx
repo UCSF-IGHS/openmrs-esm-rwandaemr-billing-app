@@ -2,7 +2,14 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { openmrsFetch, showSnackbar, usePatient, useLayoutType, type Visit } from '@openmrs/esm-framework';
+import {
+  openmrsFetch,
+  showSnackbar,
+  usePatient,
+  useLayoutType,
+  type Visit,
+  launchWorkspace,
+} from '@openmrs/esm-framework';
 import {
   getInsurances,
   fetchGlobalBillsByInsuranceCard,
@@ -15,6 +22,7 @@ import { createAdmissionWithGlobalBill, useDiseaseType } from '../api/patient-ad
 import { InlineNotification } from '@carbon/react';
 import { TextInput, DatePicker, InlineLoading, ComboBox, DatePickerInput, Checkbox } from '@carbon/react';
 import { z } from 'zod';
+import { Button } from '@carbon/react';
 
 const ADMISSION_TYPES = [
   { id: '1', text: 'Ordinary Admission' },
@@ -405,6 +413,15 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
     setOnSubmit?.(onSubmit);
   }, [onSubmit, setOnSubmit]);
 
+  const handleAddInsurancePolicy = useCallback(() => {
+    launchWorkspace('insurance-form-workspace', {
+      patientUuid: patientUuid,
+      onClose: () => {
+        closeWorkspace();
+      },
+    });
+  }, [patientUuid, closeWorkspace]);
+
   if (isLoadingData || isLoadingDiseaseTypes || isLoading) {
     return (
       <InlineLoading
@@ -430,6 +447,20 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
     );
   }
 
+  if (!insurancePolicy) {
+    return (
+      <div className={styles.errorContainer}>
+        <InlineNotification
+          kind="warning"
+          lowContrast
+          title={t('insuranceNotFound', 'Insurance not found')}
+          subtitle={t('insuranceNotFoundMessage', 'No insurance policy found for this patient, click here to add one')}
+          className={styles.error}
+          onClick={handleAddInsurancePolicy}
+        />
+      </div>
+    );
+  }
   return (
     <FormProvider {...methods}>
       <div className={styles.form}>
@@ -490,24 +521,6 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
           <div className={styles.formRow}>
             <div className={styles.formColumn}>
               <Controller
-                name="isAdmitted"
-                control={control}
-                render={({ field }) => (
-                  <Checkbox
-                    id="is-admitted"
-                    labelText={t('isAdmitted', 'Is admitted?')}
-                    checked={field.value}
-                    onChange={field.onChange}
-                    className={styles.sectionField}
-                  />
-                )}
-              />
-            </div>
-          </div>
-
-          <div className={styles.formRow}>
-            <div className={styles.formColumn}>
-              <Controller
                 name="admissionDate"
                 control={control}
                 render={({ field, fieldState }) => (
@@ -555,24 +568,44 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
           <div className={styles.formRow}>
             <div className={styles.formColumn}>
               <Controller
-                name="admissionType"
+                name="isAdmitted"
                 control={control}
                 render={({ field }) => (
-                  <ComboBox
-                    titleText={<RequiredFieldLabel label={t('admissionType', 'Admission Type')} />}
-                    id="admission-type"
-                    items={ADMISSION_TYPES}
-                    itemToString={(item) => (item ? item.text : '')}
-                    onChange={({ selectedItem }) => field.onChange(selectedItem?.id || '')}
-                    invalid={!!errors.admissionType}
-                    invalidText={errors.admissionType?.message}
+                  <Checkbox
+                    id="is-admitted"
+                    labelText={t('isAdmitted', 'Is admitted?')}
+                    checked={field.value}
+                    onChange={field.onChange}
                     className={styles.sectionField}
-                    placeholder={t('selectAdmissionType', 'Please select admission type')}
                   />
                 )}
               />
             </div>
           </div>
+
+          {watch('isAdmitted') && (
+            <div className={styles.formRow}>
+              <div className={styles.formColumn}>
+                <Controller
+                  name="admissionType"
+                  control={control}
+                  render={({ field }) => (
+                    <ComboBox
+                      titleText={<RequiredFieldLabel label={t('admissionType', 'Admission Type')} />}
+                      id="admission-type"
+                      items={ADMISSION_TYPES}
+                      itemToString={(item) => (item ? item.text : '')}
+                      onChange={({ selectedItem }) => field.onChange(selectedItem?.id || '')}
+                      invalid={!!errors.admissionType}
+                      invalidText={errors.admissionType?.message}
+                      className={styles.sectionField}
+                      placeholder={t('selectAdmissionType', 'Please select admission type')}
+                    />
+                  )}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Status information about insurance verification */}
           {insurancePolicy && (

@@ -5,13 +5,11 @@
 @use '@openmrs/esm-styleguide/src/vars' as *;
 
 .sectionContainer {
-  background-color: $ui-02;
+  background-color: $ui-03;
   width: 100%;
-  padding: layout.$spacing-05;
 }
 
 .contentWrapper {
-  border-radius: layout.$spacing-02;
   padding: layout.$spacing-05;
 }
 
@@ -19,7 +17,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   gap: layout.$spacing-06;
-  margin-top: layout.$spacing-06;
 }
 
 .skeletonContainer {

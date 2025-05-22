@@ -11,7 +11,6 @@ $text-02: #eb4848 !default;
 /* Main widget card to fill width */
 .widgetCard {
   background: $ui-01;
-  border: 1px solid $ui-03;
   width: 100%;
   max-width: 100%;
   display: flex;
@@ -37,16 +36,11 @@ $text-02: #eb4848 !default;
   min-width: auto !important;
 }
 
-/* Search box styling */
-.searchbox {
-  margin: 8px;
-  width: 300px;
-}
-
 /* Table header */
 .tableHeader {
   font-weight: 600;
   padding: 0 8px;
+  margin: 0.25rem;
 }
 
 /* Error container */
@@ -94,46 +88,6 @@ $text-02: #eb4848 !default;
   overflow-x: auto !important;
 }
 
-.invoiceTable :global(.cds--data-table),
-.invoiceTable :global(.cds--data-table-header),
-.invoiceTable :global(.cds--table-header-row),
-.invoiceTable :global(.cds--data-table-content) {
-  width: 100% !important;
-}
-
-/* Fix truncated table headers - scoped to this table */
-.invoiceTable :global(.cds--table-header-label) {
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  padding: 0 8px !important;
-  height: auto !important;
-  line-height: 1.2 !important;
-}
-
-/* Apply to all header cells in this table */
-.invoiceTable :global(.cds--data-table th) {
-  height: auto !important;
-  min-height: 48px !important;
-  padding-top: 8px !important;
-  padding-bottom: 8px !important;
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  vertical-align: middle !important;
-}
-
-/* Apply to all data cells in this table */
-.invoiceTable :global(.cds--data-table td) {
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  height: auto !important;
-  padding: 8px !important;
-  min-width: 80px !important;
-  vertical-align: middle !important;
-}
-
 /* Make the expand button column narrow */
 .invoiceTable :global(.cds--table-expand) {
   width: 40px !important;
@@ -148,7 +102,7 @@ $text-02: #eb4848 !default;
 
 /* Add these styles to be applied with custom classes */
 .colGlobalBillId {
-  min-width: 100px !important;
+  min-width: 80px !important;
 }
 
 .colDate {
@@ -156,7 +110,7 @@ $text-02: #eb4848 !default;
 }
 
 .colBillId {
-  min-width: 200px !important;
+  min-width: 300px !important;
   word-break: break-all !important; /* Critical for long IDs */
 }
 
@@ -208,4 +162,8 @@ $text-02: #eb4848 !default;
 .paidStatus {
   background-color: #defbe6;
   color: #0e6027;
+}
+
+:global(.omrs-breakpoint-gt-small-desktop .-esm-patient-chart__patient-chart__widthContained___Ow0JH) {
+  max-width: 150rem;
 }

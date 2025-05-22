@@ -15,7 +15,7 @@ const Card: React.FC<CardProps> = ({ title, details }) => {
         <Stack gap={5}>
           <div className={styles.header}>
             <Information size={20} />
-            <h4>{title}</h4>
+            <h5>{title}</h5>
           </div>
           <dl className={styles.detailsList}>
             {details.map(({ label, value }, index) => (

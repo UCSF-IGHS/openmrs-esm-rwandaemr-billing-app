@@ -32,7 +32,7 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
   const { t } = useTranslation();
   const config = useConfig();
   const pageSize = config?.pageSize || 10;
-  
+
   const layout = useLayoutType();
   const isTablet = layout === 'tablet';
   const isPhone = layout === 'phone';
@@ -50,15 +50,16 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
 
   const filteredAdmissions = React.useMemo(() => {
     const resultsArray = Array.isArray(results) ? results : [];
-    
+
     let filtered = resultsArray;
     if (debouncedSearchTerm) {
       const searchLower = debouncedSearchTerm.toLowerCase();
-      filtered = resultsArray.filter(admission => 
-        (admission.patientName && admission.patientName.toLowerCase().includes(searchLower)) ||
-        (admission.billIdentifier && admission.billIdentifier.toLowerCase().includes(searchLower)) ||
-        (admission.insuranceName && admission.insuranceName.toLowerCase().includes(searchLower)) ||
-        (admission.cardNumber && admission.cardNumber.toLowerCase().includes(searchLower))
+      filtered = resultsArray.filter(
+        (admission) =>
+          (admission.patientName && admission.patientName.toLowerCase().includes(searchLower)) ||
+          (admission.billIdentifier && admission.billIdentifier.toLowerCase().includes(searchLower)) ||
+          (admission.insuranceName && admission.insuranceName.toLowerCase().includes(searchLower)) ||
+          (admission.cardNumber && admission.cardNumber.toLowerCase().includes(searchLower)),
       );
     }
 
@@ -70,7 +71,6 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
   }, [debouncedSearchTerm, results]);
 
   const tableHeaders = [
-    { key: 'name', header: ""},
     { key: 'billIdentifier', header: t('billIdentifier', 'Bill Identifier') },
     { key: 'insuranceName', header: t('insuranceName', 'Insurance name') },
     { key: 'cardNumber', header: t('cardNumber', 'Card Number') },
@@ -85,15 +85,15 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
       // Create status tag with appropriate color
       const statusContent = {
         content: (
-          <Tag 
-            type={admission.isClosed ? 'red' : 'green'} 
+          <Tag
+            type={admission.isClosed ? 'red' : 'green'}
             className={admission.isClosed ? styles.closedStatus : styles.openStatus}
           >
             {admission.isClosed ? t('closed', 'Closed') : t('open', 'Open')}
           </Tag>
-        )
+        ),
       };
-      
+
       return {
         id: admission.id,
         billIdentifier: admission.billIdentifier,
@@ -109,21 +109,14 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
 
   // Function to handle adding a bill to an admission
   const handleAddBill = (globalBillId: string) => {
-    launchPatientWorkspace('billing-form-workspace', { 
-      patientUuid, 
-      globalBillId 
+    launchPatientWorkspace('billing-form-workspace', {
+      patientUuid,
+      globalBillId,
     });
   };
 
   if (isLoading) {
-    return (
-      <DataTableSkeleton 
-        role="progressbar" 
-        compact={isDesktopLayout} 
-        zebra 
-        headers={tableHeaders}
-      />
-    );
+    return <DataTableSkeleton role="progressbar" compact={isDesktopLayout} zebra headers={tableHeaders} />;
   }
 
   if (error) {
@@ -173,7 +166,7 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
             onClick={() => launchPatientWorkspace('patient-admission-workspace', { patientUuid })}
             kind="ghost"
           >
-            {t('createNewAdmission', 'Create New Admission')}
+            {t('createNewAdmission', 'Create new admission')}
           </Button>
         </div>
       </CardHeader>
@@ -214,7 +207,7 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
                       {row.cells.map((cell) => {
                         // Determine class for the cell
                         const cellClassName = `${styles[`col${cell.info.header.charAt(0).toUpperCase() + cell.info.header.slice(1)}`] || ''}`;
-                        
+
                         return (
                           <TableCell key={cell.id} className={cellClassName}>
                             {cell.value?.content ?? cell.value}

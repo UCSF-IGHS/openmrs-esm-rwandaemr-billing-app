@@ -92,6 +92,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
   } = methods;
 
   const hasThirdParty = watch('hasThirdParty');
+  const coverageStartDate = watch('coverageStartDate');
 
   const onSubmit: SubmitHandler<InsuranceFormSchema> = async (data) => {
     setIsSubmitting(true);
@@ -182,6 +183,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
               render={({ field }) => (
                 <Select
                   id="insuranceName"
+                  style={{ 'margin-bottom': '0.5rem !important' }}
                   labelText={<RequiredFieldLabel label={t('insuranceName', 'Insurance Name')} t={t} />}
                   {...field}
                 >
@@ -207,7 +209,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                     id="coverageStartDate"
                     datePickerType="single"
                     dateFormat="d/m/Y"
-                    maxDate={dayjs().utc().format('YYYY-MM-DD')}
+                    maxDate={new Date().toISOString()}
                     placeholder="dd/mm/yyyy"
                     onChange={([date]) => onChange(date)}
                     onBlur={onBlur}
@@ -232,7 +234,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                     id="coverageEndDate"
                     datePickerType="single"
                     dateFormat="d/m/Y"
-                    minDate={dayjs().startOf('day').format('YYYY-MM-DD')}
+                    minDate={coverageStartDate || new Date().toISOString()}
                     placeholder="dd/mm/yyyy"
                     onChange={([date]) => onChange(date)}
                     onBlur={onBlur}
