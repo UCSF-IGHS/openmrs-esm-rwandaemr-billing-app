@@ -1,0 +1,32 @@
+@use '@carbon/layout';
+@use '@carbon/type';
+@use '@carbon/colors';
+
+.report-filter-form {
+  padding: layout.$spacing-05 0 layout.$spacing-05;
+
+  &__fields {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  &__button-container {
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+:global(.cds--dropdown) {
+  height: auto;
+  background-color: colors.$white-0;
+  border: 1px solid colors.$gray-20;
+}
+
+input[type="date"] {
+  background-color: colors.$white-0;
+  border: 1px solid colors.$gray-20;
+  padding: layout.$spacing-03;
+  border-radius: 4px;
+}

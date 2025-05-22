@@ -1,7 +1,7 @@
 import React from 'react';
 import { DatePicker, DatePickerInput, Dropdown, TextInput, Button } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
-import styles from './billing-reports.scss';
+import styles from './report-filter-form.scss';
 
 type ReportFilterField =
   | 'startDate'
@@ -53,6 +53,7 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
           <Dropdown
             id="insurance"
             titleText={t('insurance', 'Insurance')}
+            size="md"
             label={t('select', 'Select')}
             items={insuranceOptions || []}
             itemToString={(item) => item?.label || ''}
@@ -65,6 +66,7 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
           <Dropdown
             id="service"
             titleText={t('service', 'Service')}
+            size="md"
             label={t('select', 'Select')}
             items={['Consultation', 'Pharmacy', 'Lab', 'Radiology', 'Surgery']}
             itemToString={(item) => item}
@@ -77,6 +79,7 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
           <Dropdown
             id="third-party"
             titleText={t('thirdParty', 'Third Party')}
+            size="md"
             label={t('select', 'Select')}
             items={['Prison', 'RNUD', 'GBV', 'Others']}
             itemToString={(item) => item}
@@ -89,6 +92,7 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
           <Dropdown
             id="report-type"
             titleText={t('reportType', 'Report Type')}
+            size="md"
             label={t('select', 'Select')}
             items={['Ordinary Report', 'DCP Report', 'All']}
             itemToString={(item) => item}
@@ -101,6 +105,7 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
           <Dropdown
             id="bill-status"
             titleText={t('billStatus', 'Bill Status')}
+            size="md"
             label={t('select', 'Select')}
             items={['Paid', 'Fully Paid', 'UnPaid', 'Partly Paid']}
             itemToString={(item) => item}
@@ -113,6 +118,7 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
           <Dropdown
             id="deposit-type"
             titleText={t('type', 'Deposit Report Type')}
+            size="md"
             label={t('select', 'Select')}
             items={['Deposit', 'Payment', 'Withdrawal']}
             itemToString={(item) => item}
