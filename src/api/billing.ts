@@ -270,6 +270,7 @@ export async function fetchGlobalBillsByInsuranceCard(insuranceCardNumber: strin
 export interface PatientBill {
   patientBillId: number;
   amount: number;
+  isPaid: boolean;
   createdDate: string;
   status: string | null;
   voided: boolean;
@@ -541,135 +542,6 @@ export const submitBillPayment = async (paymentData: BillPaymentRequest): Promis
     console.error('Payment submission error:', error);
     throw error;
   }
-};
-
-/**
- * Creates bill items by creating a consommation using the consommation REST resource
- *
- * @param globalBillId - The global bill ID
- * @param departmentId - The department ID
- * @param items - The bill items with serviceId from BillableService
- * @returns Promise with the creation result
- */
-export const createBillItems = async (
-  globalBillId: number,
-  departmentId: number,
-  items: Array<{
-    serviceId: number | string;
-    quantity: number;
-    price?: number;
-    drugFrequency?: string;
-  }>,
-): Promise<any> => {
-  try {
-    if (!globalBillId) {
-      throw new Error('Global Bill ID is required');
-    }
-
-    if (!departmentId) {
-      throw new Error('Department ID is required');
-    }
-
-    if (!items || items.length === 0) {
-      throw new Error('No items provided');
-    }
-
-    let patientBillId;
-    try {
-      const patientBillResponse = await openmrsFetch(`${BASE_API_URL}/patientBill?globalBillId=${globalBillId}`);
-
-      if (patientBillResponse.data && patientBillResponse.data.results && patientBillResponse.data.results.length > 0) {
-        patientBillId = patientBillResponse.data.results[0].patientBillId;
-      } else {
-        const newPatientBillResponse = await openmrsFetch(`${BASE_API_URL}/patientBill`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            globalBill: { globalBillId },
-            departmentId: departmentId,
-          }),
-        });
-
-        if (newPatientBillResponse.data && newPatientBillResponse.data.patientBillId) {
-          patientBillId = newPatientBillResponse.data.patientBillId;
-        } else {
-          throw new Error('Failed to create patient bill');
-        }
-      }
-    } catch (error) {
-      console.error('Error finding/creating patient bill:', error);
-      throw new Error('Failed to find or create patient bill');
-    }
-
-    const beneficiaryId = 536988;
-
-    const billItems = items.map((item) => {
-      const unitPrice = parseFloat((item.price || 0).toString()) + 0.000001;
-
-      return {
-        service: { serviceId: 139 },
-        quantity: item.quantity,
-        unitPrice: unitPrice,
-        serviceDate: new Date().toISOString(),
-        drugFrequency: item.drugFrequency || '',
-        itemType: 1,
-      };
-    });
-
-    const consommationPayload = {
-      globalBill: { globalBillId },
-      department: { departmentId },
-      patientBill: { patientBillId },
-      beneficiary: { beneficiaryId },
-      billItems,
-    };
-
-    const consommationResponse = await openmrsFetch(`${BASE_API_URL}/consommation`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(consommationPayload),
-    });
-
-    if (!consommationResponse.data) {
-      throw new Error('Failed to create consommation');
-    }
-
-    return {
-      success: true,
-      consommationId: consommationResponse.data.consommationId,
-      count: billItems.length,
-      totalExpected: items.length,
-      patientBillId,
-    };
-  } catch (error) {
-    console.error('Error creating bill items:', error);
-    throw error;
-  }
-};
-
-/**
- * Creates a consommation directly using the consommation REST resource
- *
- * @param globalBillId - The global bill ID
- * @param departmentId - The department ID
- * @param items - The bill items with serviceId from BillableService
- * @returns Promise with the creation result
- */
-export const createDirectConsommation = async (
-  globalBillId: number,
-  departmentId: number,
-  items: Array<{
-    serviceId: number | string;
-    quantity: number;
-    price?: number;
-    drugFrequency?: string;
-  }>,
-): Promise<any> => {
-  return createBillItems(globalBillId, departmentId, items);
 };
 
 /**
@@ -1026,5 +898,244 @@ export const createDirectGlobalBill = async (globalBillData: {
   } catch (error) {
     console.error('Error creating global bill:', error);
     throw error;
+  }
+};
+
+/**
+ * Find a beneficiary ID using insurance policy number (card number)
+ *
+ * @param insurancePolicyNumber - Insurance policy number (card number)
+ * @returns Promise with the beneficiary ID if found, null otherwise
+ */
+export const findBeneficiaryByPolicyNumber = async (insurancePolicyNumber: string): Promise<number | null> => {
+  if (!insurancePolicyNumber) {
+    return null;
+  }
+
+  try {
+    const beneficiaryResponse = await openmrsFetch(
+      `${BASE_API_URL}/beneficiary?insurancePolicyNumber=${insurancePolicyNumber}`,
+    );
+
+    if (beneficiaryResponse.data && beneficiaryResponse.data.results && beneficiaryResponse.data.results.length > 0) {
+      const beneficiary = beneficiaryResponse.data.results[0];
+      return beneficiary.beneficiaryId;
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`Error finding beneficiary for policy number ${insurancePolicyNumber}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Creates a simple patient bill with only amount and isPaid properties
+ *
+ * @param amount - Initial amount for the bill (defaults to 0)
+ * @param isPaid - Payment status (defaults to false)
+ * @returns Promise with the created patient bill
+ */
+export const createSimplePatientBill = async (amount: number = 0, isPaid: boolean = false): Promise<any> => {
+  try {
+    const patientBillPayload = {
+      amount: amount,
+      isPaid: isPaid,
+    };
+
+    const response = await openmrsFetch(`${BASE_API_URL}/patientBill`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(patientBillPayload),
+    });
+
+    if (!response.ok) {
+      console.error('Patient bill creation failed:', response);
+      throw new Error(`API returned status ${response.status}`);
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('Error creating patient bill:', error);
+    throw error;
+  }
+};
+
+/**
+ * Creates a consommation directly with beneficiary
+ * With proper unitPrice handling to ensure Double values
+ * Includes client-side workaround to fetch all bill items
+ *
+ * @param globalBillId - The global bill ID
+ * @param departmentId - The department ID
+ * @param beneficiaryId - The beneficiary ID
+ * @param items - The bill items
+ * @returns Promise with the complete consommation including all bill items
+ */
+export const createDirectConsommationWithBeneficiary = async (
+  globalBillId: number,
+  departmentId: number,
+  beneficiaryId: number,
+  items: Array<{
+    serviceId?: number | string;
+    quantity: number;
+    price?: number;
+    drugFrequency?: string;
+    hopServiceId?: number;
+  }>,
+): Promise<any> => {
+  try {
+    let patientBillId;
+    try {
+      const patientBillResponse = await openmrsFetch(`${BASE_API_URL}/patientBill?globalBillId=${globalBillId}`);
+
+      if (patientBillResponse.data && patientBillResponse.data.results && patientBillResponse.data.results.length > 0) {
+        patientBillId = patientBillResponse.data.results[0].patientBillId;
+      } else {
+        const initialAmount = 0;
+        const isPaid = false;
+
+        const newPatientBill = await createSimplePatientBill(initialAmount, isPaid);
+
+        if (!newPatientBill || !newPatientBill.patientBillId) {
+          throw new Error('Failed to create patient bill: Invalid response from API');
+        }
+
+        patientBillId = newPatientBill.patientBillId;
+      }
+    } catch (error) {
+      console.error('Error getting or creating patient bill:', error);
+      throw new Error(`Failed to get or create patient bill: ${error.message}`);
+    }
+
+    const billItems = items.map((item) => {
+      const unitPrice = parseFloat((item.price || 0).toString()) + 0.000001;
+      const serviceIdForPayload = parseInt(item.serviceId?.toString() || '0', 10);
+
+      return {
+        service: {
+          serviceId: serviceIdForPayload,
+        },
+        hopService: {
+          serviceId: item.hopServiceId || departmentId,
+        },
+        unitPrice: unitPrice,
+        quantity: item.quantity,
+        drugFrequency: item.drugFrequency || '',
+      };
+    });
+
+    const expectedItemCount = billItems.length;
+    const consommationPayload = {
+      globalBill: { globalBillId },
+      department: { departmentId },
+      beneficiary: { beneficiaryId },
+      patientBill: { patientBillId },
+      billItems,
+    };
+
+    const response = await openmrsFetch(`${BASE_API_URL}/consommation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(consommationPayload),
+    });
+
+    if (!response.ok) {
+      console.error('Consommation creation failed:', response);
+      throw new Error(`API returned status ${response.status}`);
+    }
+
+    const consommationId = response.data?.consommationId;
+    if (!consommationId) {
+      console.error('No consommation ID found in response');
+      return {
+        ...response.data,
+        _itemsCount: expectedItemCount,
+        _actualItemsReturned: 0,
+      };
+    }
+
+    try {
+      const completeConsommationResponse = await openmrsFetch(`${BASE_API_URL}/consommation/${consommationId}?v=full`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      if (!completeConsommationResponse.ok) {
+        console.warn(`Failed to fetch complete consommation: ${completeConsommationResponse.status}`);
+        return {
+          ...response.data,
+          _itemsCount: expectedItemCount,
+          _actualItemsReturned: 0,
+        };
+      }
+
+      const actualItemsReturned = completeConsommationResponse.data.billItems?.length || 0;
+      return {
+        ...completeConsommationResponse.data,
+        _itemsCount: expectedItemCount,
+        _actualItemsReturned: actualItemsReturned,
+      };
+    } catch (fetchError) {
+      console.error('Error fetching complete consommation:', fetchError);
+      return {
+        ...response.data,
+        _itemsCount: expectedItemCount,
+        _actualItemsReturned: 0,
+      };
+    }
+  } catch (error) {
+    console.error('Error creating consommation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Gets the billable service ID by querying with facilityServicePriceId and serviceCategoryId
+ *
+ * @param serviceCategoryId - The service category ID
+ * @param facilityServicePriceId - The facility service price ID
+ * @returns Promise with the billable service ID if found, null otherwise
+ */
+export const getBillableServiceId = async (
+  serviceCategoryId: string | number,
+  facilityServicePriceId: string | number,
+): Promise<number | null> => {
+  try {
+    const url = `${BASE_API_URL}/billableService?facilityServicePriceId=${facilityServicePriceId}&serviceCategoryId=${serviceCategoryId}`;
+    const response = await openmrsFetch(url);
+
+    if (response.data && response.data.results && response.data.results.length > 0) {
+      const billableService = response.data.results[0];
+
+      if (billableService.serviceId !== undefined) {
+        return billableService.serviceId;
+      }
+
+      console.warn('No serviceId found in billable service response:', billableService);
+      return null;
+    } else {
+      console.warn('No billable services found for the selected combination');
+      return null;
+    }
+  } catch (error) {
+    console.error('Error fetching billable service:', error);
+    return null;
+  }
+};
+
+export const getInsurancePoliciesByPatient = async (patientUuid: string): Promise<any[]> => {
+  try {
+    const response = await openmrsFetch(`${BASE_API_URL}/insurancePolicy?patient=${patientUuid}`);
+    return response.data?.results || [];
+  } catch (error) {
+    console.error(`Failed to fetch insurance policies for patient ${patientUuid}:`, error);
+    return [];
   }
 };

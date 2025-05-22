@@ -24,14 +24,23 @@ import {
   Tag,
   type DataTableRow,
 } from '@carbon/react';
-import { isDesktop, useConfig, useDebounce, useLayoutType, usePatient, usePagination, showToast } from '@openmrs/esm-framework';
+import {
+  isDesktop,
+  useConfig,
+  useDebounce,
+  useLayoutType,
+  usePatient,
+  usePagination,
+  showToast,
+  openmrsFetch,
+} from '@openmrs/esm-framework';
 import { CardHeader, EmptyState, usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import styles from './invoice-table.scss';
 import { usePatientBill, useInsuranceCardBill } from './invoice.resource';
 import GlobalBillHeader from '.././bill-list/global-bill-list.component';
 import EmbeddedConsommationsList from '../consommation/embedded-consommations-list.component';
 import ServiceCalculator from './service-calculator.component';
-import { createBillItems, createDirectConsommation } from '../api/billing';
+import { createDirectConsommationWithBeneficiary, findBeneficiaryByPolicyNumber, getInsurancePoliciesByPatient } from '../api/billing';
 
 interface InvoiceTableProps {
   patientUuid?: string;
@@ -40,25 +49,25 @@ interface InvoiceTableProps {
 
 const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   const { t } = useTranslation();
-  
+
   const config = useConfig();
   const defaultCurrency = config?.defaultCurrency || 'RWF';
   const showEditBillButton = config?.showEditBillButton || false;
   const pageSize = config?.pageSize || 10;
-  
+
   const layout = useLayoutType();
 
   const { patient } = usePatient();
   const patientUuid = props.patientUuid || patient?.id || '';
-  
+
   const insuranceCardNo = props.insuranceCardNo || '';
   
   const patientBillResponse = usePatientBill(patientUuid || '');
   const insuranceBillResponse = useInsuranceCardBill(insuranceCardNo || '');
-  
+
   const usePatientData = Boolean(patientUuid);
   const useInsuranceData = Boolean(insuranceCardNo) && !usePatientData;
-  
+
   const lineItems = useMemo(() => {
     const items = usePatientData ? patientBillResponse.bills : useInsuranceData ? insuranceBillResponse.bills : [];
 
@@ -87,7 +96,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       return dateB - dateA;
     });
   }, [usePatientData, patientBillResponse.bills, useInsuranceData, insuranceBillResponse.bills]);
-  
+
   const isLoading = usePatientData
     ? patientBillResponse.isLoading
     : useInsuranceData
@@ -103,17 +112,17 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     () => (usePatientData ? patientBillResponse.mutate : useInsuranceData ? insuranceBillResponse.mutate : () => {}),
     [usePatientData, patientBillResponse.mutate, useInsuranceData, insuranceBillResponse.mutate],
   );
-  
+
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [currentGlobalBillId, setCurrentGlobalBillId] = useState<string | null>(null);
-  
+
   const [calculatorItems, setCalculatorItems] = useState([]);
-  
+
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
   const { paginated, goTo, results, currentPage } = usePagination(lineItems || [], currentPageSize);
   const { pageSizes } = usePaginationInfo(pageSize, lineItems?.length || 0, currentPage, results?.length || 0);
-  
+
   const paidLineItems = useMemo(() => lineItems?.filter((item) => item?.paymentStatus === 'PAID') ?? [], [lineItems]);
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const isTablet = layout === 'tablet';
@@ -136,7 +145,8 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     return debouncedSearchTerm
       ? fuzzy
           .filter(debouncedSearchTerm, results || [], {
-            extract: (lineItem: any) => `${lineItem?.item || ''} ${lineItem?.globalBillId || ''} ${lineItem?.billIdentifier || ''}`,
+            extract: (lineItem: any) =>
+              `${lineItem?.item || ''} ${lineItem?.globalBillId || ''} ${lineItem?.billIdentifier || ''}`,
           })
           .sort((r1, r2) => r1.score - r2.score)
           .map((result) => result.original)
@@ -150,207 +160,246 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     { key: 'policyId', header: t('policyId', 'Policy ID') },
     { key: 'admissionDate', header: t('admissionDate', 'Admission Date') },
     { key: 'dischargeDate', header: t('dischargeDate', 'Discharge Date') },
-    { key: 'billIdentifier', header: t('billIdentifier', 'Bill ID') }, 
-    { key: 'patientDueAmount', header: t('patientDueAmount', 'Due Amount') }, 
-    { key: 'paidAmount', header: t('paidAmount', 'Paid') }, 
-    { key: 'paymentStatus', header: t('paymentStatus', 'Status') }
+    { key: 'billIdentifier', header: t('billIdentifier', 'Bill ID') },
+    { key: 'patientDueAmount', header: t('patientDueAmount', 'Due Amount') },
+    { key: 'paidAmount', header: t('paidAmount', 'Paid') },
+    { key: 'paymentStatus', header: t('paymentStatus', 'Status') },
   ];
 
   const tableRows: Array<typeof DataTableRow> = useMemo(
     () =>
-      (filteredLineItems || [])?.map((item, index) => {
-        if (!item) return null;
-        
-        const statusContent = {
-          content: (
-            <Tag 
-              type={item.paymentStatus === 'PAID' ? 'green' : 'red'} 
-              className={item.paymentStatus === 'PAID' ? styles.paidStatus : styles.unpaidStatus}
-            >
-              {item.paymentStatus || ''}
-            </Tag>
-          )
-        };
-        
-        return {
-          id: `${item.globalBillId || ''}`,
-          globalBillId: item.globalBillId || '',
-          date: item.date || '',
-          createdBy: item.createdBy || '',
-          policyId: item.policyId || '',
-          admissionDate: item.admissionDate || '',
-          dischargeDate: item.dischargeDate || '',
-          billIdentifier: item.billIdentifier || '',
-          patientDueAmount: item.patientDueAmount || '',
-          paidAmount: item.paidAmount || '',
-          paymentStatus: statusContent
-        };
-      }).filter(Boolean) ?? [],
+      (filteredLineItems || [])
+        ?.map((item, index) => {
+          if (!item) return null;
+
+          const statusContent = {
+            content: (
+              <Tag
+                type={item.isPaid === true || item.paymentStatus === 'PAID' ? 'green' : 'red'}
+                className={
+                  item.isPaid === true || item.paymentStatus === 'PAID' ? styles.paidStatus : styles.unpaidStatus
+                }
+              >
+                {item.isPaid === true ? 'PAID' : item.paymentStatus || 'UNPAID'}
+              </Tag>
+            ),
+          };
+
+          return {
+            id: `${item.globalBillId || ''}`,
+            globalBillId: item.globalBillId || '',
+            date: item.date || '',
+            createdBy: item.createdBy || '',
+            policyId: item.policyId || '',
+            admissionDate: item.admissionDate || '',
+            dischargeDate: item.dischargeDate || '',
+            billIdentifier: item.billIdentifier || '',
+            patientDueAmount: item.patientDueAmount || '',
+            paidAmount: item.paidAmount || '',
+            paymentStatus: statusContent,
+          };
+        })
+        .filter(Boolean) ?? [],
     [filteredLineItems],
   );
-
-  const handleRowSelection = (row: typeof DataTableRow, checked: boolean) => {
-    const matchingRow = filteredLineItems?.find((item) => item?.uuid === row.id);
-    let newSelectedLineItems;
-
-    if (checked && matchingRow) {
-      newSelectedLineItems = [...selectedLineItems, matchingRow];
-    } else {
-      newSelectedLineItems = selectedLineItems.filter((item) => item?.uuid !== row.id);
-    }
-    setSelectedLineItems(newSelectedLineItems);
-  };
 
   const handleRowExpand = (row) => {
     setExpandedRowId(expandedRowId === row.id ? null : row.id);
   };
 
-  const createNewInvoice = useCallback((globalBillId: string) => {
-    const currentBill = lineItems.find(item => item.globalBillId?.toString() === globalBillId.toString());
-    const isGlobalBillClosed = currentBill?.paymentStatus === 'PAID';
-    
-    if (isGlobalBillClosed) {
-      showToast({
-        title: t('closedBill', 'Closed Bill'),
-        description: t('cannotAddToClosedBill', 'Cannot add items to a closed bill'),
-        kind: 'error',
-      });
-      return;
-    }
-    
-    setCurrentGlobalBillId(globalBillId.toString());
-    setIsCalculatorOpen(true);
-    setCalculatorItems([]);
-  }, [lineItems, t]);
-  
+  const createNewInvoice = useCallback(
+    (globalBillId: string) => {
+      const currentBill = lineItems.find((item) => item.globalBillId?.toString() === globalBillId.toString());
+      const isGlobalBillClosed = currentBill?.paymentStatus === 'PAID';
+
+      if (isGlobalBillClosed) {
+        showToast({
+          title: t('closedBill', 'Closed Bill'),
+          description: t('cannotAddToClosedBill', 'Cannot add items to a closed bill'),
+          kind: 'error',
+        });
+        return;
+      }
+
+      setCurrentGlobalBillId(globalBillId.toString());
+      setIsCalculatorOpen(true);
+      setCalculatorItems([]);
+    },
+    [lineItems, t],
+  );
+
   const handleCalculatorClose = useCallback(() => {
     setIsCalculatorOpen(false);
     setIsSaving(false);
     setCurrentGlobalBillId(null);
   }, []);
-  
+
   const handleCalculatorSave = useCallback(async () => {
     if (!calculatorItems || calculatorItems.length === 0) {
       return;
     }
-    
+
     setIsSaving(true);
     setErrorMessage('');
     setShowError(false);
-    
+
     try {
-      const itemsByDepartment: Record<string, any> = {};
-      
-      calculatorItems.forEach(item => {
+      const globalBillId = currentGlobalBillId;
+
+      if (!globalBillId) {
+        throw new Error('No global bill ID found. Please create a global bill first.');
+      }
+      let policyNumber = insuranceCardNo;
+      if (!policyNumber) {
+        if (patientUuid) {
+          
+          const policies = await getInsurancePoliciesByPatient(patientUuid);
+          if (policies.length > 0 && policies[0].insuranceCardNo) {
+            policyNumber = policies[0].insuranceCardNo;
+          }
+        }
+      }
+
+      let beneficiaryId;
+      if (policyNumber) {
+        beneficiaryId = await findBeneficiaryByPolicyNumber(policyNumber);
+      }
+
+      if (!beneficiaryId) {
+        throw new Error('Could not determine beneficiary ID. Please verify patient insurance details.');
+      }
+      const itemsByDepartment = {};
+
+      calculatorItems.forEach((item) => {
         if (!itemsByDepartment[item.departmentId]) {
           itemsByDepartment[item.departmentId] = {
             departmentId: item.departmentId,
             departmentName: item.departmentName,
-            items: []
+            items: [],
           };
         }
-        
+
+        let serviceIdForPayload;
+
+        if (item.billableServiceId) {
+          serviceIdForPayload = item.billableServiceId;
+        } else if (item.originalData?.serviceId) {
+          serviceIdForPayload = item.originalData.serviceId;
+        } else if (item.facilityServicePriceId) {
+          serviceIdForPayload = item.facilityServicePriceId;
+        } else {
+          serviceIdForPayload = item.serviceId;
+        }
+
         itemsByDepartment[item.departmentId].items.push({
-          serviceId: item.serviceId,
-          quantity: item.quantity,
+          serviceId: serviceIdForPayload,
           price: item.price,
-          drugFrequency: item.drugFrequency || ""
+          quantity: item.quantity,
+          drugFrequency: item.drugFrequency || '',
+          hopServiceId: item.hopServiceId || item.departmentId,
         });
       });
-      
-      const globalBillId = currentGlobalBillId;
-      
-      if (!globalBillId) {
-        throw new Error("No global bill ID found. Please create a global bill first.");
-      }
 
-      const globalBillIdNumber = parseInt(globalBillId, 10);
-      
-      if (isNaN(globalBillIdNumber)) {
-        throw new Error("Invalid global bill ID format. Expected a number.");
-      }
-      
       let successCount = 0;
       let totalItemsCreated = 0;
-      
+      let errors = [];
+
       for (const deptId in itemsByDepartment) {
         const dept = itemsByDepartment[deptId];
         const deptIdNumber = parseInt(deptId, 10);
-        
+
+        if (isNaN(deptIdNumber)) {
+          console.warn(`Skipping department with invalid ID: ${deptId}`);
+          continue;
+        }
+
         try {
-          try {
-            const result = await createDirectConsommation(
-              globalBillIdNumber, 
-              deptIdNumber, 
-              dept.items
-            );
-            
-            if (result.success) {
-              totalItemsCreated += result.count;
-              successCount++;
-              continue;
-            }
-          } catch (directError) {
-            console.error(`Direct consommation creation failed:`, directError);
-          }
-          
-          const result = await createBillItems(
-            globalBillIdNumber, 
-            deptIdNumber, 
-            dept.items
+          const response = await createDirectConsommationWithBeneficiary(
+            parseInt(globalBillId, 10),
+            deptIdNumber,
+            beneficiaryId,
+            dept.items,
           );
-          
-          if (result.success) {
-            totalItemsCreated += result.count;
+
+          if (response && response.consommationId) {
+            const expectedItems = response._itemsCount || dept.items.length;
+            const actualItems = response._actualItemsReturned || (response.billItems ? response.billItems.length : 0);
+
+            totalItemsCreated += expectedItems;
             successCount++;
+
+            if (actualItems !== expectedItems) {
+              console.warn(
+                `Note: All ${expectedItems} items were saved in the database, but only ${actualItems} were returned in the response. This is due to an API limitation.`,
+              );
+            }
+          } else {
+            throw new Error('Unexpected response format');
           }
         } catch (error) {
-          console.error(`Failed to create billing items for department ${dept.departmentName}:`, error);
+          const errorMsg = `Failed to create consommation for department ${dept.departmentName}: ${error.message}`;
+          console.error(errorMsg, error);
+          errors.push(errorMsg);
         }
       }
-      
+
+      // Process results
       if (successCount === 0) {
-        throw new Error(`Failed to create any billing items. Please check the console for details.`);
+        // If we have detailed errors, show them
+        if (errors.length > 0) {
+          throw new Error(`Failed to create consommations: ${errors.join('. ')}`);
+        } else {
+          throw new Error(`Failed to create any consommations. Please check the console for details.`);
+        }
       } else {
-        const successMessage = totalItemsCreated === 1 
-          ? `Added 1 item to the bill.` 
-          : `Added ${totalItemsCreated} items to the bill.`;
-        
+        // Even if there were some errors, show success for those that worked
+        const successMessage =
+          totalItemsCreated === 1 ? `Added 1 item to the bill.` : `Added ${totalItemsCreated} items to the bill.`;
+
+        let finalMessage = successMessage;
+
+        // If there were partial errors, add a warning
+        if (errors.length > 0) {
+          finalMessage += ` Note: Some items could not be added. Please check the console for details.`;
+        }
+
         showToast({
           title: t('itemsAdded', 'Items Added'),
-          description: successMessage,
-          kind: 'success',
+          description: finalMessage,
+          kind: errors.length > 0 ? 'warning' : 'success',
         });
+
+        // Refresh data and close modal
+        mutate();
+        setIsCalculatorOpen(false);
+        setCurrentGlobalBillId(null);
       }
-      mutate();
-      setIsCalculatorOpen(false);
-      setCurrentGlobalBillId(null);
     } catch (error) {
       console.error('Error saving bill items:', error);
-      setErrorMessage(typeof error === 'string' ? error : error.message || 'Failed to save bill items');
+      const errorMessage = typeof error === 'string' ? error : error.message || 'Failed to save bill items';
+
+      setErrorMessage(errorMessage);
       setShowError(true);
     } finally {
       setIsSaving(false);
     }
-  }, [calculatorItems, currentGlobalBillId, mutate, setErrorMessage, setShowError, t]);
-  
+  }, [calculatorItems, currentGlobalBillId, patientUuid, insuranceCardNo, mutate, t]);
+
   const handleCalculatorUpdate = useCallback((items) => {
     setCalculatorItems(items);
   }, []);
 
   const renderConsommationsTable = (globalBillId) => {
-    const currentBill = lineItems.find(item => item.globalBillId?.toString() === globalBillId?.toString());
+    const currentBill = lineItems.find((item) => item.globalBillId?.toString() === globalBillId?.toString());
     const isGlobalBillClosed = currentBill?.paymentStatus === 'PAID';
-    
+
     return (
       <div className={styles.expandedContent}>
-        <EmbeddedConsommationsList 
-          globalBillId={globalBillId.toString()} 
-          patientUuid={patientUuid} 
-          insuranceCardNo={insuranceCardNo} 
-          onConsommationClick={() => {
-            
-          }}
+        <EmbeddedConsommationsList
+          globalBillId={globalBillId.toString()}
+          patientUuid={patientUuid}
+          insuranceCardNo={insuranceCardNo}
+          onConsommationClick={() => {}}
           onAddNewInvoice={createNewInvoice}
           isGlobalBillClosed={isGlobalBillClosed}
         />
@@ -359,14 +408,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   };
 
   if (isLoading) {
-    return (
-      <DataTableSkeleton 
-        role="progressbar" 
-        compact={isDesktopLayout} 
-        zebra 
-        headers={tableHeaders}
-      />
-    );
+    return <DataTableSkeleton role="progressbar" compact={isDesktopLayout} zebra headers={tableHeaders} />;
   }
 
   if (error) {
@@ -388,7 +430,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         <InlineNotification
           kind="warning"
           title={t('missingIdentifier', 'Missing Identifier')}
-          subtitle={t('identifierRequired', 'Either Patient UUID or Insurance Card Number is required to fetch billing data')}
+          subtitle={t(
+            'identifierRequired',
+            'Either Patient UUID or Insurance Card Number is required to fetch billing data',
+          )}
           hideCloseButton
         />
       </div>
