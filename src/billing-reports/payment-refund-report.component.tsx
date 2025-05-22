@@ -166,9 +166,24 @@ const PaymentRefundReport: React.FC = () => {
       confirmed_by: getColumnValue('confirmed_by'),
       refunded_items: refundedItems,
       actions: (
-        <Button kind="ghost" size="sm" onClick={() => handleViewClick(row)}>
-          {t('view', 'View')}
-        </Button>
+        <div className={styles.actionsCell}>
+          <Button kind="ghost" size="sm" onClick={() => handleViewClick(row)}>
+            {t('view', 'View')}
+          </Button>
+          <Button
+            kind="tertiary"
+            size="sm"
+            onClick={() => {
+              const formattedRecord = row.record.map((item) => ({
+                column: item.column,
+                value: formatValue(item.value),
+              }));
+              exportSingleRecordToPDF(formattedRecord);
+            }}
+          >
+            {t('download', 'Download')}
+          </Button>
+        </div>
       ),
     };
   });
@@ -273,9 +288,20 @@ const PaymentRefundReport: React.FC = () => {
       {isModalOpen && selectedRecord && (
         <Modal
           open={isModalOpen}
-          onRequestClose={closeModal}
           modalHeading={t('paymentRefundDetails', 'Payment Refund Details')}
-          passiveModal={true}
+          primaryButtonText={t('download', 'Download')}
+          secondaryButtonText={t('close', 'Close')}
+          onRequestClose={closeModal}
+          onRequestSubmit={() => {
+            if (!selectedRecord) return;
+            const formattedRecord = selectedRecord.record.map((item) => ({
+              column: item.column,
+              value: formatValue(item.value),
+            }));
+            exportSingleRecordToPDF(formattedRecord);
+            setModalOpen(false);
+          }}
+          passiveModal={false}
           size="sm"
         >
           <ul>
@@ -289,25 +315,6 @@ const PaymentRefundReport: React.FC = () => {
               {refundedItemsDetails || '-'}
             </li>
           </ul>
-
-          <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-            <Button
-              kind="primary"
-              onClick={() => {
-                const formattedRecord = selectedRecord.record.map((item) => ({
-                  column: item.column,
-                  value: formatValue(item.value),
-                }));
-                exportSingleRecordToPDF(formattedRecord);
-              }}
-            >
-              {t('download', 'Download')}
-            </Button>
-
-            <Button kind="secondary" onClick={closeModal}>
-              {t('close', 'Close')}
-            </Button>
-          </div>
         </Modal>
       )}
     </div>
