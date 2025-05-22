@@ -1,0 +1,317 @@
+import React, { useState } from 'react';
+import ReportFilterForm from './report-filter-form.component';
+import {
+  Table,
+  TableHead,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+  Button,
+  Pagination,
+  DataTable,
+  TableContainer,
+  Modal,
+} from '@carbon/react';
+import dayjs from 'dayjs';
+import { exportSingleRecordToPDF, formatValue, formatToYMD } from './utils/download-utils';
+import styles from './billing-reports.scss';
+import { useTranslation } from 'react-i18next';
+import { fetchRefundPaymentReport } from './api/billing-reports';
+
+interface ReportRecord {
+  column: string;
+  value: string | string[];
+}
+
+interface ReportRow {
+  record: ReportRecord[];
+}
+
+interface Filters {
+  startDate: string;
+  endDate: string;
+  collector: string;
+}
+
+const PaymentRefundReport: React.FC = () => {
+  const { t } = useTranslation();
+
+  const [results, setResults] = useState<ReportRow[]>([]);
+  const [columns, setColumns] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [currentFilters, setCurrentFilters] = useState<Filters | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [selectedRecord, setSelectedRecord] = useState<ReportRow | null>(null);
+  const [isModalOpen, setModalOpen] = useState(false);
+
+  // const handleExportClick = async () => {
+  //   if (!currentFilters) return;
+
+  //   setLoading(true);
+  //   try {
+  //     const { startDate, endDate, collector } = currentFilters;
+  //     const allResults = await fetchRefundPaymentReport(formatToYMD(startDate), formatToYMD(endDate), collector);
+
+  //     exportToExcel(columns, allResults, getValue, 'insurance-report.xlsx');
+  //   } catch (error) {
+  //     console.error('Export failed:', error);
+  //     setErrorMessage(t('errorExportingExcel', 'Failed to export to Excel.'));
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  const headerDisplayMap: Record<string, string> = {
+    refund_id: t('refundId', 'Refund Id'),
+    payment_id: t('paymentId', 'Payment Id'),
+    cashier_name: t('cashierName', 'Cashier Name'),
+    submitted_on: t('submittedOn', 'Submitted On'),
+    approvedby: t('approvedBy', 'Approved By'),
+    confirmed_by: t('confirmedBy', 'Confirmed By'),
+    service_name: t('serviceName', 'Service Name'),
+    qty_paid: t('qtyPaid', 'Quantity Paid'),
+    refund_qty: t('refundQty', 'Refund Quantity'),
+    unit_price: t('unitPrice', 'Unit Price'),
+    refund_reason: t('refundReason', 'Refund Reason'),
+  };
+
+  const handleSearch = async (filters: Filters, pageNum = 1, pageSize = 50) => {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const formattedStart = formatToYMD(filters.startDate);
+      const formattedEnd = formatToYMD(filters.endDate);
+
+      const { results, total } = await fetchRefundPaymentReport(
+        formattedStart,
+        formattedEnd,
+        filters.collector,
+        pageNum,
+        pageSize,
+      );
+
+      if (results.length > 0) {
+        const columnNames = results[0].record.map((item) => item.column);
+        setColumns(columnNames);
+      }
+
+      setResults(results);
+      setTotalRecords(total);
+      setPage(pageNum);
+      setPageSize(pageSize);
+      setCurrentFilters(filters);
+    } catch (error) {
+      console.error('Error fetching report:', error);
+      setErrorMessage(t('errorFetchingReport', 'Failed to load report data.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const goToPage = (newPage: number) => {
+    if (currentFilters) {
+      handleSearch(currentFilters, newPage, pageSize);
+    }
+  };
+
+  const getPageSizes = () => [50]; // Only 50 as page size
+
+  const formatDateTime = (dateString: string | string[] | undefined) => {
+    if (!dateString) return '-';
+    const val = Array.isArray(dateString) ? dateString[0] : dateString;
+    return dayjs(val).isValid() ? dayjs(val).format('YYYY-MM-DD HH:mm') : formatValue(val);
+  };
+
+  const handleViewClick = (record: ReportRow) => {
+    setSelectedRecord(record);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setSelectedRecord(null);
+  };
+
+  const rows = results.map((row, index) => {
+    const record = row.record;
+    const id = `${(page - 1) * pageSize + index + 1}`;
+
+    const getColumnValue = (col: string) => {
+      const found = record.find((item) => item.column === col);
+      return found ? formatValue(found.value) : '-';
+    };
+
+    const refundedItemsColumns = ['service_name', 'qty_paid', 'refund_qty', 'unit_price', 'refund_reason'];
+    const refundedItems = record
+      .filter((item) => refundedItemsColumns.includes(item.column))
+      .map((item) => {
+        const label = headerDisplayMap[item.column] || item.column;
+        return `${label}: ${formatValue(item.value) || '-'}`;
+      })
+      .join(', ');
+
+    return {
+      id,
+      no: parseInt(id),
+      refund_id: getColumnValue('refund_id'),
+      payment_id: getColumnValue('payment_id'),
+      cashier_name: getColumnValue('cashier_name'),
+      submitted_on: formatDateTime(record.find((r) => r.column === 'submitted_on')?.value),
+      approvedby: getColumnValue('approvedby'),
+      confirmed_by: getColumnValue('confirmed_by'),
+      refunded_items: refundedItems,
+      actions: (
+        <Button kind="ghost" size="sm" onClick={() => handleViewClick(row)}>
+          {t('view', 'View')}
+        </Button>
+      ),
+    };
+  });
+  const refundedItemsColumns = ['service_name', 'qty_paid', 'refund_qty', 'unit_price', 'refund_reason'];
+
+  const refundedItemsDetails = selectedRecord
+    ? selectedRecord.record
+        .filter((item) => refundedItemsColumns.includes(item.column))
+        .map((item) => {
+          const label = headerDisplayMap[item.column] || item.column;
+          return `${label}: ${formatValue(item.value)}`;
+        })
+        .join(', ')
+    : '';
+  const otherDetails = selectedRecord
+    ? selectedRecord.record.filter((item) => !refundedItemsColumns.includes(item.column))
+    : [];
+  const headers = [
+    { key: 'no', header: t('no', 'No') },
+    { key: 'refund_id', header: t('refundId', 'Refund Id') },
+    { key: 'payment_id', header: t('paymentId', 'Payment Id') },
+    { key: 'cashier_name', header: t('cashierName', 'Cashier Name') },
+    { key: 'submitted_on', header: t('submittedOn', 'Submitted On') },
+    { key: 'approvedby', header: t('approvedBy', 'Approved By') },
+    { key: 'confirmed_by', header: t('confirmedBy', 'Confirmed By') },
+    { key: 'refunded_items', header: t('refundedItemsDetails', 'Refunded Items Details') },
+    { key: 'actions', header: t('actions', 'Actions') },
+  ];
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.reportContent}>
+        <div className={styles.filterSection}>
+          <ReportFilterForm
+            fields={['startDate', 'endDate', 'collector']}
+            onSearch={handleSearch}
+            insuranceOptions={[]}
+          />
+        </div>
+      </div>
+
+      {loading && <p>{t('loading', 'Loading...')}</p>}
+      {errorMessage && <p className={styles.error}>{errorMessage}</p>}
+      {!loading && !errorMessage && results.length === 0 && <p>{t('noResults', 'No results found.')}</p>}
+
+      {!loading && results.length > 0 && (
+        <div className={styles.reportTableContainer}>
+          <DataTable
+            rows={rows}
+            headers={headers}
+            size="lg"
+            useZebraStyles
+            isSortable={true}
+            className={styles.dataTable}
+          >
+            {({ rows, headers, getTableProps, getTableContainerProps, getHeaderProps, getRowProps }) => (
+              <TableContainer {...getTableContainerProps()}>
+                <Table {...getTableProps()} className={styles.table}>
+                  <TableHead>
+                    <TableRow>
+                      {headers.map((header) => (
+                        <TableHeader key={header.key} {...getHeaderProps({ header })}>
+                          {header.header}
+                        </TableHeader>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {rows.map((row) => (
+                      <TableRow key={row.id} {...getRowProps({ row })}>
+                        {row.cells.map((cell) => (
+                          <TableCell key={cell.id} title={cell.value}>
+                            {cell.value}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </DataTable>
+
+          <Pagination
+            backwardText={t('previousPage', 'Previous page')}
+            forwardText={t('nextPage', 'Next page')}
+            itemsPerPageText={t('itemsPerPage', 'Items per page') + ':'}
+            page={page}
+            pageNumberText={t('pageNumber', 'Page number')}
+            pageSize={pageSize}
+            pageSizes={getPageSizes()}
+            onChange={({ page, pageSize }) => {
+              goToPage(page);
+              setPageSize(pageSize);
+            }}
+            totalItems={totalRecords}
+          />
+        </div>
+      )}
+
+      {/* Modal for showing selected record details */}
+      {isModalOpen && selectedRecord && (
+        <Modal
+          open={isModalOpen}
+          onRequestClose={closeModal}
+          modalHeading={t('paymentRefundDetails', 'Payment Refund Details')}
+          passiveModal={true}
+          size="sm"
+        >
+          <ul>
+            {otherDetails.map((item, i) => (
+              <li key={i}>
+                <strong>{headerDisplayMap[item.column] || item.column}:</strong> {formatValue(item.value)}
+              </li>
+            ))}
+            <li>
+              <strong>{t('paymentRefundedItemsDetails', 'Payment Refunded Items Details')}:</strong>{' '}
+              {refundedItemsDetails || '-'}
+            </li>
+          </ul>
+
+          <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+            <Button
+              kind="primary"
+              onClick={() => {
+                const formattedRecord = selectedRecord.record.map((item) => ({
+                  column: item.column,
+                  value: formatValue(item.value),
+                }));
+                exportSingleRecordToPDF(formattedRecord);
+              }}
+            >
+              {t('download', 'Download')}
+            </Button>
+
+            <Button kind="secondary" onClick={closeModal}>
+              {t('close', 'Close')}
+            </Button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+export default PaymentRefundReport;
