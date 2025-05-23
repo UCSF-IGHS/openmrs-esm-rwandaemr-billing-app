@@ -1,6 +1,7 @@
 import { openmrsFetch } from '@openmrs/esm-framework';
-import { formatToYMD } from '../../billing-reports/utils/download-utils';
 
+import { formatToYMD } from '../../billing-reports/utils/download-utils';
+import type { ReportRow } from '../payment-refund-report.component';
 const BASE_MAMBA_API = '/ws/rest/v1/mamba/report';
 
 export async function fetchRefundPaymentReport(
@@ -8,7 +9,7 @@ export async function fetchRefundPaymentReport(
   endDate: string,
   collector: string,
   page_number = 1,
-  page_size = 10,
+  page_size = 50,
 ) {
   const formattedStart = formatToYMD(startDate);
   const formattedEnd = formatToYMD(endDate);
@@ -44,4 +45,39 @@ export async function fetchRefundPaymentReport(
       total: 0,
     };
   }
+}
+
+export async function fetchAllRefundPaymentReport(
+  startDate: string,
+  endDate: string,
+  collector: string,
+  pageSize = 100,
+): Promise<ReportRow[]> {
+  let allResults: ReportRow[] = [];
+  let currentPage = 1;
+  let total = 0;
+  let done = false;
+
+  while (!done) {
+    const { results, total: newTotal } = await fetchRefundPaymentReport(
+      startDate,
+      endDate,
+      collector,
+      currentPage,
+      pageSize,
+    );
+
+    if (currentPage === 1) {
+      total = newTotal;
+    }
+
+    allResults = allResults.concat(results);
+    currentPage++;
+
+    if (allResults.length >= total || results.length === 0) {
+      done = true;
+    }
+  }
+
+  return allResults;
 }

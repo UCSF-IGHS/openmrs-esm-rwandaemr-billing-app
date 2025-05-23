@@ -14,17 +14,17 @@ import {
   Modal,
 } from '@carbon/react';
 import dayjs from 'dayjs';
-import { exportSingleRecordToPDF, formatValue, formatToYMD } from './utils/download-utils';
+import { exportToExcel, formatValue, formatToYMD, exportSingleRecordToPDF } from './utils/download-utils';
 import styles from './billing-reports.scss';
 import { useTranslation } from 'react-i18next';
-import { fetchRefundPaymentReport } from './api/billing-reports';
+import { fetchRefundPaymentReport, fetchAllRefundPaymentReport } from './api/billing-reports';
 
-interface ReportRecord {
+export interface ReportRecord {
   column: string;
   value: string | string[];
 }
 
-interface ReportRow {
+export interface ReportRow {
   record: ReportRecord[];
 }
 
@@ -49,22 +49,27 @@ const PaymentRefundReport: React.FC = () => {
   const [selectedRecord, setSelectedRecord] = useState<ReportRow | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
 
-  // const handleExportClick = async () => {
-  //   if (!currentFilters) return;
+  const getValue = (record: ReportRecord[], column: string): string => {
+    const found = record.find((item) => item.column === column);
+    const value = found?.value;
+    return formatValue(value);
+  };
+  const handleExportClick = async () => {
+    if (!currentFilters) return;
 
-  //   setLoading(true);
-  //   try {
-  //     const { startDate, endDate, collector } = currentFilters;
-  //     const allResults = await fetchRefundPaymentReport(formatToYMD(startDate), formatToYMD(endDate), collector);
+    setLoading(true);
+    try {
+      const { startDate, endDate, collector } = currentFilters;
+      const allResults = await fetchAllRefundPaymentReport(formatToYMD(startDate), formatToYMD(endDate), collector);
 
-  //     exportToExcel(columns, allResults, getValue, 'insurance-report.xlsx');
-  //   } catch (error) {
-  //     console.error('Export failed:', error);
-  //     setErrorMessage(t('errorExportingExcel', 'Failed to export to Excel.'));
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+      exportToExcel(columns, allResults, getValue, 'payment-refund-report.xlsx');
+    } catch (error) {
+      console.error('Export failed:', error);
+      setErrorMessage(t('errorExportingExcel', 'Failed to export to Excel.'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const headerDisplayMap: Record<string, string> = {
     refund_id: t('refundId', 'Refund Id'),
@@ -119,7 +124,7 @@ const PaymentRefundReport: React.FC = () => {
     }
   };
 
-  const getPageSizes = () => [50]; // Only 50 as page size
+  const getPageSizes = () => [10, 20, 50, 100];
 
   const formatDateTime = (dateString: string | string[] | undefined) => {
     if (!dateString) return '-';
@@ -171,7 +176,7 @@ const PaymentRefundReport: React.FC = () => {
             {t('view', 'View')}
           </Button>
           <Button
-            kind="tertiary"
+            kind="ghost"
             size="sm"
             onClick={() => {
               const formattedRecord = row.record.map((item) => ({
@@ -231,6 +236,7 @@ const PaymentRefundReport: React.FC = () => {
 
       {!loading && results.length > 0 && (
         <div className={styles.reportTableContainer}>
+          <Button onClick={handleExportClick}>{t('exportExcel', 'Export to Excel')}</Button>
           <DataTable
             rows={rows}
             headers={headers}
@@ -311,8 +317,16 @@ const PaymentRefundReport: React.FC = () => {
               </li>
             ))}
             <li>
-              <strong>{t('paymentRefundedItemsDetails', 'Payment Refunded Items Details')}:</strong>{' '}
-              {refundedItemsDetails || '-'}
+              <strong>{t('paymentRefundedItemsDetails', 'Payment Refunded Items Details')}:</strong>
+              <ul>
+                {selectedRecord?.record
+                  .filter((item) => refundedItemsColumns.includes(item.column))
+                  .map((item, idx) => (
+                    <li key={idx}>
+                      {headerDisplayMap[item.column] || item.column}: {formatValue(item.value)}
+                    </li>
+                  ))}
+              </ul>
             </li>
           </ul>
         </Modal>
