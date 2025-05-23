@@ -7,15 +7,12 @@ import SearchInsurance from './bill-tabs/search-insurance.component';
 import GlobalBillSearch from './bill-tabs/global-bill-search.component';
 import ConsommationSearch from './bill-tabs/consommation-search.component';
 import BillListTable from './recent-bills/bill-list-table.component';
-import { 
-  RadioButtonGroup,
-  RadioButton,
-  DatePicker,
-  DatePickerInput
-} from '@carbon/react';
+import { RadioButtonGroup, RadioButton, DatePicker, DatePickerInput } from '@carbon/react';
 import { useSession } from '@openmrs/esm-framework';
 import { getGlobalBillSummary } from './api/billing';
-import { formatNumberCurrency } from './metrics/metrics.resources'
+import { formatNumberCurrency } from './metrics/metrics.resources';
+import { CodeSnippetSkeleton } from '@carbon/react';
+import { StructuredListSkeleton } from '@carbon/react';
 
 type SearchOption = 'bill-confirmation' | 'search-insurance' | 'global-bill' | 'consommation';
 
@@ -30,7 +27,7 @@ const Billing: React.FC = () => {
   const [metrics, setMetrics] = useState({
     cumulativeBills: 0,
     pendingBills: 0,
-    paidBills: 0
+    paidBills: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +39,7 @@ const Billing: React.FC = () => {
         setMetrics({
           cumulativeBills: data.total,
           pendingBills: data.open,
-          paidBills: data.closed
+          paidBills: data.closed,
         });
       } catch (err) {
         console.error('Failed to fetch bill summary:', err);
@@ -60,10 +57,11 @@ const Billing: React.FC = () => {
   };
 
   const handleOptionChange = (selected: any): void => {
-    const value = typeof selected === 'object' && selected !== null ? 
-      selected.target?.value || selected.selectedItem?.value || selected : 
-      selected;
-    
+    const value =
+      typeof selected === 'object' && selected !== null
+        ? selected.target?.value || selected.selectedItem?.value || selected
+        : selected;
+
     setActiveOption(value as SearchOption);
   };
 
@@ -90,7 +88,12 @@ const Billing: React.FC = () => {
               <div className={styles.rightSection}>
                 <div className="cds--date-picker-input__wrapper">
                   <span>
-                    <DatePicker datePickerType="single" dateFormat="d-M-Y" value={selectedDate} onChange={handleDateChange}>
+                    <DatePicker
+                      datePickerType="single"
+                      dateFormat="d-M-Y"
+                      value={selectedDate}
+                      onChange={handleDateChange}
+                    >
                       <DatePickerInput
                         id="billing-date-picker"
                         pattern="\d{1,2}\/\d{1,2}\/\d{4}"
@@ -115,24 +118,24 @@ const Billing: React.FC = () => {
         {/* Metrics Cards */}
         <div className={styles.metricsContainer}>
           {loading ? (
-            <p>Loading metrics...</p>
+            <CodeSnippetSkeleton />
           ) : error ? (
             <p style={{ color: 'red' }}>{error}</p>
           ) : (
             <div className={styles.metricsCards}>
-  <div className={styles.metricCard}>
-    <h3 className={styles.metricTitle}>{t('cumulativeBills', 'Cumulative Bills')}</h3>
-    <p className={styles.metricValue}>{formatNumberCurrency(metrics.cumulativeBills)}</p>
-  </div>
-  <div className={styles.metricCard}>
-    <h3 className={styles.metricTitle}>{t('pendingBills', 'Pending Bills')}</h3>
-    <p className={styles.metricValue}>{formatNumberCurrency(metrics.pendingBills)}</p>
-  </div>
-  <div className={styles.metricCard}>
-    <h3 className={styles.metricTitle}>{t('paidBills', 'Paid Bills')}</h3>
-    <p className={styles.metricValue}>{formatNumberCurrency(metrics.paidBills)}</p>
-  </div>
-</div>
+              <div className={styles.metricCard}>
+                <h3 className={styles.metricTitle}>{t('cumulativeBills', 'Cumulative Bills')}</h3>
+                <span className={styles.count}>{formatNumberCurrency(metrics.cumulativeBills)}</span>
+              </div>
+              <div className={styles.metricCard}>
+                <h3 className={styles.metricTitle}>{t('pendingBills', 'Pending Bills')}</h3>
+                <span className={styles.count}>{formatNumberCurrency(metrics.pendingBills)}</span>
+              </div>
+              <div className={styles.metricCard}>
+                <h3 className={styles.metricTitle}>{t('paidBills', 'Paid Bills')}</h3>
+                <span className={styles.count}>{formatNumberCurrency(metrics.paidBills)}</span>
+              </div>
+            </div>
           )}
         </div>
 
@@ -144,10 +147,22 @@ const Billing: React.FC = () => {
             onChange={handleOptionChange}
             orientation="horizontal"
           >
-            <RadioButton id="bill-confirmation" labelText={t('billConfirmation', 'Bill Confirmation')} value="bill-confirmation" />
-            <RadioButton id="search-insurance" labelText={t('searchInsurancePolicy', 'Search Insurance Policy')} value="search-insurance" />
+            <RadioButton
+              id="bill-confirmation"
+              labelText={t('billConfirmation', 'Bill Confirmation')}
+              value="bill-confirmation"
+            />
+            <RadioButton
+              id="search-insurance"
+              labelText={t('searchInsurancePolicy', 'Search Insurance Policy')}
+              value="search-insurance"
+            />
             <RadioButton id="global-bill" labelText={t('searchGlobalBill', 'Search Global Bill')} value="global-bill" />
-            <RadioButton id="consommation" labelText={t('searchConsommations', 'Search Consommations')} value="consommation" />
+            <RadioButton
+              id="consommation"
+              labelText={t('searchConsommations', 'Search Consommations')}
+              value="consommation"
+            />
           </RadioButtonGroup>
         </div>
 

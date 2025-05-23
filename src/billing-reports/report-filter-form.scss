@@ -19,12 +19,12 @@
 }
 
 :global(.cds--dropdown) {
-  height: auto;
+  height: 2.5rem;
   background-color: colors.$white-0;
   border: 1px solid colors.$gray-20;
 }
 
-input[type="date"] {
+input[type="date"], input[type="text"], input[type="number"] {
   background-color: colors.$white-0;
   border: 1px solid colors.$gray-20;
   padding: layout.$spacing-03;

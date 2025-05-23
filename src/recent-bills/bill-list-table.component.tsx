@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { 
+import {
   DataTable,
   DataTableSkeleton,
   Dropdown,
@@ -14,7 +14,7 @@ import {
   TableCell,
   TableContainer,
   Tile,
-  Layer
+  Layer,
 } from '@carbon/react';
 import { isDesktop, useLayoutType, usePagination, ErrorState } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
@@ -25,28 +25,28 @@ const BillListTable: React.FC = () => {
   const { t } = useTranslation();
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
-  
+
   const [bills, setBills] = useState<Array<any>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   const [billPaymentStatus, setBillPaymentStatus] = useState('');
   const [searchString, setSearchString] = useState('');
   const [searchCategory, setSearchCategory] = useState('policyId');
-  
+
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
-  
+
   const endDate = new Date().toISOString().split('T')[0];
   const startDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  
+
   useEffect(() => {
     const fetchBills = async () => {
       try {
         setIsLoading(true);
         const response = await getPatientBills(startDate, endDate, 0, 100);
-        
-        const billsWithDefaults = response.results.map(bill => ({
+
+        const billsWithDefaults = response.results.map((bill) => ({
           ...bill,
           beneficiaryName: bill.beneficiaryName || '--',
           policyIdNumber: bill.policyIdNumber || '--',
@@ -54,9 +54,9 @@ const BillListTable: React.FC = () => {
           creator: bill.creator || '--',
           departmentName: bill.departmentName || '--',
           // Use the service name directly from the response with TypeScript type assertion
-          serviceName: (bill as any).serviceName || bill.departmentName || '--'
+          serviceName: (bill as any).serviceName || bill.departmentName || '--',
         }));
-        
+
         setBills(billsWithDefaults);
         setTotalItems(response.results?.length || 0);
         setIsLoading(false);
@@ -65,7 +65,7 @@ const BillListTable: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchBills();
   }, [startDate, endDate]);
 
@@ -80,38 +80,37 @@ const BillListTable: React.FC = () => {
   const filteredBills = React.useMemo(() => {
     if (!bills?.length) return bills;
 
-    return bills
-      .filter((bill) => {
-        const billStatus = getBillStatus(bill);
-        
-        const statusMatch = billPaymentStatus === '' ? true : billStatus === billPaymentStatus;
-        
-        let searchMatch = true;
-        
-        if (searchString) {
-          const lowerSearchString = searchString.toLowerCase();
-          
-          switch (searchCategory) {
-            case 'beneficiary':
-              searchMatch = bill.beneficiaryName?.toLowerCase().includes(lowerSearchString);
-              break;
-            case 'billedItems':
-              searchMatch = bill.serviceName?.toLowerCase().includes(lowerSearchString);
-              break;
-            case 'policyId':
-              searchMatch = bill.policyIdNumber?.toLowerCase().includes(lowerSearchString);
-              break;
-            default:
-              searchMatch = 
-                bill.beneficiaryName?.toLowerCase().includes(lowerSearchString) ||
-                bill.policyIdNumber?.toLowerCase().includes(lowerSearchString) ||
-                bill.serviceName?.toLowerCase().includes(lowerSearchString);
-              break;
-          }
-        }
+    return bills.filter((bill) => {
+      const billStatus = getBillStatus(bill);
 
-        return statusMatch && searchMatch;
-      });
+      const statusMatch = billPaymentStatus === '' ? true : billStatus === billPaymentStatus;
+
+      let searchMatch = true;
+
+      if (searchString) {
+        const lowerSearchString = searchString.toLowerCase();
+
+        switch (searchCategory) {
+          case 'beneficiary':
+            searchMatch = bill.beneficiaryName?.toLowerCase().includes(lowerSearchString);
+            break;
+          case 'billedItems':
+            searchMatch = bill.serviceName?.toLowerCase().includes(lowerSearchString);
+            break;
+          case 'policyId':
+            searchMatch = bill.policyIdNumber?.toLowerCase().includes(lowerSearchString);
+            break;
+          default:
+            searchMatch =
+              bill.beneficiaryName?.toLowerCase().includes(lowerSearchString) ||
+              bill.policyIdNumber?.toLowerCase().includes(lowerSearchString) ||
+              bill.serviceName?.toLowerCase().includes(lowerSearchString);
+            break;
+        }
+      }
+
+      return statusMatch && searchMatch;
+    });
   }, [bills, searchString, billPaymentStatus, searchCategory]);
 
   const { paginated, goTo, results, currentPage } = usePagination(filteredBills, pageSize);
@@ -134,44 +133,44 @@ const BillListTable: React.FC = () => {
   const headerData = [
     {
       header: t('date', 'Date'),
-      key: 'date'
+      key: 'date',
     },
     {
       header: t('policyId', 'Policy ID'),
-      key: 'policyId'
+      key: 'policyId',
     },
     {
       header: t('beneficiary', 'Beneficiary'),
-      key: 'beneficiary'
+      key: 'beneficiary',
     },
     {
       header: t('insuranceName', 'Insurance Name'),
-      key: 'insuranceName'
+      key: 'insuranceName',
     },
     {
       header: t('billedItems', 'Billed Items'),
-      key: 'billedItems'
+      key: 'billedItems',
     },
     {
       header: t('total', 'Total'),
-      key: 'total'
+      key: 'total',
     },
     {
       header: t('patientDue', 'Patient Due'),
-      key: 'patientDue'
+      key: 'patientDue',
     },
     {
       header: t('paidAmount', 'Paid Amount'),
-      key: 'paidAmount'
+      key: 'paidAmount',
     },
     {
       header: t('billStatus', 'Bill Status'),
-      key: 'billStatus'
+      key: 'billStatus',
     },
     {
       header: t('refId', 'Ref ID'),
-      key: 'refId'
-    }
+      key: 'refId',
+    },
   ];
 
   const filterItems = [
@@ -183,17 +182,17 @@ const BillListTable: React.FC = () => {
   const searchCategories = [
     { id: 'policyId', text: t('policyId', 'Policy ID') },
     { id: 'beneficiary', text: t('beneficiaryName', 'Beneficiary name') },
-    { id: 'billedItems', text: t('billedItems', 'Billed items') }
+    { id: 'billedItems', text: t('billedItems', 'Billed items') },
   ];
 
   const rowData = results?.map((bill, index) => {
     const totalPaid = bill.payments?.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0) || 0;
-    
+
     const status = getBillStatus(bill);
-    
+
     // Use the serviceName directly from the bill
     const billItems = bill.serviceName || bill.departmentName || '--';
-    
+
     return {
       id: `${index}`,
       date: formatDateDisplay(bill.createdDate),
@@ -205,7 +204,7 @@ const BillListTable: React.FC = () => {
       paidAmount: totalPaid.toFixed(2),
       billStatus: status,
       refId: bill.patientBillId?.toString() || '--',
-      billedItems: billItems
+      billedItems: billItems,
     };
   });
 
@@ -271,7 +270,7 @@ const BillListTable: React.FC = () => {
           <div className={styles.filterContainer}>
             <span className={styles.filterByLabel}>{t('filterBy', 'Filter by')}:</span>
             <Dropdown
-              className={styles.filterDropdown}
+              className={styles.searchCategoryDropdown}
               direction="bottom"
               id="filter-dropdown"
               initialSelectedItem={filterItems[0]}

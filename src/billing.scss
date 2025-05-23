@@ -16,7 +16,7 @@
   overflow-x: hidden;
   position: relative;
   background: colors.$white-0;
-  margin: layout.$spacing-07 0;
+  margin: layout.$spacing-05 0;
 }
 
 /* Header Styles */
@@ -39,7 +39,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: layout.$spacing-05 layout.$spacing-05 layout.$spacing-05;
+  padding: 0 layout.$spacing-05 0;
   background-color: colors.$white-0;
 }
 
@@ -103,19 +103,17 @@
 }
 
 .metricTitle {
-  @include type.type-style('heading-compact-01');
-  color: colors.$gray-70;
+  @include type.type-style('heading-compact-02');
   margin-bottom: layout.$spacing-03;
   margin-top: 0;
 }
 
-.metricValue {
+.count {
   @include type.type-style('heading-04');
-  color: colors.$gray-100;
-  font-weight: 600;
-  margin: 0;
+  display: inline-block;
+  font-weight: 300;
+  margin-top: layout.$spacing-05;
 }
-
 /* Radio Navigation Styles */
 .radioNavigationContainer {
   padding: layout.$spacing-05;
