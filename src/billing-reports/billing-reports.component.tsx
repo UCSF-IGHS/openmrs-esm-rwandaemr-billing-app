@@ -8,7 +8,7 @@ import FindBillsReport from './find-bills-report.component';
 import CashierReport from './cashier-report.component';
 import DepositsReport from './deposits-report.component';
 import ServiceRevenueReport from './service-revenue-report.component';
-import RefundReport from './refund-report.component';
+import PaymentRefundReport from './payment-refund-report.component';
 import InsuranceReport from './insurance-report.component';
 import ThirdPartyReport from './third-party-report.component';
 import DcpProviderReport from './dcp-provider-report.component';
@@ -32,7 +32,7 @@ const BillingReportsHome: React.FC = () => {
       { key: 'cashierReport', label: t('cashierReport', 'Cashier Report') },
       { key: 'deposits', label: t('deposits', 'Deposits') },
       { key: 'serviceReport', label: t('serviceReport', 'Service Report') },
-      { key: 'refundReport', label: t('refundReport', 'Refund Report') },
+      { key: 'paymentRefundReport', label: t('paymentrefundReport', 'Payment Refund Report') },
       { key: 'insuranceReport', label: t('insuranceReport', 'Insurance Report') },
       { key: 'thirdPartyReport', label: t('thirdPartyReport', 'Third Party Report') },
       { key: 'dcpProviderReport', label: t('dcpProviderReport', 'DCP Provider Report') },
@@ -107,7 +107,7 @@ const BillingReportsHome: React.FC = () => {
           {activeReport === 'cashierReport' && <CashierReport />}
           {activeReport === 'deposits' && <DepositsReport />}
           {activeReport === 'serviceReport' && <ServiceRevenueReport />}
-          {activeReport === 'refundReport' && <RefundReport />}
+          {activeReport === 'paymentRefundReport' && <PaymentRefundReport />}
           {activeReport === 'insuranceReport' && <InsuranceReport />}
           {activeReport === 'thirdPartyReport' && <ThirdPartyReport />}
           {activeReport === 'dcpProviderReport' && <DcpProviderReport />}
