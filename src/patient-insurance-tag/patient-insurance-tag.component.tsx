@@ -7,7 +7,7 @@ interface PatientInsuranceTagProps {
 }
 
 const PatientInsuranceTag: React.FC<PatientInsuranceTagProps> = ({ patientUuid }) => {
-  const { data, isLoading } = usePatientInsurancePolicies(patientUuid);
+  const { data, isLoading, mutate } = usePatientInsurancePolicies(patientUuid);
 
   if (!isLoading && data.length === 0) {
     return (

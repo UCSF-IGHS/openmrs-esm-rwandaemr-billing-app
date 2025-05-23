@@ -1,5 +1,5 @@
-import useSWR from 'swr';
-import { type OpenmrsResource, openmrsFetch, restBaseUrl, useConfig } from '@openmrs/esm-framework';
+import useSWR, { mutate } from 'swr';
+import { openmrsFetch, restBaseUrl, useConfig } from '@openmrs/esm-framework';
 
 const BASE_API_URL = '/ws/rest/v1/mohbilling';
 
@@ -315,6 +315,8 @@ export const createAdmissionWithGlobalBill = async (data: any): Promise<any> => 
     });
 
     // Return the global bill
+    const swrKey = `${BASE_API_URL}/insurancePolicy?patient=${data.patientUuid}&v=full`;
+    mutate(swrKey);
     return {
       globalBill,
     };

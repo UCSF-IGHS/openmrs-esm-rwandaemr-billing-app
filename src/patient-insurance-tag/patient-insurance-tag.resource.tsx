@@ -7,7 +7,7 @@ export function usePatientInsurancePolicies(patientUuid: string) {
   const url = `${BASE_API_URL}/insurancePolicy?patient=${patientUuid}&v=full`;
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<{
-    data: { results: Array<InsurancePolicy>; totalCount };
+    data: { results: Array<InsurancePolicy>; totalCount: number };
   }>(url, openmrsFetch);
 
   return {
@@ -17,5 +17,6 @@ export function usePatientInsurancePolicies(patientUuid: string) {
     isValidating,
     mutate,
     totalCount: data?.data.totalCount ?? 0,
+    key: url, // expose the key for external mutation
   };
 }

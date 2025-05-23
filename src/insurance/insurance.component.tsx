@@ -22,6 +22,7 @@ import { launchPatientWorkspace } from '@openmrs/esm-patient-common-lib';
 import { fetchInsuranceFirms, loadInsurancePolicies } from './insurance-resource';
 import dayjs from 'dayjs';
 import EditInsuranceModal from './edit-insurance.workspace';
+import { TableToolbarSearch } from '@carbon/react';
 
 const Insurance = ({ patientUuid }) => {
   const { t } = useTranslation();
@@ -135,21 +136,10 @@ const Insurance = ({ patientUuid }) => {
             onClick={() => launchPatientWorkspace('insurance-form-workspace', { patientUuid })}
             kind="ghost"
           >
-            {t('addNewInsurancePolicy', 'Add New Insurance Policy')}
+            {t('addNewPolicy', 'Add new policy')}
           </Button>
         </div>
       </CardHeader>
-
-      {/* Add a search box for filtering */}
-      <TextInput
-        id="search-insurance"
-        placeholder={t('searchPlaceholder', 'Search insurance...')}
-        value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          setPage(1);
-        }}
-      />
 
       {filteredEntries.length === 0 ? (
         <EmptyState
@@ -184,6 +174,17 @@ const Insurance = ({ patientUuid }) => {
           >
             {({ rows, headers, getTableProps, getRowProps, getHeaderProps }) => (
               <TableContainer>
+                <TableToolbarSearch
+                  className={styles.searchbox}
+                  expanded
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setSearchTerm(e.target.value), setPage(1);
+                  }}
+                  placeholder={t('searchPlaceholder', 'Search insurance...')}
+                  size={'md'}
+                  persistent
+                  light
+                />
                 <Table {...getTableProps()} aria-label="Insurance details table">
                   <TableHead>
                     <TableRow>

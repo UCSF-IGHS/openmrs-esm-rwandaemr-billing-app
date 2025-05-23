@@ -9,11 +9,13 @@
   background-color: $ui-01;
   border: 1px solid $ui-03;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  
+  padding: layout.$spacing-05;
+  cursor: pointer;
+
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    background-color: $ui-01;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    background-color: $ui-02;
   }
 }
 
@@ -23,34 +25,46 @@
   align-items: center;
   gap: layout.$spacing-03;
   color: $text-02;
-  border-bottom: 1px solid $ui-03;
+  padding-bottom: layout.$spacing-03;
+  margin-bottom: layout.$spacing-04;
 
   svg {
     fill: $interactive-01;
+  }
+
+  h5 {
+    margin: 0;
+    font-weight: 600;
   }
 }
 
 .detailsList {
   margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: layout.$spacing-02;
 }
 
 .detailItem {
   display: flex;
   justify-content: space-between;
-  
+  padding: layout.$spacing-01 0;
+
   dt {
     @include type.type-style('body-compact-01');
     color: $text-02;
-    flex: 1;
+    flex: 0.8;
+    font-size: 0.875rem;
   }
-  
+
   dd {
     @include type.type-style('body-compact-01');
     margin: 0;
     text-align: right;
-    flex: 1;
+    flex: 0.8;
     font-weight: 600;
+    font-size: 0.875rem;
   }
 
   &:last-child {

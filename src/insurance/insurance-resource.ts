@@ -1,8 +1,8 @@
 import { openmrsFetch } from '@openmrs/esm-framework';
+import { mutate } from 'swr';
 
 const BASE_API_URL = '/ws/rest/v1/mohbilling';
 const BASE_MAMBA_API = '/ws/rest/v1/mamba/report';
-const BASE_APIS_URL = '/ws/rest/v1';
 
 export async function fetchInsuranceFirms() {
   const params = new URLSearchParams({ report_id: 'insurance_firm_report' });
@@ -60,6 +60,9 @@ export async function createInsurancePolicy(payload, patientUuid): Promise<any> 
       throw new Error(errorMessage);
     }
 
+    // Return the global bill
+    const swrKey = `${BASE_API_URL}/insurancePolicy?patient=${response.data.owner.person.uuid}&v=full`;
+    mutate(swrKey);
     return response.json();
   } catch (err) {
     console.error('Error creating insurance policy:', err);

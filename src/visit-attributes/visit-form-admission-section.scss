@@ -61,9 +61,13 @@
 
 .errorContainer {
   margin-bottom: layout.$spacing-05;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .error {
+  width: 100%;
   margin-top: layout.$spacing-03;
 }
 
@@ -71,3 +75,4 @@
   color: colors.$red-60;
   margin-left: layout.$spacing-01;
 }
+

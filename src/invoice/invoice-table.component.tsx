@@ -32,7 +32,6 @@ import {
   usePatient,
   usePagination,
   showToast,
-  openmrsFetch,
 } from '@openmrs/esm-framework';
 import { CardHeader, EmptyState, usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import styles from './invoice-table.scss';
@@ -40,7 +39,11 @@ import { usePatientBill, useInsuranceCardBill } from './invoice.resource';
 import GlobalBillHeader from '.././bill-list/global-bill-list.component';
 import EmbeddedConsommationsList from '../consommation/embedded-consommations-list.component';
 import ServiceCalculator from './service-calculator.component';
-import { createDirectConsommationWithBeneficiary, findBeneficiaryByPolicyNumber, getInsurancePoliciesByPatient } from '../api/billing';
+import {
+  createDirectConsommationWithBeneficiary,
+  findBeneficiaryByPolicyNumber,
+  getInsurancePoliciesByPatient,
+} from '../api/billing';
 
 interface InvoiceTableProps {
   patientUuid?: string;
@@ -61,7 +64,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   const patientUuid = props.patientUuid || patient?.id || '';
 
   const insuranceCardNo = props.insuranceCardNo || '';
-  
+
   const patientBillResponse = usePatientBill(patientUuid || '');
   const insuranceBillResponse = useInsuranceCardBill(insuranceCardNo || '');
 
@@ -252,7 +255,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       let policyNumber = insuranceCardNo;
       if (!policyNumber) {
         if (patientUuid) {
-          
           const policies = await getInsurancePoliciesByPatient(patientUuid);
           if (policies.length > 0 && policies[0].insuranceCardNo) {
             policyNumber = policies[0].insuranceCardNo;
@@ -491,29 +493,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
                     <TableExpandHeader />
                     {headers.map((header) => (
                       <TableHeader
-                        className={`${styles.tableHeader} ${
-                          header.key === 'globalBillId'
-                            ? styles.colGlobalBillId
-                            : header.key === 'date'
-                              ? styles.colDate
-                              : header.key === 'createdBy'
-                                ? styles.colCreatedBy
-                                : header.key === 'policyId'
-                                  ? styles.colPolicyId
-                                  : header.key === 'admissionDate'
-                                    ? styles.colAdmissionDate
-                                    : header.key === 'dischargeDate'
-                                      ? styles.colDischargeDate
-                                      : header.key === 'billIdentifier'
-                                        ? styles.colBillId
-                                        : header.key === 'patientDueAmount'
-                                          ? styles.colAmount
-                                          : header.key === 'paidAmount'
-                                            ? styles.colPaid
-                                            : header.key === 'paymentStatus'
-                                              ? styles.colStatus
-                                              : ''
-                        }`}
+                        className={styles.tableHeader}
                         {...getHeaderProps({
                           header,
                           isSortable: header.isSortable,
@@ -538,7 +518,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
                             cell.info.header === 'globalBillId' ? styles.colGlobalBillId : ''
                           } ${cell.info.header === 'date' ? styles.colDate : ''} ${
                             cell.info.header === 'createdBy' ? styles.colCreatedBy : ''
-                          } ${cell.info.header === 'policyId' ? styles.colPolicyId : ''} ${
+                          } ${cell.info.header === 'policyId' ? styles.colBillId : ''} ${
                             cell.info.header === 'admissionDate' ? styles.colAdmissionDate : ''
                           } ${cell.info.header === 'dischargeDate' ? styles.colDischargeDate : ''} ${
                             cell.info.header === 'patientDueAmount' ? styles.colAmount : ''
