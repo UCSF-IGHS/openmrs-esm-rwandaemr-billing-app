@@ -32,114 +32,12 @@ $disabled-03: #8d8d8d !default;
   }
 }
 
-.table {
-  width: 100% !important;
-  table-layout: auto;
-}
-
-.clickableRow {
-  cursor: pointer;
-  transition: background-color 0.15s;
-  
-  &:hover {
-    background-color: #e5e5e5;
-  }
-}
-
-.actionsContainer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: layout.$spacing-05;
-  margin-top: layout.$spacing-03;
-  border-top: 1px solid $ui-03;
-  width: 100%;
-}
-
-.paymentActions {
-  display: flex;
-  align-items: center;
-  gap: layout.$spacing-05;
-  justify-content: flex-end;
-  width: 100%;
-}
-
-.selectedSummary {
-  font-weight: 600;
-  color: $text-02;
-  white-space: nowrap;
-}
-
-.noData {
-  text-align: center;
-  padding: layout.$spacing-07;
-  color: $text-02;
-  font-style: italic;
-}
-  
-  .actionsContainer {
-    flex-direction: column;
-    gap: layout.$spacing-05;
-    align-items: flex-start;
-  }
-  
-  .paymentActions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-
-@media (max-width: 768px) {
-  .totals {
-    flex-direction: column;
-    gap: layout.$spacing-03;
-  }
-}
-
-.statusBadge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: bold;
-}
-
-.paidStatus {
-  background-color: #defbe6;
-  color: #0e6027;
-}
-
-.partiallyPaidStatus {
-  background-color: #fff8e1;
-  color: #b28704;
-}
-
-.unpaidStatus {
-  background-color: #fff1f1;
-  color: #da1e28;
-}
-
-:global {
-  .cds--modal-close {
-    background: none !important;
-  }
-}
-
-/* Add these styles to your embedded-consommations-list.scss file */
-.container {
-  width: 100%;
-  padding: 0;
-}
-
-.tableHeader {
-  margin-bottom: 1rem;
-}
-
 .headerTitleContainer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  margin-bottom: 0.5rem;
+  margin-bottom: layout.$spacing-03;
 }
 
 .headerTitleInfo {
@@ -151,45 +49,255 @@ $disabled-03: #8d8d8d !default;
   color: #da1e28;
   font-size: 0.875rem;
   font-weight: 500;
-  margin-top: 0.25rem;
+  margin-top: layout.$spacing-02;
 }
 
 .table {
-  width: 100%;
+  width: 100% !important;
+  table-layout: fixed; // Changed from auto to fixed
 }
 
 .clickableRow {
   cursor: pointer;
+  transition: background-color 0.15s;
+  
+  &:hover {
+    background-color: #e5e5e5;
+  }
 }
 
+// New accordion-specific styles
+.accordionContainer {
+  margin: layout.$spacing-05 0;
+  width: 100%; // Ensure full width
+  
+  :global(.cds--accordion__item) {
+    border-bottom: 1px solid $ui-03;
+  }
+  
+  :global(.cds--accordion__heading) {
+    background-color: $ui-01;
+    
+    &:hover {
+      background-color: $ui-02;
+    }
+  }
+  
+  :global(.cds--accordion__content) {
+    padding: layout.$spacing-05;
+    background-color: $ui-01;
+    overflow: hidden; // Prevent content overflow
+  }
+}
+
+.accordionTitle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: layout.$spacing-03 0;
+  
+  .consommationInfo {
+    display: flex;
+    gap: layout.$spacing-05;
+    align-items: center;
+    flex: 1;
+    min-width: 0; // Allow flex items to shrink
+    
+    .consommationId {
+      font-weight: 600;
+      color: #0f62fe;
+      font-size: 0.875rem;
+      white-space: nowrap; // Prevent ID from wrapping
+    }
+    
+    .consommationService {
+      font-weight: 500;
+      color: #161616;
+      font-size: 0.875rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .consommationDate {
+      color: $text-02;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+  }
+  
+  .consommationStatus {
+    margin-left: auto;
+    flex-shrink: 0; // Prevent status from shrinking
+  }
+}
+
+// Items table styles
+.consommationItems {
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+
+.loadingItems {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.noItems {
+  text-align: center;
+  padding: 2rem;
+  color: #6f6f6f;
+  font-style: italic;
+}
+
+.itemsTable {
+  overflow-x: auto;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.itemsDataTable {
+  width: 100%;
+  border-collapse: collapse;
+  
+  th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 0.875rem;
+  }
+  
+  th {
+    background-color: #f4f4f4;
+    font-weight: 600;
+    color: #161616;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  
+  tr:hover {
+    background-color: #f8f9fa;
+  }
+}
+
+.selectedItemRow {
+  background-color: #e8f4ff !important;
+  border-left: 3px solid #0f62fe;
+}
+
+.itemNameCell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Status badge styles for items - Updated for PAID/UNPAID only
+.statusBadge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  display: inline-block;
+  min-width: 60px;
+  text-align: center;
+}
+
+// Actions container
+.actionsContainer {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.paymentActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.selectedSummary {
+  color: #161616;
+  font-weight: 500;
+  margin: 0;
+  flex: 1;
+  min-width: 200px;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 1rem;
+}
+
+// Empty state
 .emptyStateContainer {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: 3rem 1rem;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   text-align: center;
-  gap: 1rem;
 }
 
 .noData {
-  font-size: 1rem;
-  color: #525252;
-  margin-bottom: 1rem;
+  color: #6f6f6f;
+  font-size: 1.125rem;
+  margin-bottom: 1.5rem;
 }
 
-.actionsContainer {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 1rem;
-}
-
-.paymentActions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.selectedSummary {
-  font-weight: 500;
+// Responsive styles
+@media (max-width: 768px) {
+  .container {
+    padding: 0.5rem;
+  }
+  
+  .paymentActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .selectedSummary {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  
+  .actionButtons {
+    justify-content: center;
+  }
+  
+  .accordionTitle {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .consommationInfo {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .itemsDataTable {
+    font-size: 0.75rem;
+    
+    th, td {
+      padding: 0.5rem 0.25rem;
+    }
+  }
+  
+  .itemNameCell {
+    max-width: 120px;
+  }
 }

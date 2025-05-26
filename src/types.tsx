@@ -87,6 +87,8 @@ export interface Bill {
   resourceVersion: string;
 }
 
+export type PaymentStatus = 'PAID' | 'UNPAID' | 'PARTIALLY PAID';
+
 export interface MappedBill {
   uuid: number;
   globalBillId: number;
@@ -99,8 +101,16 @@ export interface MappedBill {
   billIdentifier: string;
   patientDueAmount: number;
   paidAmount: number;
-  paymentStatus: string | null;
+  paymentStatus: PaymentStatus;
   bill: boolean;
+  isPaid?: boolean;
+}
+
+export interface ConsommationStatus {
+  consommationId: number;
+  status: PaymentStatus;
+  totalAmount: number;
+  paidAmount: number;
 }
 
 export interface ConsommationListItem {
@@ -196,4 +206,53 @@ export interface InsurancePolicyRecord {
   insuranceCardNo: string;
   coverageStartDate: string;
   expirationDate: string;
+}
+
+export interface ExtendedConsommationItem extends ConsommationItem {
+  serviceId?: number;
+  selected?: boolean;
+}
+
+export interface SelectedItemInfo {
+  item: ExtendedConsommationItem;
+  consommationId: string;
+  consommationService: string;
+}
+
+export interface ExtendedConsommationListItem extends ConsommationListItem {
+  items: ExtendedConsommationItem[];
+  isLoadingItems: boolean;
+  insuranceRates: {
+    insuranceRate: number;
+    patientRate: number;
+  };
+}
+
+export interface GroupedConsommationItems {
+  consommationId: string;
+  consommationService: string;
+  items: ExtendedConsommationItem[];
+}
+
+export interface PaymentFormProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  selectedItems: SelectedItemInfo[];
+  onItemToggle: (consommationId: string, itemIndex: number) => void;
+}
+
+export interface EmbeddedConsommationsListProps {
+  globalBillId: string;
+  patientUuid?: string;
+  insuranceCardNo?: string;
+  onConsommationClick?: (consommationId: string) => void;
+  onAddNewInvoice?: (globalBillId: string) => void;
+  isGlobalBillClosed?: boolean;
+}
+
+export interface InsuranceRatesResponse {
+  insuranceRate: number;
+  patientRate: number;
+  insuranceName?: string;
 }
