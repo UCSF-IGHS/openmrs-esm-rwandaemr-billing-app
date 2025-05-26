@@ -13,6 +13,7 @@ import {
   OverflowMenu,
   OverflowMenuItem,
   Pagination,
+  Tag,
 } from '@carbon/react';
 import { Add } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
@@ -107,6 +108,11 @@ const Insurance = ({ patientUuid }) => {
             hasThirdParty: policy.thirdPartyProvider ? t('yes', 'Yes') : t('no', 'No'),
             thirdPartyProvider: policy.thirdPartyProvider?.name ?? t('notAvailable', 'N/A'),
             insurancePolicyNo: policy.insurancePolicyId,
+            status: (
+              <Tag type={new Date(policy.expirationDate) < new Date() ? 'red' : 'green'}>
+                {new Date(policy.expirationDate) < new Date() ? 'Expired' : 'Valid'}
+              </Tag>
+            ),
           }));
 
         setEntries(mapped);
@@ -124,6 +130,7 @@ const Insurance = ({ patientUuid }) => {
     { key: 'cardNumber', header: t('membershipNumber', 'Membership Number') },
     { key: 'startDate', header: t('coverageStartDate', 'Coverage Start Date') },
     { key: 'endDate', header: t('coverageEndDate', 'Coverage End Date') },
+    { key: 'status', header: t('status', 'Status') },
     { key: 'actions', header: t('actions', 'Actions') },
   ];
 
