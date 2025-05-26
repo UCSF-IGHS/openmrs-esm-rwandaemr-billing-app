@@ -14,10 +14,7 @@ import { isDesktop, showToast, useLayoutType, useSession, usePagination } from '
 import { getConsommationsByGlobalBillId, getConsommationItems, getConsommationById, getConsommationRates } from '../api/billing';
 import { 
   isItemPaid, 
-  isItemPartiallyPaid, 
-  calculateTotalDueForSelected,
-  areAllItemsPaid,
-  computePaymentStatus
+  isItemPartiallyPaid,
 } from '../utils/billing-calculations';
 import { type ConsommationListResponse, type ConsommationListItem, type ConsommationItem, type RowData } from '../types';
 import styles from './embedded-consommations-list.scss';
@@ -124,42 +121,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     return status;
   }, [getPersistedPaymentStatus, persistPaymentStatus, globalBillId]);
 
-  const fetchConsommations = useCallback(async () => {
-    if (!globalBillId) return;
-    
-    setIsLoading(true);
-    try {
-      const data = await getConsommationsByGlobalBillId(globalBillId);
-      setConsommations(data);
-      
-      if (data && data.results && data.results.length > 0) {
-        const consommationsWithItemsData: ConsommationWithItems[] = data.results.map(consommation => ({
-          ...consommation,
-          items: [],
-          isLoadingItems: false,
-          itemsLoaded: false,
-          insuranceRates: {
-            insuranceRate: 0,
-            patientRate: 100
-          }
-        }));
-        
-        setConsommationsWithItems(consommationsWithItemsData);
-        
-        loadConsommationStatuses(data.results);
-      }
-    } catch (error) {
-      showToast({
-        title: t('error', 'Error'),
-        description: error.message,
-        kind: 'error',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [globalBillId, t]);
-
-  const loadConsommationStatuses = async (consommationsList: ConsommationListItem[]) => {
+  const loadConsommationStatuses = useCallback(async (consommationsList: ConsommationListItem[]) => {
     const statusPromises = consommationsList.map(async (consommation) => {
       const consommationId = consommation.consommationId?.toString() || '';
       if (!consommationId) return { consommationId, status: 'UNPAID' };
@@ -175,7 +137,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
         const rawPaidAmount = Number(
           consommation.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0
         );
-        
+
         if (rawPaidAmount >= rawPatientDue && rawPatientDue > 0) {
           return { consommationId, status: 'PAID' };
         } else {
@@ -197,7 +159,42 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
     } catch (error) {
       console.error('Error loading consommation statuses:', error);
     }
-  };
+  }, [getPersistedPaymentStatus]);
+
+  const fetchConsommations = useCallback(async () => {
+    if (!globalBillId) return;
+
+    setIsLoading(true);
+    try {
+      const data = await getConsommationsByGlobalBillId(globalBillId);
+      setConsommations(data);
+
+      if (data && data.results && data.results.length > 0) {
+        const consommationsWithItemsData: ConsommationWithItems[] = data.results.map(consommation => ({
+          ...consommation,
+          items: [],
+          isLoadingItems: false,
+          itemsLoaded: false,
+          insuranceRates: {
+            insuranceRate: 0,
+            patientRate: 100
+          }
+        }));
+
+        setConsommationsWithItems(consommationsWithItemsData);
+
+        loadConsommationStatuses(data.results);
+      }
+    } catch (error) {
+      showToast({
+        title: t('error', 'Error'),
+        description: error.message,
+        kind: 'error',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [globalBillId, t, loadConsommationStatuses]);
 
   const isActuallyPaid = useCallback((item: ConsommationItem): boolean => {
     const paymentKey = `payment_${item.patientServiceBillId}`;
@@ -212,7 +209,7 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
   const cleanupOldPaymentData = useCallback(() => {
     try {
       const currentTime = new Date().getTime();
-      const maxAge = 7 * 24 * 60 * 60 * 1000; 
+      const maxAge = 7 * 24 * 60 * 60 * 1000;
       
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith('payment_') || key.startsWith('consommation_status_')) {
@@ -407,7 +404,6 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       );
       const serviceName = currentConsommation?.department?.name || `Service ${consommationId}`;
       
-      // Filter out only the paid items to add to selected items
       const paidItemsToSelect = paidItems
         .filter(item => isActuallyPaid(item))
         .map(item => ({
@@ -647,12 +643,11 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
   const handlePaymentSuccess = async () => {
     const unpaidSelectedItems = selectedItems.filter(item => !isActuallyPaid(item.item));
     const affectedConsommations = new Set(unpaidSelectedItems.map(item => item.consommationId));
-    
+
     unpaidSelectedItems.forEach(selectedItem => {
       const item = selectedItem.item;
       const paymentKey = `payment_${item.patientServiceBillId}`;
       const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-      
       persistPaymentStatus(paymentKey, {
         paid: true,
         paidAmount: itemTotal,
@@ -661,17 +656,16 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
         globalBillId: globalBillId
       });
     });
-    
+
+    // Update consommationsWithItems to reflect paid items
     const updatedConsommationsWithItems = consommationsWithItems.map(consommation => {
       const consommationId = consommation.consommationId?.toString() || '';
-      
       if (affectedConsommations.has(consommationId)) {
         const updatedItems = consommation.items.map(item => {
-          const wasSelected = unpaidSelectedItems.some(selectedItem => 
-            selectedItem.consommationId === consommationId && 
+          const wasSelected = unpaidSelectedItems.some(selectedItem =>
+            selectedItem.consommationId === consommationId &&
             selectedItem.item.patientServiceBillId === item.patientServiceBillId
           );
-          
           if (wasSelected) {
             const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
             return {
@@ -685,7 +679,6 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
           }
           return item;
         });
-        
         return {
           ...consommation,
           items: updatedItems
@@ -693,31 +686,25 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
       }
       return consommation;
     });
-    
-    const updatedStatusMap = { ...consommationStatuses };
-    
-    for (const consommationId of affectedConsommations) {
-      const updatedConsommation = updatedConsommationsWithItems.find(c => 
-        c.consommationId?.toString() === consommationId
-      );
-      
-      if (updatedConsommation && updatedConsommation.items.length > 0) {
-        const status = updateConsommationStatus(consommationId, updatedConsommation.items);
-        updatedStatusMap[consommationId] = status;
+
+    const updatedStatusMap: Record<string, string> = {};
+    updatedConsommationsWithItems.forEach(consommation => {
+      const id = consommation.consommationId?.toString() || '';
+      if (id) {
+        const status = updateConsommationStatus(id, consommation.items);
+        updatedStatusMap[id] = status;
       }
-    }
-    
+    });
     setConsommationsWithItems(updatedConsommationsWithItems);
     setConsommationStatuses(updatedStatusMap);
-    
+
     setSelectedItems(prev => {
-      const itemsToKeep = prev.filter(item => 
-        !unpaidSelectedItems.some(unpaidItem => 
-          unpaidItem.consommationId === item.consommationId && 
+      const itemsToKeep = prev.filter(item =>
+        !unpaidSelectedItems.some(unpaidItem =>
+          unpaidItem.consommationId === item.consommationId &&
           unpaidItem.item.patientServiceBillId === item.item.patientServiceBillId
         )
       );
-      
       const newlyPaidItems = unpaidSelectedItems.map(item => {
         const itemTotal = (item.item.quantity || 1) * (item.item.unitPrice || 0);
         return {
@@ -732,7 +719,6 @@ const EmbeddedConsommationsList: React.FC<EmbeddedConsommationsListProps> = ({
           }
         };
       });
-      
       return [...itemsToKeep, ...newlyPaidItems];
     });
 

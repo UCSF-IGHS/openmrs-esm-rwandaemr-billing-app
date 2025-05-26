@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Modal,
@@ -127,6 +127,68 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const receivedCash = watch('receivedCash');
   const deductedAmount = watch('deductedAmount');
 
+  // Memoized calculation functions to fix lint warnings
+  const calculateSelectedItemsTotal = useCallback(() => {
+    return localSelectedItems.reduce((total, selectedItemInfo) => {
+      const item = selectedItemInfo.item;
+      if (item.selected === false) return total;
+      
+      const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+      const paidAmount = item.paidAmount || 0;
+      const remainingAmount = Math.max(0, itemTotal - paidAmount);
+      return total + remainingAmount;
+    }, 0);
+  }, [localSelectedItems]);
+
+  const countSelectedItems = useCallback(() => {
+    return localSelectedItems.filter(item => 
+      item.item.selected === true && !isActuallyPaid(item.item)
+    ).length;
+  }, [localSelectedItems]);
+
+  const groupedAllItems = localSelectedItems.reduce((groups, selectedItemInfo) => {
+    const { consommationId, consommationService } = selectedItemInfo;
+    if (!groups[consommationId]) {
+      groups[consommationId] = {
+        consommationId,
+        consommationService,
+        items: []
+      };
+    }
+    groups[consommationId].items.push(selectedItemInfo.item);
+    return groups;
+  }, {} as Record<string, { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }>);
+
+  const isActuallyPaid = (item: ConsommationItem & { selected?: boolean }): boolean => {
+    try {
+      const paymentKey = `payment_${item.patientServiceBillId}`;
+      const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
+      if (storedPayment.paid) {
+        return true;
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+    
+    return isItemPaid(item);
+  };
+
+  const computeItemPaymentStatus = (item: ConsommationItem & { selected?: boolean }): string => {
+    try {
+      const paymentKey = `payment_${item.patientServiceBillId}`;
+      const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
+      if (storedPayment.paid) {
+        return 'PAID';
+      } else if (storedPayment.paidAmount > 0) {
+        return 'PARTIAL';
+      }
+    } catch (e) {
+      // Ignore session storage errors
+    }
+    
+    return computePaymentStatus(item);
+  };
+
   useEffect(() => {
     if (isOpen) {
       const unpaidItemsWithSelectedState = selectedItems
@@ -146,37 +208,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       setPaidItems([]);
     }
   }, [isOpen, selectedItems]);
-
-  const groupedAllItems = localSelectedItems.reduce((groups, selectedItemInfo) => {
-    const { consommationId, consommationService } = selectedItemInfo;
-    if (!groups[consommationId]) {
-      groups[consommationId] = {
-        consommationId,
-        consommationService,
-        items: []
-      };
-    }
-    groups[consommationId].items.push(selectedItemInfo.item);
-    return groups;
-  }, {} as Record<string, { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }>);
-
-  const calculateSelectedItemsTotal = () => {
-    return localSelectedItems.reduce((total, selectedItemInfo) => {
-      const item = selectedItemInfo.item;
-      if (item.selected === false) return total;
-      
-      const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-      const paidAmount = item.paidAmount || 0;
-      const remainingAmount = Math.max(0, itemTotal - paidAmount);
-      return total + remainingAmount;
-    }, 0);
-  };
-
-  const countSelectedItems = () => {
-    return localSelectedItems.filter(item => 
-      item.item.selected === true && !isActuallyPaid(item.item)
-    ).length;
-  };
 
   const handleLocalItemToggle = (consommationId: string, itemId: number) => {
     setLocalSelectedItems(prev => {
@@ -201,7 +232,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       const totalDue = calculateSelectedItemsTotal();
       setValue('paymentAmount', totalDue.toString());
     }
-  }, [localSelectedItems, isOpen, setValue, paymentSuccess]);
+  }, [localSelectedItems, isOpen, setValue, paymentSuccess, calculateSelectedItemsTotal]);
 
   useEffect(() => {
     if (isOpen && !paymentSuccess) {
@@ -215,7 +246,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         deductedAmount: ''
       });
     }
-  }, [isOpen, localSelectedItems, reset, paymentSuccess]);
+  }, [isOpen, localSelectedItems, reset, paymentSuccess, calculateSelectedItemsTotal]);
 
   useEffect(() => {
     if (paymentMethod === 'cash' && receivedCash && paymentAmount && !paymentSuccess) {
@@ -251,37 +282,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setPaymentError(t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items'));
       }
     }
-  }, [paymentAmount, localSelectedItems, t, paymentSuccess]);
-
-  const isActuallyPaid = (item: ConsommationItem & { selected?: boolean }): boolean => {
-    try {
-      const paymentKey = `payment_${item.patientServiceBillId}`;
-      const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
-      if (storedPayment.paid) {
-        return true;
-      }
-    } catch (e) {
-      // Ignore errors
-    }
-    
-    return isItemPaid(item);
-  };
-
-  const computeItemPaymentStatus = (item: ConsommationItem & { selected?: boolean }): string => {
-    try {
-      const paymentKey = `payment_${item.patientServiceBillId}`;
-      const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
-      if (storedPayment.paid) {
-        return 'PAID';
-      } else if (storedPayment.paidAmount > 0) {
-        return 'PARTIAL';
-      }
-    } catch (e) {
-      // Ignore session storage errors
-    }
-    
-    return computePaymentStatus(item);
-  };
+  }, [paymentAmount, t, paymentSuccess, calculateSelectedItemsTotal]);
 
   const handlePrintReceipt = async () => {
     try {
