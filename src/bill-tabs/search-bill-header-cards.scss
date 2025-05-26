@@ -3,13 +3,11 @@
 @import '~@openmrs/esm-styleguide/src/vars';
 
 .container {
-  margin: 0 layout.$spacing-05;
+  margin: 0;
 }
 
 .searchContainer {
   background-color: #ffffff;
-  border: 1px solid #e0e0e0;
-  padding: layout.$spacing-05;
   margin: layout.$spacing-05 0;
 }
 

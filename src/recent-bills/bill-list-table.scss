@@ -32,7 +32,7 @@ $text-02-color: #525252;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: spacing.$spacing-03 spacing.$spacing-05 spacing.$spacing-05;
+  padding: 0 spacing.$spacing-05 0;
   background-color: $ui-02-color;
   
   @media (max-width: 767px) {
@@ -58,17 +58,17 @@ $text-02-color: #525252;
   white-space: nowrap;
 }
 
-.filterDropdown {
-  min-width: 120px;
+// .filterDropdown {
+//   min-width: 240px;
   
-  :global(.cds--list-box__field) {
-    height: 32px;
-  }
+//   :global(.cds--list-box__field) {
+//     height: 42px;
+//   }
 
-  :global(.cds--list-box__menu-icon) {
-    height: 32px;
-  }
-}
+//   :global(.cds--list-box__menu-icon) {
+//     height: 42px;
+//   }
+// }
 
 .searchContainer {
   display: flex;
@@ -88,25 +88,14 @@ $text-02-color: #525252;
 
 .searchCategoryDropdown {
   margin-right: spacing.$spacing-03;
-  min-width: 120px;
+  min-width: 240px;
   
   :global(.cds--list-box__field) {
     height: 32px;
+    width: 15rem !important
   }
 
   :global(.cds--list-box__menu-icon) {
-    height: 32px;
-  }
-}
-
-.searchInput {
-  width: 240px;
-  
-  @media (max-width: 767px) {
-    width: 100%;
-  }
-  
-  :global(.cds--search-input) {
     height: 32px;
   }
 }
