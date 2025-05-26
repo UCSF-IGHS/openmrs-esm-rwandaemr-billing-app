@@ -1,100 +1,296 @@
-/* payment-receipt.scss */
+@import '@openmrs/esm-styleguide/src/vars';
 
 .receiptContainer {
-  font-family: Arial, sans-serif;
   max-width: 800px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 2rem;
   background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
+  line-height: 1.5;
 }
 
 .receiptHeader {
   text-align: center;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #ccc;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #333;
+  
+  h2 {
+    color: #333;
+    margin-bottom: 0.5rem;
+    font-size: 1.75rem;
+    font-weight: bold;
+  }
 }
 
 .receiptDate {
   font-size: 0.9rem;
-  color: #555;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.printActions {
+  margin-top: 1rem;
+  
+  .cds--btn {
+    min-width: 140px;
+  }
 }
 
 .receiptSection {
-  margin-bottom: 20px;
-}
-
-.receiptSection h3 {
-  margin-bottom: 10px;
-  padding-bottom: 5px;
-  border-bottom: 1px solid #eee;
+  margin-bottom: 2rem;
+  
+  h3 {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #ddd;
+    color: #333;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
 }
 
 .receiptTable {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 15px;
+  margin-bottom: 1.5rem;
+  
+  td {
+    padding: 0.75rem 1rem;
+    vertical-align: top;
+    border-bottom: 1px solid #f0f0f0;
+    
+    &:first-child {
+      width: 35%;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    &:last-child {
+      color: #555;
+    }
+  }
+  
+  .totalRow {
+    border-top: 2px solid #333;
+    
+    td {
+      font-weight: bold;
+      padding-top: 1rem;
+    }
+  }
 }
 
-.receiptTable td {
-  padding: 8px;
-  vertical-align: top;
-}
-
-.receiptTable td:first-child {
-  width: 40%;
-  font-weight: 500;
+.amountHighlight {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #0056b3;
 }
 
 .itemsTable {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 20px;
-}
-
-.itemsTable th, .itemsTable td {
-  padding: 8px;
+  margin-bottom: 2rem;
   border: 1px solid #ddd;
-  text-align: left;
+  
+  th, td {
+    padding: 0.75rem 0.5rem;
+    border: 1px solid #ddd;
+    text-align: left;
+    font-size: 0.875rem;
+  }
+  
+  th {
+    background-color: #f8f9fa;
+    font-weight: 700;
+    color: #333;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+  }
+  
+  tbody tr {
+    &:nth-child(even) {
+      background-color: #fafafa;
+    }
+    
+    &:hover {
+      background-color: #f0f8ff;
+    }
+  }
+  
+  tfoot {
+    font-weight: bold;
+    background-color: #e9ecef;
+    
+    td {
+      border-top: 2px solid #333;
+      font-weight: 700;
+    }
+  }
 }
 
-.itemsTable th {
-  background-color: #f5f5f5;
+.centerAlign {
+  text-align: center;
+}
+
+.rightAlign {
+  text-align: right;
+}
+
+.balanceRow {
+  td {
+    border-top: 2px solid #333;
+    padding-top: 0.75rem;
+  }
+}
+
+.balanceOwed {
+  color: #dc3545;
+}
+
+.balancePaid {
+  color: #28a745;
+}
+
+.paidStatus {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: #d4edda;
+  color: #155724;
+  border-radius: 4px;
+  font-size: 0.75rem;
   font-weight: 600;
+  text-transform: uppercase;
 }
 
-.itemsTable tfoot {
-  font-weight: bold;
-  background-color: #f9f9f9;
+.partiallyPaidStatus {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: #fff3cd;
+  color: #856404;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.unpaidStatus {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: #f8d7da;
+  color: #721c24;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
 .receiptFooter {
   text-align: center;
-  margin-top: 30px;
-  padding-top: 15px;
-  border-top: 1px solid #ccc;
-  font-style: italic;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 2px solid #333;
 }
 
-/* Print-specific styles */
-@media print {
-  body * {
-    visibility: hidden;
-  }
+.signatureSection {
+  display: flex;
+  justify-content: space-between;
+  margin: 3rem 0 2rem 0;
   
-  .receiptContainer, .receiptContainer * {
-    visibility: visible;
+  @media (max-width: 600px) {
+    flex-direction: column;
+    gap: 2rem;
   }
+}
+
+.signatureBox {
+  width: 200px;
+  text-align: center;
   
-  .receiptContainer {
-    position: absolute;
-    left: 0;
-    top: 0;
+  @media (max-width: 600px) {
     width: 100%;
-    height: 100%;
   }
   
-  .noPrint {
+  p {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: #666;
+    font-weight: 500;
+  }
+}
+
+.signatureLine {
+  height: 1px;
+  background-color: #333;
+  margin-top: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.footerMessage {
+  p {
+    margin-bottom: 0.75rem;
+    
+    &:first-child {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #333;
+    }
+    
+    &:nth-child(2) {
+      color: #555;
+    }
+  }
+}
+
+.receiptInfo {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  
+  p {
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 0.25rem;
+    
+    &:first-child {
+      font-weight: 600;
+    }
+  }
+}
+
+// Print-specific styles
+@media print {
+  .receiptContainer {
+    box-shadow: none;
+    border-radius: 0;
+    padding: 1rem;
+    max-width: 100%;
+  }
+  
+  .printActions {
     display: none;
   }
+  
+  .itemsTable {
+    font-size: 0.8rem;
+    
+    th, td {
+      padding: 0.5rem 0.25rem;
+    }
+  }
+  
+  .receiptTable td {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .signatureSection {
+    page-break-inside: avoid;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 1cm;
 }

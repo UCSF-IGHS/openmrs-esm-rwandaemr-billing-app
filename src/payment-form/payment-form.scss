@@ -289,29 +289,107 @@ input[type="text"], input[type="number"], input[type="date"] {
   }
 }
 
+// Success message styles
 .successMessage {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 2rem 1rem;
+  padding: 3rem 2rem;
+  
+  h3 {
+    margin: 1rem 0 0.5rem 0;
+    color: #24a148;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+  
+  p {
+    margin-bottom: 2rem;
+    color: #525252;
+    font-size: 1rem;
+  }
 }
 
 .successIcon {
-  width: 64px;
-  height: 64px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   background-color: #24a148;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
+  font-size: 2.5rem;
   margin-bottom: 1rem;
+  box-shadow: 0 4px 12px rgba(36, 161, 72, 0.3);
+}
+
+.successActions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+    width: 100%;
+    
+    .cds--btn {
+      width: 100%;
+    }
+  }
 }
 
 .printButton {
-  margin-top: 2rem;
+  min-width: 150px;
+}
+
+.paymentSummary {
+  background-color: #f4f4f4;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 400px;
+  border-left: 4px solid #0f62fe;
+  
+  h4 {
+    margin: 0 0 1rem 0;
+    color: #161616;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e0e0e0;
+  
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+  
+  span:first-child {
+    color: #525252;
+    font-weight: 500;
+  }
+  
+  span:last-child {
+    font-weight: 600;
+    color: #161616;
+  }
+  
+  .amount {
+    color: #0f62fe;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
 }
 
 .actionsContainer {
@@ -320,6 +398,34 @@ input[type="text"], input[type="number"], input[type="date"] {
   margin-top: 20px;
   padding-top: 10px;
   border-top: 1px solid $ui-03;
+}
+
+.paymentActions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-end;
+  
+  .selectedSummary {
+    margin: 0;
+    font-weight: 500;
+    color: #525252;
+  }
+  
+  .actionButtons {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    
+    @media (max-width: 768px) {
+      flex-direction: column;
+      width: 100%;
+      
+      .cds--btn {
+        width: 100%;
+      }
+    }
+  }
 }
 
 .printReceiptButton {
@@ -332,6 +438,7 @@ input[type="text"], input[type="number"], input[type="date"] {
   height: 40px;
   border-radius: 4px;
   transition: all 0.2s;
+  gap: 0.5rem;
   
   &:hover {
     background-color: #edf5ff;
@@ -402,4 +509,415 @@ input[type="text"], input[type="number"], input[type="date"] {
   background-color: #f4f4f4;
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
+}
+
+// embedded-consommations-list.scss additions
+.accordionContainer {
+  margin: 1rem 0;
+  
+  .accordionTitle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.5rem 0;
+    
+    .consommationInfo {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex: 1;
+      
+      .consommationId {
+        font-weight: 600;
+        color: #0f62fe;
+      }
+      
+      .consommationService {
+        font-weight: 500;
+        color: #161616;
+      }
+      
+      .consommationDate {
+        color: #525252;
+        font-size: 0.875rem;
+      }
+    }
+    
+    .consommationStatus {
+      margin-left: auto;
+    }
+  }
+}
+
+.consommationItems {
+  padding: 1rem 0;
+  
+  .loadingItems {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    gap: 1rem;
+  }
+  
+  .itemsTable {
+    width: 100%;
+    overflow-x: auto;
+    
+    .itemsDataTable {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      
+      th,
+      td {
+        padding: 0.75rem 0.5rem;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+        font-size: 0.875rem;
+      }
+      
+      th {
+        background-color: #f4f4f4;
+        font-weight: 600;
+        color: #161616;
+        border-bottom: 2px solid #d1d1d1;
+      }
+      
+      tbody tr {
+        &:hover {
+          background-color: #f8f8f8;
+        }
+        
+        &.selectedItemRow {
+          background-color: #e8f4fd;
+          border-left: 3px solid #0f62fe;
+        }
+      }
+      
+      td {
+        vertical-align: middle;
+        
+        &:first-child {
+          width: 40px;
+          text-align: center;
+        }
+      }
+      
+      .statusBadge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        
+        &.paidStatus {
+          background-color: #d4edda;
+          color: #155724;
+        }
+        
+        &.partiallyPaidStatus {
+          background-color: #d1ecf1;
+          color: #0c5460;
+        }
+        
+        &.unpaidStatus {
+          background-color: #f8d7da;
+          color: #721c24;
+        }
+      }
+    }
+  }
+  
+  .noItems {
+    text-align: center;
+    padding: 2rem;
+    color: #525252;
+    font-style: italic;
+  }
+}
+
+// Responsive design for accordion items
+@media (max-width: 768px) {
+  .accordionTitle {
+    .consommationInfo {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+    }
+  }
+  
+  .itemsDataTable {
+    font-size: 0.75rem;
+    
+    th,
+    td {
+      padding: 0.5rem 0.25rem;
+    }
+  }
+}
+
+// payment-form.scss additions
+.consommationGroupTitle {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  
+  .consommationId {
+    font-weight: 600;
+    color: #0f62fe;
+  }
+  
+  .consommationService {
+    font-weight: 500;
+    color: #161616;
+  }
+  
+  .itemCount {
+    color: #525252;
+    font-size: 0.875rem;
+    margin-left: auto;
+  }
+}
+
+.selectedItemsDetails {
+  margin-top: 2rem;
+  
+  h5 {
+    margin-bottom: 1rem;
+    color: #161616;
+    font-weight: 600;
+  }
+  
+  .responsiveTableWrapper {
+    overflow-x: auto;
+    margin: 1rem 0;
+  }
+  
+  .itemsTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    
+    th,
+    td {
+      padding: 0.75rem 0.5rem;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+      font-size: 0.875rem;
+    }
+    
+    th {
+      background-color: #f4f4f4;
+      font-weight: 600;
+      color: #161616;
+      border-bottom: 2px solid #d1d1d1;
+    }
+    
+    tbody tr {
+      &:hover {
+        background-color: #f8f8f8;
+      }
+    }
+    
+    tfoot {
+      tr {
+        background-color: #f4f4f4;
+        font-weight: 600;
+        border-top: 2px solid #d1d1d1;
+        
+        td {
+          border-bottom: none;
+        }
+      }
+    }
+    
+    .statusBadge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      
+      &.paidStatus {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      
+      &.partiallyPaidStatus {
+        background-color: #d1ecf1;
+        color: #0c5460;
+      }
+      
+      &.unpaidStatus {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+    }
+  }
+  
+  .grandTotal {
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: #f4f4f4;
+    border-radius: 4px;
+    border-left: 4px solid #0f62fe;
+    
+    .totalRow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      
+      .totalLabel {
+        font-size: 1rem;
+        color: #161616;
+      }
+      
+      .totalAmount {
+        font-size: 1.125rem;
+        color: #0f62fe;
+      }
+    }
+  }
+  
+  .noItems {
+    text-align: center;
+    padding: 2rem;
+    color: #525252;
+    font-style: italic;
+    background-color: #f8f8f8;
+    border-radius: 4px;
+  }
+}
+
+// Responsive design for payment form
+@media (max-width: 768px) {
+  .consommationGroupTitle {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    
+    .itemCount {
+      margin-left: 0;
+    }
+  }
+  
+  .itemsTable {
+    font-size: 0.75rem;
+    
+    th,
+    td {
+      padding: 0.5rem 0.25rem;
+    }
+  }
+  
+  .grandTotal {
+    .totalRow {
+      flex-direction: column;
+      gap: 0.5rem;
+      text-align: center;
+    }
+  }
+  
+  .successMessage {
+    padding: 2rem 1rem;
+    
+    .successActions {
+      flex-direction: column;
+      width: 100%;
+      
+      button {
+        width: 100%;
+      }
+    }
+    
+    .paymentSummary {
+      max-width: 100%;
+    }
+  }
+}
+
+.paidItemRow {
+  background-color: #f0f7ff;
+  border-left: 3px solid #8bc1f7;
+  opacity: 0.85;
+}
+
+.selectedItem {
+  background-color: #e8f4fd !important;
+  border-left: 3px solid #0f62fe;
+}
+
+tr:not(.selectedItem):not(.paidItemRow) {
+  background-color: transparent;
+}
+
+tbody tr:hover {
+  background-color: #f2f2f2 !important;
+}
+
+.itemCount {
+  font-size: 0.85rem;
+  color: #525252;
+  margin-left: 1rem;
+  font-weight: normal;
+}
+
+.cds--checkbox:checked + .cds--checkbox-label::before {
+  background-color: #0f62fe;
+  border-color: #0f62fe;
+}
+
+.cds--checkbox:disabled + .cds--checkbox-label::before {
+  background-color: #f4f4f4;
+  border-color: #c6c6c6;
+}
+
+.paidItemRow .cds--checkbox:disabled + .cds--checkbox-label::before {
+  background-color: #8bc1f7;
+  border-color: #8bc1f7;
+}
+
+.grandTotal {
+  transition: background-color 0.3s ease;
+}
+
+.grandTotal.updated {
+  animation: highlight 1s ease;
+}
+
+@keyframes highlight {
+  0% {
+    background-color: #d0e2ff;
+  }
+  100% {
+    background-color: #f4f4f4;
+  }
+}
+
+.statusBadge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-align: center;
+  display: inline-block;
+  min-width: 70px;
+}
+
+.paidStatus {
+  background-color: #defbe6;
+  color: #0e6027;
+}
+
+.partiallyPaidStatus {
+  background-color: #fff8e1;
+  color: #b28704;
+}
+
+.unpaidStatus {
+  background-color: #fff1f1;
+  color: #da1e28;
 }
