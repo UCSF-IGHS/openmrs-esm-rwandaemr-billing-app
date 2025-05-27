@@ -4,7 +4,6 @@ import styles from './billing-reports.scss';
 import PaymentsDeskIcon from '../images/payments-desk-icon.svg';
 import { DatePicker, DatePickerInput, Dropdown } from '@carbon/react';
 import { useSession } from '@openmrs/esm-framework';
-import FindBillsReport from './find-bills-report.component';
 import CashierReport from './cashier-report.component';
 import DepositsReport from './deposits-report.component';
 import ServiceRevenueReport from './service-revenue-report.component';
@@ -18,7 +17,7 @@ const BillingReportsHome: React.FC = () => {
   const { t } = useTranslation();
   const session = useSession();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [activeReport, setActiveReport] = useState('findBills');
+  const [activeReport, setActiveReport] = useState('consommationReport');
   const userLocation = session?.sessionLocation?.display || t('unknownLocation', 'Unknown Location');
 
   const handleDateChange = (dates) => {
@@ -29,13 +28,12 @@ const BillingReportsHome: React.FC = () => {
 
   const reportTypes = useMemo(
     () => [
-      { key: 'findBills', label: t('findBills', 'Find Bills') },
+      { key: 'consommationReport', label: t('consommationReport', 'Consommation Report') },
       { key: 'cashierReport', label: t('cashierReport', 'Cashier Report') },
       { key: 'deposits', label: t('deposits', 'Deposits') },
       { key: 'serviceReport', label: t('serviceReport', 'Service Report') },
       { key: 'paymentRefundReport', label: t('paymentrefundReport', 'Payment Refund Report') },
       { key: 'insuranceReport', label: t('insuranceReport', 'Insurance Report') },
-      { key: 'consommationReport', label: t('consommationReport', 'Consommation Report') },
       { key: 'thirdPartyReport', label: t('thirdPartyReport', 'Third Party Report') },
       { key: 'dcpProviderReport', label: t('dcpProviderReport', 'DCP Provider Report') },
     ],
@@ -105,12 +103,11 @@ const BillingReportsHome: React.FC = () => {
         </div>
 
         <div className={styles.reportTableContainer}>
-          {activeReport === 'findBills' && <FindBillsReport />}
+          {activeReport === 'consommationReport' && <ConsommationReport />}
           {activeReport === 'cashierReport' && <CashierReport />}
           {activeReport === 'deposits' && <DepositsReport />}
           {activeReport === 'serviceReport' && <ServiceRevenueReport />}
           {activeReport === 'paymentRefundReport' && <PaymentRefundReport />}
-          {activeReport === 'consommationReport' && <ConsommationReport />}
           {activeReport === 'insuranceReport' && <InsuranceReport />}
           {activeReport === 'thirdPartyReport' && <ThirdPartyReport />}
           {activeReport === 'dcpProviderReport' && <DcpProviderReport />}
