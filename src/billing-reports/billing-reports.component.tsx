@@ -12,6 +12,7 @@ import PaymentRefundReport from './payment-refund-report.component';
 import InsuranceReport from './insurance-report.component';
 import ThirdPartyReport from './third-party-report.component';
 import DcpProviderReport from './dcp-provider-report.component';
+import ConsommationReport from './consommation-report.component';
 
 const BillingReportsHome: React.FC = () => {
   const { t } = useTranslation();
@@ -34,6 +35,7 @@ const BillingReportsHome: React.FC = () => {
       { key: 'serviceReport', label: t('serviceReport', 'Service Report') },
       { key: 'paymentRefundReport', label: t('paymentrefundReport', 'Payment Refund Report') },
       { key: 'insuranceReport', label: t('insuranceReport', 'Insurance Report') },
+      { key: 'consommationReport', label: t('consommationReport', 'Consommation Report') },
       { key: 'thirdPartyReport', label: t('thirdPartyReport', 'Third Party Report') },
       { key: 'dcpProviderReport', label: t('dcpProviderReport', 'DCP Provider Report') },
     ],
@@ -108,6 +110,7 @@ const BillingReportsHome: React.FC = () => {
           {activeReport === 'deposits' && <DepositsReport />}
           {activeReport === 'serviceReport' && <ServiceRevenueReport />}
           {activeReport === 'paymentRefundReport' && <PaymentRefundReport />}
+          {activeReport === 'consommationReport' && <ConsommationReport />}
           {activeReport === 'insuranceReport' && <InsuranceReport />}
           {activeReport === 'thirdPartyReport' && <ThirdPartyReport />}
           {activeReport === 'dcpProviderReport' && <DcpProviderReport />}

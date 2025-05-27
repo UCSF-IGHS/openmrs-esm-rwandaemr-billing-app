@@ -12,6 +12,9 @@ import {
   DataTable,
   TableContainer,
   Modal,
+  TableExpandHeader,
+  TableExpandRow,
+  TableExpandedRow,
 } from '@carbon/react';
 import dayjs from 'dayjs';
 import { exportToExcel, formatValue, formatToYMD, exportSingleRecordToPDF } from './utils/download-utils';
@@ -70,6 +73,7 @@ const PaymentRefundReport: React.FC = () => {
       setLoading(false);
     }
   };
+  const refundedItemsColumns = ['service_name', 'qty_paid', 'refund_qty', 'unit_price', 'refund_reason'];
 
   const headerDisplayMap: Record<string, string> = {
     refund_id: t('refundId', 'Refund Id'),
@@ -85,7 +89,7 @@ const PaymentRefundReport: React.FC = () => {
     refund_reason: t('refundReason', 'Refund Reason'),
   };
 
-  const handleSearch = async (filters: Filters, pageNum = 1, pageSize = 50) => {
+  const handleSearch = async (filters: Filters, pageNum = 1, pageSize = 100) => {
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -142,67 +146,62 @@ const PaymentRefundReport: React.FC = () => {
     setSelectedRecord(null);
   };
 
-  const rows = results.map((row, index) => {
-    const record = row.record;
-    const id = `${(page - 1) * pageSize + index + 1}`;
+  const groupedByRefundId: { [key: string]: ReportRow[] } = {};
 
-    const getColumnValue = (col: string) => {
-      const found = record.find((item) => item.column === col);
-      return found ? formatValue(found.value) : '-';
-    };
-
-    const refundedItemsColumns = ['service_name', 'qty_paid', 'refund_qty', 'unit_price', 'refund_reason'];
-    const refundedItems = record
-      .filter((item) => refundedItemsColumns.includes(item.column))
-      .map((item) => {
-        const label = headerDisplayMap[item.column] || item.column;
-        return `${label}: ${formatValue(item.value) || '-'}`;
-      })
-      .join(', ');
-
-    return {
-      id,
-      no: parseInt(id),
-      refund_id: getColumnValue('refund_id'),
-      payment_id: getColumnValue('payment_id'),
-      cashier_name: getColumnValue('cashier_name'),
-      submitted_on: formatDateTime(record.find((r) => r.column === 'submitted_on')?.value),
-      approvedby: getColumnValue('approvedby'),
-      confirmed_by: getColumnValue('confirmed_by'),
-      refunded_items: refundedItems,
-      actions: (
-        <div className={styles.actionsCell}>
-          <Button kind="ghost" size="sm" onClick={() => handleViewClick(row)}>
-            {t('view', 'View')}
-          </Button>
-          <Button
-            kind="ghost"
-            size="sm"
-            onClick={() => {
-              const formattedRecord = row.record.map((item) => ({
-                column: item.column,
-                value: formatValue(item.value),
-              }));
-              exportSingleRecordToPDF(formattedRecord);
-            }}
-          >
-            {t('download', 'Download')}
-          </Button>
-        </div>
-      ),
-    };
+  results.forEach((row) => {
+    const refundId = getValue(row.record, 'refund_id');
+    if (!groupedByRefundId[refundId]) {
+      groupedByRefundId[refundId] = [];
+    }
+    groupedByRefundId[refundId].push(row);
   });
-  const refundedItemsColumns = ['service_name', 'qty_paid', 'refund_qty', 'unit_price', 'refund_reason'];
 
-  const refundedItemsDetails = selectedRecord
-    ? selectedRecord.record
-        .filter((item) => refundedItemsColumns.includes(item.column))
-        .map((item) => {
-          const label = headerDisplayMap[item.column] || item.column;
-          return `${label}: ${formatValue(item.value)}`;
+  const rows = Object.entries(groupedByRefundId)
+    .filter(([_, group]) => group.length > 0)
+    .map(([refundId, group], index) => {
+      const firstRow = group.find((r) => getValue(r.record, 'payment_id')) || group[0];
+
+      if (!firstRow || !firstRow.record) {
+        console.warn('Missing or malformed row for refund ID:', refundId);
+        return null;
+      }
+
+      const baseRecord = firstRow.record;
+
+      const getColumnValue = (col: string) => {
+        const found = baseRecord.find((item) => item.column === col);
+        return found ? formatValue(found.value) : '-';
+      };
+
+      const submittedOnValue = baseRecord.find((item) => item.column === 'submitted_on')?.value;
+
+      const refundedItems = group
+        .map((row, idx) => {
+          const itemMap: Record<string, string> = {};
+          row.record.forEach((item) => {
+            if (item?.column && refundedItemsColumns.includes(item.column)) {
+              itemMap[item.column] = formatValue(item.value);
+            }
+          });
+          return `${idx + 1}. ${itemMap.service_name || '-'}\t${itemMap.qty_paid || '-'}\t${itemMap.refund_qty || '-'}\t${itemMap.unit_price || '-'}\t${itemMap.refund_reason || '-'}`;
         })
-        .join(', ')
-    : '';
+        .join('\n');
+
+      return {
+        id: refundId,
+        no: index + 1,
+        refund_id: refundId,
+        payment_id: getColumnValue('payment_id'),
+        cashier_name: getColumnValue('cashier_name'),
+        submitted_on: formatDateTime(submittedOnValue),
+        approvedby: getColumnValue('approvedby'),
+        confirmed_by: getColumnValue('confirmed_by'),
+        refunded_items: refundedItems,
+        record: baseRecord,
+      };
+    })
+    .filter(Boolean);
+
   const otherDetails = selectedRecord
     ? selectedRecord.record.filter((item) => !refundedItemsColumns.includes(item.column))
     : [];
@@ -214,8 +213,6 @@ const PaymentRefundReport: React.FC = () => {
     { key: 'submitted_on', header: t('submittedOn', 'Submitted On') },
     { key: 'approvedby', header: t('approvedBy', 'Approved By') },
     { key: 'confirmed_by', header: t('confirmedBy', 'Confirmed By') },
-    { key: 'refunded_items', header: t('refundedItemsDetails', 'Refunded Items Details') },
-    { key: 'actions', header: t('actions', 'Actions') },
   ];
 
   return (
@@ -240,16 +237,17 @@ const PaymentRefundReport: React.FC = () => {
           <DataTable
             rows={rows}
             headers={headers}
-            size="lg"
             useZebraStyles
-            isSortable={true}
+            isSortable
+            overflowMenuOnHover={false}
             className={styles.dataTable}
           >
             {({ rows, headers, getTableProps, getTableContainerProps, getHeaderProps, getRowProps }) => (
               <TableContainer {...getTableContainerProps()}>
-                <Table {...getTableProps()} className={styles.table}>
+                <Table {...getTableProps()}>
                   <TableHead>
                     <TableRow>
+                      <TableExpandHeader />
                       {headers.map((header) => (
                         <TableHeader key={header.key} {...getHeaderProps({ header })}>
                           {header.header}
@@ -258,15 +256,77 @@ const PaymentRefundReport: React.FC = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {rows.map((row) => (
-                      <TableRow key={row.id} {...getRowProps({ row })}>
-                        {row.cells.map((cell) => (
-                          <TableCell key={cell.id} title={cell.value}>
-                            {cell.value}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
+                    {rows.map((row) => {
+                      const refundedItems = Array.isArray(row.original?.record)
+                        ? row.original.record.filter((item) => refundedItemsColumns.includes(item.column))
+                        : [];
+
+                      return (
+                        <React.Fragment key={row.id}>
+                          <TableExpandRow {...getRowProps({ row })}>
+                            {row.cells.map((cell) => (
+                              <TableCell key={cell.id}>{cell.value}</TableCell>
+                            ))}
+                          </TableExpandRow>
+                          {row.isExpanded && (
+                            <TableExpandedRow colSpan={headers.length + 1}>
+                              <strong>{t('refundedItemsDetails', 'Refunded Items Details')}</strong>{' '}
+                              <div className={styles.refundedItemsTableWrapper}>
+                                <Table size="normal">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableHeader>No.</TableHeader>
+                                      <TableHeader>{t('serviceName', 'Service Name')}</TableHeader>
+                                      <TableHeader>{t('qtyPaid', 'Quantity Paid')}</TableHeader>
+                                      <TableHeader>{t('refundQty', 'Refund Quantity')}</TableHeader>
+                                      <TableHeader>{t('unitPrice', 'Unit Price (Rwf)')}</TableHeader>
+                                      <TableHeader>{t('refundReason', 'Reason')}</TableHeader>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {groupedByRefundId[row.id]?.map((rowItem, index) => {
+                                      const itemMap: Record<string, string> = {};
+                                      rowItem.record.forEach((item) => {
+                                        if (refundedItemsColumns.includes(item.column)) {
+                                          itemMap[item.column] = formatValue(item.value);
+                                        }
+                                      });
+
+                                      return (
+                                        <TableRow key={index}>
+                                          <TableCell>{index + 1}</TableCell>
+                                          <TableCell>{itemMap.service_name || '-'}</TableCell>
+                                          <TableCell>{itemMap.qty_paid || '-'}</TableCell>
+                                          <TableCell>{itemMap.refund_qty || '-'}</TableCell>
+                                          <TableCell>{itemMap.unit_price || '-'}</TableCell>
+                                          <TableCell>{itemMap.refund_reason || '-'}</TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                              <div className={styles.expandedDownloadRow}>
+                                <Button
+                                  size="sm"
+                                  kind="primary"
+                                  onClick={() => {
+                                    const fullRecord = groupedByRefundId[row.id]?.flatMap((r) => r.record) || [];
+                                    const formattedRecord = fullRecord.map((item) => ({
+                                      column: item.column,
+                                      value: formatValue(item.value),
+                                    }));
+                                    exportSingleRecordToPDF(formattedRecord);
+                                  }}
+                                >
+                                  {t('download', 'Download')}
+                                </Button>
+                              </div>
+                            </TableExpandedRow>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
