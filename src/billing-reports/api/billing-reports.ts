@@ -9,7 +9,7 @@ export async function fetchRefundPaymentReport(
   endDate: string,
   collector: string,
   page_number = 1,
-  page_size = 100,
+  page_size = 50,
 ) {
   const formattedStart = formatToYMD(startDate);
   const formattedEnd = formatToYMD(endDate);

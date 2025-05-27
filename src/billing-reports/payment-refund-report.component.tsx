@@ -43,14 +43,23 @@ const PaymentRefundReport: React.FC = () => {
   const [results, setResults] = useState<ReportRow[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
   const [totalRecords, setTotalRecords] = useState(0);
   const [currentFilters, setCurrentFilters] = useState<Filters | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [selectedRecord, setSelectedRecord] = useState<ReportRow | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
+  const [allResults, setAllResults] = useState([]);
+  const [, setPaginatedResults] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const paginateResults = (data, currentPage, size) => {
+    const startIndex = (currentPage - 1) * size;
+    const endIndex = startIndex + size;
+    const pageData = data.slice(startIndex, endIndex);
+    setPaginatedResults(pageData);
+  };
 
   const getValue = (record: ReportRecord[], column: string): string => {
     const found = record.find((item) => item.column === column);
@@ -89,7 +98,7 @@ const PaymentRefundReport: React.FC = () => {
     refund_reason: t('refundReason', 'Refund Reason'),
   };
 
-  const handleSearch = async (filters: Filters, pageNum = 1, pageSize = 100) => {
+  const handleSearch = async (filters: Filters, pageNum = 1, pageSize = 50) => {
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -100,10 +109,9 @@ const PaymentRefundReport: React.FC = () => {
         formattedStart,
         formattedEnd,
         filters.collector,
-        pageNum,
-        pageSize,
+        1,
+        10000,
       );
-
       if (results.length > 0) {
         const columnNames = results[0].record.map((item) => item.column);
         setColumns(columnNames);
@@ -123,22 +131,16 @@ const PaymentRefundReport: React.FC = () => {
   };
 
   const goToPage = (newPage: number) => {
-    if (currentFilters) {
-      handleSearch(currentFilters, newPage, pageSize);
-    }
+    setPage(newPage);
+    paginateResults(allResults, newPage, pageSize);
   };
 
-  const getPageSizes = () => [10, 20, 50, 100];
+  const getPageSizes = () => [50];
 
   const formatDateTime = (dateString: string | string[] | undefined) => {
     if (!dateString) return '-';
     const val = Array.isArray(dateString) ? dateString[0] : dateString;
     return dayjs(val).isValid() ? dayjs(val).format('YYYY-MM-DD HH:mm') : formatValue(val);
-  };
-
-  const handleViewClick = (record: ReportRow) => {
-    setSelectedRecord(record);
-    setModalOpen(true);
   };
 
   const closeModal = () => {
@@ -257,10 +259,6 @@ const PaymentRefundReport: React.FC = () => {
                   </TableHead>
                   <TableBody>
                     {rows.map((row) => {
-                      const refundedItems = Array.isArray(row.original?.record)
-                        ? row.original.record.filter((item) => refundedItemsColumns.includes(item.column))
-                        : [];
-
                       return (
                         <React.Fragment key={row.id}>
                           <TableExpandRow {...getRowProps({ row })}>
@@ -345,7 +343,7 @@ const PaymentRefundReport: React.FC = () => {
               goToPage(page);
               setPageSize(pageSize);
             }}
-            totalItems={totalRecords}
+            totalItems={rows.length}
           />
         </div>
       )}
