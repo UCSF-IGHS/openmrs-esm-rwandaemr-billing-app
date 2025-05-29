@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReportFilterForm from './report-filter-form.component';
 import {
   Table,
@@ -14,6 +14,8 @@ import {
   TableExpandedRow,
   DataTable,
   TableContainer,
+  InlineNotification,
+  DataTableSkeleton,
 } from '@carbon/react';
 import { fetchConsommationReport, fetchAllConsommationReport } from './api/billing-reports';
 import dayjs from 'dayjs';
@@ -21,6 +23,7 @@ import { exportSingleRecordToPDF, exportToExcel, formatValue } from './utils/dow
 import styles from './billing-reports.scss';
 import { useTranslation } from 'react-i18next';
 import { formatToYMD } from './utils/download-utils';
+import { showSnackbar } from '@openmrs/esm-framework';
 
 interface ReportRecord {
   column: string;
@@ -48,13 +51,21 @@ const ConsommationReport: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [currentFilters, setCurrentFilters] = useState<Filters | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const recordMap = new Map<string, ReportRecord[]>();
+  const [hasSearched, setHasSearched] = useState(false);
 
   const getValue = (record: ReportRecord[], column: string): string => {
     const found = record.find((item) => item.column === column);
     const value = found?.value;
     return formatValue(value);
   };
+  const recordMap = useMemo(() => {
+    const map = new Map<string, ReportRecord[]>();
+    results.forEach((row, idx) => {
+      const id = `${(page - 1) * pageSize + idx + 1}`;
+      map.set(id, row.record);
+    });
+    return map;
+  }, [results, page, pageSize]);
 
   const hiddenColumns = [
     'global_amount',
@@ -68,6 +79,7 @@ const ConsommationReport: React.FC = () => {
   ];
 
   const handleSearch = async (filters: Filters, pageNum = 1, pageSize = 50) => {
+    setHasSearched(true);
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -94,7 +106,10 @@ const ConsommationReport: React.FC = () => {
       setCurrentFilters(filters);
     } catch (error) {
       console.error('Error fetching report:', error);
-      setErrorMessage(t('errorFetchingReport', 'Failed to load report data.'));
+      showSnackbar({
+        title: t('errorFetchingReport', 'Failed to load report data.'),
+        kind: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -111,7 +126,10 @@ const ConsommationReport: React.FC = () => {
       exportToExcel(columns, allResults, getValue, 'Consommations-report.xlsx');
     } catch (error) {
       console.error('Export failed:', error);
-      setErrorMessage(t('errorExportingExcel', 'Failed to export to Excel.'));
+      showSnackbar({
+        title: t('errorExportingExcel', 'Failed to export to Excel.'),
+        kind: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -166,9 +184,15 @@ const ConsommationReport: React.FC = () => {
         </div>
       </div>
 
-      {loading && <p>{t('loading', 'Loading...')}</p>}
-      {errorMessage && <p className={styles.error}>{errorMessage}</p>}
-      {!loading && !errorMessage && results.length === 0 && <p>{t('noResults', 'No results found.')}</p>}
+      {loading && <DataTableSkeleton rowCount={5} columnCount={columns.length || 5} />}
+      {hasSearched && !loading && !errorMessage && results.length === 0 && (
+        <InlineNotification
+          kind="info"
+          title={t('noResults', 'No results found')}
+          subtitle={t('tryDifferentFilters', 'Try adjusting your filters or date range to see data.')}
+          hideCloseButton
+        />
+      )}
 
       {!loading && results.length > 0 && (
         <div className={styles.reportTableContainer}>
@@ -182,7 +206,6 @@ const ConsommationReport: React.FC = () => {
                 ...Object.fromEntries(columns.map((col) => [col, getValue(row.record, col)])),
                 no: parseInt(id),
               };
-              recordMap.set(id, row.record);
 
               return rowData;
             })}

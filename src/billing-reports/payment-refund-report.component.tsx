@@ -15,12 +15,15 @@ import {
   TableExpandHeader,
   TableExpandRow,
   TableExpandedRow,
+  InlineNotification,
+  DataTableSkeleton,
 } from '@carbon/react';
 import dayjs from 'dayjs';
 import { exportToExcel, formatValue, formatToYMD, exportSingleRecordToPDF } from './utils/download-utils';
 import styles from './billing-reports.scss';
 import { useTranslation } from 'react-i18next';
 import { fetchRefundPaymentReport, fetchAllRefundPaymentReport } from './api/billing-reports';
+import { showSnackbar } from '@openmrs/esm-framework';
 
 export interface ReportRecord {
   column: string;
@@ -46,7 +49,7 @@ const PaymentRefundReport: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [currentFilters, setCurrentFilters] = useState<Filters | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
+  const [hasSearched, setHasSearched] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<ReportRow | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
   const [allResults, setAllResults] = useState([]);
@@ -66,6 +69,7 @@ const PaymentRefundReport: React.FC = () => {
     const value = found?.value;
     return formatValue(value);
   };
+
   const handleExportClick = async () => {
     if (!currentFilters) return;
 
@@ -77,11 +81,15 @@ const PaymentRefundReport: React.FC = () => {
       exportToExcel(columns, allResults, getValue, 'payment-refund-report.xlsx');
     } catch (error) {
       console.error('Export failed:', error);
-      setErrorMessage(t('errorExportingExcel', 'Failed to export to Excel.'));
+      showSnackbar({
+        title: t('errorExportingExcel', 'Failed to export to Excel.'),
+        kind: 'error',
+      });
     } finally {
       setLoading(false);
     }
   };
+
   const refundedItemsColumns = ['service_name', 'qty_paid', 'refund_qty', 'unit_price', 'refund_reason'];
 
   const headerDisplayMap: Record<string, string> = {
@@ -122,9 +130,13 @@ const PaymentRefundReport: React.FC = () => {
       setPage(pageNum);
       setPageSize(pageSize);
       setCurrentFilters(filters);
+      setHasSearched(true);
     } catch (error) {
       console.error('Error fetching report:', error);
-      setErrorMessage(t('errorFetchingReport', 'Failed to load report data.'));
+      showSnackbar({
+        title: t('errorFetchingReport', 'Failed to load report data.'),
+        kind: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -229,10 +241,15 @@ const PaymentRefundReport: React.FC = () => {
         </div>
       </div>
 
-      {loading && <p>{t('loading', 'Loading...')}</p>}
-      {errorMessage && <p className={styles.error}>{errorMessage}</p>}
-      {!loading && !errorMessage && results.length === 0 && <p>{t('noResults', 'No results found.')}</p>}
-
+      {loading && <DataTableSkeleton rowCount={5} columnCount={columns.length || 5} />}
+      {hasSearched && !loading && !errorMessage && results.length === 0 && (
+        <InlineNotification
+          kind="info"
+          title={t('noResults', 'No results found')}
+          subtitle={t('tryDifferentFilters', 'Try adjusting your filters or date range to see data.')}
+          hideCloseButton
+        />
+      )}
       {!loading && results.length > 0 && (
         <div className={styles.reportTableContainer}>
           <Button onClick={handleExportClick}>{t('exportExcel', 'Export to Excel')}</Button>
@@ -273,7 +290,7 @@ const PaymentRefundReport: React.FC = () => {
                                 <Table size="normal">
                                   <TableHead>
                                     <TableRow>
-                                      <TableHeader>No.</TableHeader>
+                                      <TableHeader>{t('no', 'No')}</TableHeader>
                                       <TableHeader>{t('serviceName', 'Service Name')}</TableHeader>
                                       <TableHeader>{t('qtyPaid', 'Quantity Paid')}</TableHeader>
                                       <TableHeader>{t('refundQty', 'Refund Quantity')}</TableHeader>
