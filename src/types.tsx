@@ -203,6 +203,11 @@ export interface BillPaymentRequest {
 }
 
 export interface InsurancePolicyRecord {
+  hasThirdParty: boolean;
+  thirdPartyProvider: string;
+  companyName: string;
+  insuranceOwner: string;
+  family: string;
   insuranceCardNo: string;
   coverageStartDate: string;
   expirationDate: string;

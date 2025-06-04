@@ -44,6 +44,9 @@ const schema = z
     coverageEndDate: z.date({ required_error: 'Coverage end date is required' }),
     hasThirdParty: z.boolean(),
     thirdPartyProvider: z.string().optional(),
+    companyName: z.string().optional(),
+    insuranceOwner: z.string().optional(),
+    family: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -80,6 +83,9 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
       coverageEndDate: null,
       hasThirdParty: false,
       thirdPartyProvider: '',
+      companyName: '',
+      insuranceOwner: '',
+      family: '',
     },
   });
 
@@ -258,7 +264,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                   render={({ field }) => (
                     <Checkbox
                       id="is-admitted"
-                      labelText={<RequiredFieldLabel label={t('hasThirdParty', 'Has Third party?')} t={t} />}
+                      labelText={t('hasThirdParty', 'Has Third party?')}
                       checked={field.value}
                       onChange={field.onChange}
                       className={styles.sectionField}
@@ -285,6 +291,17 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                 )}
               />
             )}
+            <div className={styles.subheading}>{t('ownershipSection', 'Ownership')}</div>
+
+            <TextInput id="companyName" labelText={t('companyName', 'Company Name')} {...register('companyName')} />
+
+            <TextInput
+              id="insuranceOwner"
+              labelText={t('insuranceOwner', 'Head Household Name/Insurance Owner')}
+              {...register('insuranceOwner')}
+            />
+
+            <TextInput id="family" labelText={t('family', 'Family/ Affiliation code')} {...register('family')} />
 
             {submitError && (
               <InlineNotification
