@@ -20,7 +20,7 @@ import {
 import styles from './visit-form-admission-section.scss';
 import { createAdmissionWithGlobalBill, useDiseaseType } from '../api/patient-admission.resource';
 import { InlineNotification } from '@carbon/react';
-import { TextInput, DatePicker, InlineLoading, ComboBox, DatePickerInput, Checkbox } from '@carbon/react';
+import { TextInput, DatePicker, InlineLoading, ComboBox, DatePickerInput, Checkbox, Toggle } from '@carbon/react';
 import { z } from 'zod';
 import { Button } from '@carbon/react';
 
@@ -49,7 +49,7 @@ const admissionFormSchema = z.object({
   isAdmitted: z.boolean(),
   admissionDate: z.date().refine((date) => date <= new Date(), { message: 'Date cannot be in the future' }),
   diseaseType: z.string().min(1, { message: 'Disease type is required' }),
-  admissionType: z.string().min(1, { message: 'Admission type is required' }),
+  admissionType: z.string().optional(),
 });
 
 type AdmissionFormValues = z.infer<typeof admissionFormSchema>;
@@ -84,6 +84,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
   const [selectedInsurance, setSelectedInsurance] = useState<any>(null);
   const [insurancePolicyId, setInsurancePolicyId] = useState<number | null>(null);
   const [existingGlobalBill, setExistingGlobalBill] = useState<any>(null);
+  const [includeAdmission, setIncludeAdmission] = useState(false);
   const { diseaseType: diseaseTypes, isLoading: isLoadingDiseaseTypes, error: diseaseTypeError } = useDiseaseType();
 
   const methods = useForm<AdmissionFormValues>({
@@ -330,16 +331,14 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
         }
 
         if (existingGlobalBill) {
-          setIsLoading(false);
           showSnackbar({
             title: t('existingGlobalBill', 'Existing Global Bill'),
             subtitle: t(
-              'cannotCreateDuplicateGlobalBill',
-              'Cannot create a new global bill because patient already has an open one.',
+              'existingGlobalBillInfo',
+              'Note: Patient has an open global bill. This visit will be associated with the existing bill.',
             ),
-            kind: 'error',
+            kind: 'info',
           });
-          return Promise.reject(new Error('Existing global bill'));
         }
 
         const admissionTypeNumber = parseInt(data.admissionType);
@@ -393,6 +392,15 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
 
   const onSubmit = useCallback(
     async (visit: Visit) => {
+      if (!includeAdmission) {
+        if (closeWorkspaceWithSavedChanges) {
+          closeWorkspaceWithSavedChanges();
+        } else {
+          closeWorkspace();
+        }
+        return Promise.resolve();
+      }
+
       const isValid = await methods.trigger();
       if (!isValid) {
         return Promise.reject(new Error('Form validation failed'));
@@ -406,7 +414,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
         closeWorkspace();
       }
     },
-    [methods, closeWorkspace, closeWorkspaceWithSavedChanges, handleFormSubmission],
+    [methods, closeWorkspace, closeWorkspaceWithSavedChanges, handleFormSubmission, includeAdmission],
   );
 
   useEffect(() => {
@@ -421,6 +429,19 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
       },
     });
   }, [patientUuid, closeWorkspace]);
+
+  useEffect(() => {
+    if (includeAdmission && existingGlobalBill) {
+      showSnackbar({
+        title: t('existingGlobalBill', 'Existing Global Bill'),
+        subtitle: t(
+          'existingGlobalBillInfo',
+          `Patient has an open global bill (ID: ${existingGlobalBill.billIdentifier}) with insurance policy ${existingGlobalBill.insurance?.name || 'N/A'}. This visit will be associated with the existing bill.`,
+        ),
+        kind: 'info',
+      });
+    }
+  }, [includeAdmission, existingGlobalBill, t]);
 
   if (isLoadingData || isLoadingDiseaseTypes || isLoading) {
     return (
@@ -464,188 +485,183 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
   return (
     <FormProvider {...methods}>
       <div className={styles.form}>
-        <div>
-          {existingGlobalBill && (
-            <div className={styles.errorContainer}>
-              <InlineNotification
-                kind="warning"
-                lowContrast
-                title={t('existingGlobalBill', 'Existing Global Bill')}
-                subtitle={t(
-                  'existingGlobalBillMessage',
-                  `Patient already has an open global bill (ID: ${existingGlobalBill.billIdentifier}). You cannot create a new one.`,
-                )}
-                className={styles.error}
-              />
-            </div>
-          )}
-
-          <div className={styles.formRow}>
-            <div className={styles.formColumn}>
-              <Controller
-                name="insuranceName"
-                control={control}
-                render={({ field }) => (
-                  <TextInput
-                    id="insurance-name"
-                    labelText={t('insuranceName', 'Insurance Name')}
-                    value={field.value}
-                    readOnly
-                    className={styles.sectionField}
-                  />
-                )}
-              />
-            </div>
-
-            <div className={styles.formColumn}>
-              <Controller
-                name="insuranceCardNumber"
-                control={control}
-                render={({ field }) => (
-                  <TextInput
-                    id="insurance-card-number"
-                    labelText={<RequiredFieldLabel label={t('insuranceCardNumber', 'Insurance Card Number')} />}
-                    value={field.value}
-                    onChange={(e) => {
-                      field.onChange(e.target.value);
-                    }}
-                    invalid={!!errors.insuranceCardNumber}
-                    invalidText={errors.insuranceCardNumber?.message}
-                    className={styles.sectionField}
-                  />
-                )}
-              />
-            </div>
+        <div className={styles.formRow}>
+          <div className={styles.formColumn}>
+            <Toggle
+              id="include-admission"
+              labelText={t('includeAdmissionInfo', 'Include admission information')}
+              toggled={includeAdmission}
+              onToggle={(toggled) => setIncludeAdmission(toggled)}
+              className={styles.sectionField}
+            />
           </div>
+        </div>
 
-          <div className={styles.formRow}>
-            <div className={styles.formColumn}>
-              <Controller
-                name="admissionDate"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <DatePicker
-                    datePickerType="single"
-                    dateFormat="m/d/Y"
-                    onChange={([date]) => field.onChange(date)}
-                    value={field.value}
-                    className={styles.sectionField}
-                  >
-                    <DatePickerInput
-                      id="admission-date"
-                      labelText={t('admissionDate', 'Admission Date')}
-                      invalid={!!fieldState.error}
-                      invalidText={fieldState.error?.message}
-                    />
-                  </DatePicker>
-                )}
-              />
-            </div>
-          </div>
+        {includeAdmission && (
+          <>
+            {existingGlobalBill && (
+              <div className={styles.errorContainer}>
+                <InlineNotification
+                  kind="info"
+                  lowContrast
+                  title={t('existingGlobalBill', 'Existing Global Bill')}
+                  subtitle={t(
+                    'existingGlobalBillInfo',
+                    `Patient has an open global bill (ID: ${existingGlobalBill.billIdentifier}) with insurance policy ${existingGlobalBill.insurance?.name || 'N/A'}. This visit will be associated with the existing bill.`,
+                  )}
+                  className={styles.error}
+                />
+              </div>
+            )}
 
-          <div className={styles.formRow}>
-            <div className={styles.formColumn}>
-              <Controller
-                name="diseaseType"
-                control={control}
-                render={({ field }) => (
-                  <ComboBox
-                    titleText={<RequiredFieldLabel label={t('diseaseType', 'Disease Type')} />}
-                    id="disease-type"
-                    items={diseaseTypes}
-                    itemToString={(item) => (item ? item.display : '')}
-                    onChange={({ selectedItem }) => field.onChange(selectedItem?.uuid || '')}
-                    invalid={!!errors.diseaseType}
-                    invalidText={errors.diseaseType?.message}
-                    className={styles.sectionField}
-                    placeholder={t('selectDiseaseType', 'Please select disease type')}
-                  />
-                )}
-              />
-            </div>
-          </div>
-
-          <div className={styles.formRow}>
-            <div className={styles.formColumn}>
-              <Controller
-                name="isAdmitted"
-                control={control}
-                render={({ field }) => (
-                  <Checkbox
-                    id="is-admitted"
-                    labelText={t('isAdmitted', 'Is admitted?')}
-                    checked={field.value}
-                    onChange={field.onChange}
-                    className={styles.sectionField}
-                  />
-                )}
-              />
-            </div>
-          </div>
-
-          {watch('isAdmitted') && (
             <div className={styles.formRow}>
               <div className={styles.formColumn}>
                 <Controller
-                  name="admissionType"
+                  name="insuranceName"
                   control={control}
                   render={({ field }) => (
-                    <ComboBox
-                      titleText={<RequiredFieldLabel label={t('admissionType', 'Admission Type')} />}
-                      id="admission-type"
-                      items={ADMISSION_TYPES}
-                      itemToString={(item) => (item ? item.text : '')}
-                      onChange={({ selectedItem }) => field.onChange(selectedItem?.id || '')}
-                      invalid={!!errors.admissionType}
-                      invalidText={errors.admissionType?.message}
+                    <TextInput
+                      id="insurance-name"
+                      labelText={t('insuranceName', 'Insurance Name')}
+                      value={field.value}
+                      readOnly
                       className={styles.sectionField}
-                      placeholder={t('selectAdmissionType', 'Please select admission type')}
+                    />
+                  )}
+                />
+              </div>
+
+              <div className={styles.formColumn}>
+                <Controller
+                  name="insuranceCardNumber"
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="insurance-card-number"
+                      labelText={<RequiredFieldLabel label={t('insuranceCardNumber', 'Insurance Card Number')} />}
+                      value={field.value}
+                      onChange={(e) => {
+                        field.onChange(e.target.value);
+                      }}
+                      invalid={!!errors.insuranceCardNumber}
+                      invalidText={errors.insuranceCardNumber?.message}
+                      className={styles.sectionField}
                     />
                   )}
                 />
               </div>
             </div>
-          )}
 
-          {/* Status information about insurance verification */}
-          {insurancePolicy && (
-            <div className={styles.errorContainer}>
-              <InlineNotification
-                kind="info"
-                lowContrast
-                title={t('insuranceVerified', 'Insurance Verified')}
-                subtitle={
-                  insurancePolicyId
-                    ? t(
-                        'insurancePolicyFound',
-                        `Insurance policy ID #${insurancePolicyId} found and will be used for global bill creation`,
-                      )
-                    : t('insuranceVerifiedNoPolicy', 'Insurance verified but policy ID not found')
-                }
-                className={styles.error}
-              />
+            <div className={styles.formRow}>
+              <div className={styles.formColumn}>
+                <Controller
+                  name="admissionDate"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <DatePicker
+                      datePickerType="single"
+                      dateFormat="m/d/Y"
+                      onChange={([date]) => field.onChange(date)}
+                      value={field.value}
+                      className={styles.sectionField}
+                    >
+                      <DatePickerInput
+                        id="admission-date"
+                        labelText={t('admissionDate', 'Admission Date')}
+                        invalid={!!fieldState.error}
+                        invalidText={fieldState.error?.message}
+                      />
+                    </DatePicker>
+                  )}
+                />
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Button container with cancel and save buttons */}
-        {/* <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-          <Button className={styles.button} kind="secondary" onClick={closeWorkspace} disabled={isLoading}>
-            {t('cancel', 'Cancel')}
-          </Button>
-          <Button
-            className={styles.button}
-            kind="primary"
-            type="submit"
-            disabled={isLoading || !insurancePolicyId || existingGlobalBill !== null}
-          >
-            {isLoading ? (
-              <InlineLoading className={styles.spinner} description={t('saving', 'Saving') + '...'} />
-            ) : (
-              <span>{t('saveAndClose', 'Save & close')}</span>
+            <div className={styles.formRow}>
+              <div className={styles.formColumn}>
+                <Controller
+                  name="diseaseType"
+                  control={control}
+                  render={({ field }) => (
+                    <ComboBox
+                      titleText={<RequiredFieldLabel label={t('diseaseType', 'Disease Type')} />}
+                      id="disease-type"
+                      items={diseaseTypes}
+                      itemToString={(item) => (item ? item.display : '')}
+                      onChange={({ selectedItem }) => field.onChange(selectedItem?.uuid || '')}
+                      invalid={!!errors.diseaseType}
+                      invalidText={errors.diseaseType?.message}
+                      className={styles.sectionField}
+                      placeholder={t('selectDiseaseType', 'Please select disease type')}
+                    />
+                  )}
+                />
+              </div>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formColumn}>
+                <Controller
+                  name="isAdmitted"
+                  control={control}
+                  render={({ field }) => (
+                    <Checkbox
+                      id="is-admitted"
+                      labelText={t('isAdmitted', 'Is admitted?')}
+                      checked={field.value}
+                      onChange={(_, { checked }) => field.onChange(checked)}
+                      className={styles.sectionField}
+                    />
+                  )}
+                />
+              </div>
+            </div>
+
+            {watch('isAdmitted') && (
+              <div className={styles.formRow}>
+                <div className={styles.formColumn}>
+                  <Controller
+                    name="admissionType"
+                    control={control}
+                    render={({ field }) => (
+                      <ComboBox
+                        titleText={t('admissionType', 'Admission Type')}
+                        id="admission-type"
+                        items={ADMISSION_TYPES}
+                        itemToString={(item) => (item ? item.text : '')}
+                        onChange={({ selectedItem }) => field.onChange(selectedItem?.id || '')}
+                        invalid={!!errors.admissionType}
+                        invalidText={errors.admissionType?.message}
+                        className={styles.sectionField}
+                        placeholder={t('selectAdmissionType', 'Please select admission type')}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
             )}
-          </Button>
-        </ButtonSet> */}
+
+            {/* Status information about insurance verification */}
+            {insurancePolicy && (
+              <div className={styles.errorContainer}>
+                <InlineNotification
+                  kind="info"
+                  lowContrast
+                  title={t('insuranceVerified', 'Insurance Verified')}
+                  subtitle={
+                    insurancePolicyId
+                      ? t(
+                          'insurancePolicyFound',
+                          `Insurance policy ID #${insurancePolicyId} found and will be used for global bill creation`,
+                        )
+                      : t('insuranceVerifiedNoPolicy', 'Insurance verified but policy ID not found')
+                  }
+                  className={styles.error}
+                />
+              </div>
+            )}
+          </>
+        )}
       </div>
     </FormProvider>
   );
