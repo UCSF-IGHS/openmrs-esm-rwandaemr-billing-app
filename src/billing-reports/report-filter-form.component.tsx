@@ -13,6 +13,7 @@ type ReportFilterField =
   | 'thirdParty'
   | 'collector'
   | 'billCreator'
+  | 'company'
   | 'billStatus';
 
 interface ReportFilterFormProps {
@@ -134,6 +135,17 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
             placeholder={t('enterUserName', 'Enter user name')}
             aria-label={t('billCreator', 'Bill Creator')}
             onChange={(e) => handleChange('billCreator', e.target.value)}
+          />
+        );
+
+      case 'company':
+        return (
+          <TextInput
+            id="company"
+            labelText={t('company', 'Company')}
+            placeholder={t('enterCompanyName', 'Enter company name')}
+            aria-label={t('company', 'Company')}
+            onChange={(e) => handleChange('company', e.target.value)}
           />
         );
 
