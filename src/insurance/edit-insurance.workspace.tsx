@@ -9,7 +9,7 @@ interface EditInsuranceModalProps {
   record: InsurancePolicyRecord | null;
   policyId: string;
   onClose: () => void;
-  parentMutate?: () => void; // Add this prop
+  parentMutate?: () => void;
 }
 
 const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose, policyId, parentMutate }) => {
@@ -18,12 +18,22 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
   const [cardNumber, setCardNumber] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [hasThirdParty, setHasThirdParty] = useState(false);
+  const [thirdPartyProvider, setThirdPartyProvider] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [insuranceOwner, setInsuranceOwner] = useState('');
+  const [family, setFamily] = useState('');
 
   useEffect(() => {
     if (record) {
       setCardNumber(record.insuranceCardNo || '');
       setStartDate(record.coverageStartDate || '');
       setEndDate(record.expirationDate || '');
+      setHasThirdParty(record.hasThirdParty ?? false);
+      setThirdPartyProvider(record.thirdPartyProvider || '');
+      setCompanyName(record.companyName || '');
+      setInsuranceOwner(record.insuranceOwner || '');
+      setFamily(record.family || '');
     }
   }, [record]);
 
@@ -84,6 +94,42 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
         labelText={t('coverageEndDate', 'Coverage End Date')}
         value={endDate}
         onChange={(e) => setEndDate(e.target.value)}
+      />
+
+      <div style={{ marginTop: '1rem' }}>
+        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+          <input type="checkbox" checked={hasThirdParty} onChange={(e) => setHasThirdParty(e.target.checked)} />{' '}
+          {t('hasThirdParty', 'Has Third Party?')}
+        </label>
+      </div>
+
+      {hasThirdParty && (
+        <TextInput
+          id="thirdPartyProvider"
+          labelText={t('thirdPartyProvider', 'Third Party Provider')}
+          value={thirdPartyProvider}
+          onChange={(e) => setThirdPartyProvider(e.target.value)}
+        />
+      )}
+      <TextInput
+        id="companyName"
+        labelText={t('companyName', 'Company Name')}
+        value={companyName}
+        onChange={(e) => setCompanyName(e.target.value)}
+      />
+
+      <TextInput
+        id="insuranceOwner"
+        labelText={t('insuranceOwner', 'Head Household Name/Insurance Owner')}
+        value={insuranceOwner}
+        onChange={(e) => setInsuranceOwner(e.target.value)}
+      />
+
+      <TextInput
+        id="family"
+        labelText={t('family', 'Family/ Affiliation code')}
+        value={family}
+        onChange={(e) => setFamily(e.target.value)}
       />
     </Modal>
   );

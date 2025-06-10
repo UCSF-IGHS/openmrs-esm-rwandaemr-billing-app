@@ -113,6 +113,9 @@ const Insurance = ({ patientUuid }) => {
                 {new Date(policy.expirationDate) < new Date() ? 'Expired' : 'Valid'}
               </Tag>
             ),
+            companyName: policy.companyName ?? '',
+            insuranceOwner: policy.insuranceOwner ?? '',
+            affiliationCode: policy.family ?? '',
           }));
 
         setEntries(mapped);
