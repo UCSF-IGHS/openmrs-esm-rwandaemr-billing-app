@@ -45,13 +45,6 @@ $disabled-03: #8d8d8d !default;
   flex-direction: column;
 }
 
-.closedBillNotice {
-  color: #da1e28;
-  font-size: 0.875rem;
-  font-weight: 500;
-  margin-top: layout.$spacing-02;
-}
-
 .table {
   width: 100% !important;
   table-layout: fixed; // Changed from auto to fixed
@@ -300,4 +293,10 @@ $disabled-03: #8d8d8d !default;
   .itemNameCell {
     max-width: 120px;
   }
+}
+
+.headerActions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }

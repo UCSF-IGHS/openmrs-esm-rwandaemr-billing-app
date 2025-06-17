@@ -378,27 +378,6 @@ export const dischargePatient = async (admissionId: string, dischargeDate: Date)
 };
 
 /**
- * Closes the global bill for the specified admission
- * @param globalBillId The global bill ID to close
- * @returns Promise with close result
- */
-export const closeGlobalBill = async (globalBillId: string): Promise<any> => {
-  try {
-    const response = await openmrsFetch(`${BASE_API_URL}/globalBill/${globalBillId}/close`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    return response.data;
-  } catch (error) {
-    console.error('Error closing global bill:', error);
-    throw error;
-  }
-};
-
-/**
  * Fetches patient visits within a specified date range
  * @param patientUuid - The patient's UUID
  * @param fromDate - The start date to check for visits (optional)
