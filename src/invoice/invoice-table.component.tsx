@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
 import {
@@ -237,6 +237,8 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     setCurrentGlobalBillId(null);
   }, []);
 
+  const consommationListRef = React.useRef(null);
+
   const handleCalculatorSave = useCallback(async () => {
     if (!calculatorItems || calculatorItems.length === 0) {
       return;
@@ -375,6 +377,11 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         mutate();
         setIsCalculatorOpen(false);
         setCurrentGlobalBillId(null);
+
+        // Mutate the embedded consommations list if it exists
+        if (consommationListRef.current?.mutate) {
+          await consommationListRef.current.mutate();
+        }
       }
     } catch (error) {
       console.error('Error saving bill items:', error);
@@ -404,6 +411,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
           onConsommationClick={() => {}}
           onAddNewInvoice={createNewInvoice}
           isGlobalBillClosed={isGlobalBillClosed}
+          ref={consommationListRef}
         />
       </div>
     );
