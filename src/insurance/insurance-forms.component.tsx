@@ -189,7 +189,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
               render={({ field }) => (
                 <Select
                   id="insuranceName"
-                  style={{ 'margin-bottom': '0.5rem !important' }}
+                  style={{ marginBottom: '0.5rem' }}
                   labelText={<RequiredFieldLabel label={t('insuranceName', 'Insurance Name')} t={t} />}
                   {...field}
                 >
@@ -212,13 +212,11 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
               render={({ field: { onChange, onBlur, value } }) => (
                 <ResponsiveWrapper>
                   <DatePicker
-                    id="coverageStartDate"
                     datePickerType="single"
                     dateFormat="d/m/Y"
                     maxDate={new Date().toISOString()}
-                    placeholder="dd/mm/yyyy"
                     onChange={([date]) => onChange(date)}
-                    onBlur={onBlur}
+                    // onBlur={onBlur}
                     value={value}
                   >
                     <DatePickerInput
@@ -237,13 +235,12 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
               render={({ field: { onChange, onBlur, value } }) => (
                 <ResponsiveWrapper>
                   <DatePicker
-                    id="coverageEndDate"
                     datePickerType="single"
                     dateFormat="d/m/Y"
                     minDate={coverageStartDate || new Date().toISOString()}
-                    placeholder="dd/mm/yyyy"
+                    // placeholder="dd/mm/yyyy"
                     onChange={([date]) => onChange(date)}
-                    onBlur={onBlur}
+                    // onBlur={onBlur}
                     value={value}
                   >
                     <DatePickerInput

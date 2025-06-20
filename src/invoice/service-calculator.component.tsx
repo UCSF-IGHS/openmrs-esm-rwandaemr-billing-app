@@ -318,6 +318,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
               <label className={styles.fieldLabel}>{t('department', 'Department')}</label>
               <Dropdown
                 id="department"
+                titleText={t('department', 'Department')}
                 label={isLoadingDepartments ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
                 items={departments.map((dept) => dept.serviceId.toString())}
                 itemToString={(uuid) => departments.find((d) => d.serviceId.toString() === uuid)?.name || ''}
@@ -339,6 +340,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
               <label className={styles.fieldLabel}>{t('serviceCategory', 'Service Category')}</label>
               <Dropdown
                 id="serviceCategory"
+                titleText={t('serviceCategory', 'Service Category')}
                 label={isLoadingServiceCategories ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
                 items={serviceCategories
                   .filter((cat) => cat && cat.serviceCategoryId) // Filter out categories with missing IDs
@@ -367,6 +369,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
               <label className={styles.fieldLabel}>{t('service', 'Service')}</label>
               <Dropdown
                 id="service"
+                titleText={t('service', 'Service')}
                 label={
                   isLoadingBillableServices
                     ? t('loading', 'Loading...')
@@ -405,7 +408,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
                   id="quantity"
                   min={1}
                   value={quantity}
-                  onChange={(e, { value }) => setQuantity(value)}
+                  onChange={(e, { value }) => setQuantity(Number(value))}
                   invalidText={errors.quantity}
                   invalid={!!errors.quantity}
                   hideSteppers={true}
@@ -419,6 +422,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
                   <label className={styles.fieldLabel}>{t('frequency', 'Frequency')}</label>
                   <TextInput
                     id="drugFrequency"
+                    labelText={t('frequency', 'Frequency')}
                     value={drugFrequency}
                     onChange={(e) => setDrugFrequency(e.target.value)}
                     placeholder="e.g. 1×3"

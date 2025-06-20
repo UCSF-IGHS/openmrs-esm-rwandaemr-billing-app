@@ -94,7 +94,7 @@ export const InsurancePolicyTable: React.FC = () => {
     setShowEditModal(true);
   };
   const tableRows = results.map((policy, index) => ({
-    id: index,
+    id: String(index),
     policyNo: policy.insurancePolicyNo,
     coverageStartDate: policy.coverageStartDate,
     expirationDate: policy.expirationDate,
@@ -176,7 +176,6 @@ export const InsurancePolicyTable: React.FC = () => {
                   placeholder={t('searchThisTable', 'Search policy by card number')}
                   size={tableSize}
                   persistent
-                  light
                 />
                 <Table {...getTableProps()}>
                   <TableHead>

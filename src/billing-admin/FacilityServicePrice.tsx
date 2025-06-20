@@ -95,7 +95,6 @@ const FacilityServicePrice: React.FC<FacilityServicePriceProps> = ({ showAddButt
           columnCount={headers.length}
           showHeader={false}
           showToolbar={false}
-          size="sm"
           zebra
         />
       </div>
@@ -143,7 +142,7 @@ const FacilityServicePrice: React.FC<FacilityServicePriceProps> = ({ showAddButt
                   <Layer>
                     <Search
                       size="lg"
-                      expanded
+                      isExpanded
                       labelText=""
                       closeButtonLabelText={t('clearSearch', 'Clear search input')}
                       value={searchTerm}
@@ -178,14 +177,12 @@ const FacilityServicePrice: React.FC<FacilityServicePriceProps> = ({ showAddButt
                           <ButtonSet className={styles.actionsCell}>
                             <Button
                               kind="ghost"
-                              size="sm"
                               renderIcon={Edit}
                               hasIconOnly
                               iconDescription={t('edit', 'Edit')}
                             />
                             <Button
                               kind="ghost"
-                              size="sm"
                               renderIcon={Add}
                               hasIconOnly
                               iconDescription={t('add', 'Add')}
@@ -224,7 +221,6 @@ const FacilityServicePrice: React.FC<FacilityServicePriceProps> = ({ showAddButt
               </Button>
               <Button
                 kind="ghost"
-                size="sm"
                 disabled={currentPage === Math.ceil(rows.length / defaultPageSize)}
                 onClick={() => goTo(currentPage + 1)}
               >

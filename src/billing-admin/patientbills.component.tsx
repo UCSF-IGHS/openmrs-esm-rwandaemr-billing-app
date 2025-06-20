@@ -4,7 +4,7 @@ import { DataTable, Table, TableHead, TableRow, TableHeader, TableBody, TableCel
 import { useTranslation } from 'react-i18next';
 import { formatDate, showToast, useSession } from '@openmrs/esm-framework';
 import { getPatientBills, type PatientBill } from '../api/billing';
-import PaymentsDeskIcon from '../images/payments-desk-icon.svg';
+import { Money, Receipt, Currency, Umbrella } from '@carbon/react/icons';
 import styles from './patientbills.scss';
 
 const PatientBills: React.FC = () => {
@@ -105,8 +105,8 @@ const PatientBills: React.FC = () => {
           <div className={styles.headerContainer}>
             <div className={styles.headerContent}>
               <div className={styles.leftSection}>
-                {/* Use the PaymentsDeskIcon directly instead of Receipt */}
-                <img src={PaymentsDeskIcon} alt="Payments Desk Icon" className={styles.headerIcon} />
+                {/* Use the Money directly instead of Receipt */}
+                <Money size={24} />
                 <div>
                   <p className={styles.location}>{userLocation}</p>
                   <p className={styles.billingTitle}>Billing</p>
@@ -118,7 +118,6 @@ const PatientBills: React.FC = () => {
                     <DatePicker datePickerType="single" dateFormat="d-M-Y" value={selectedDate} onChange={handleDateChange}>
                       <DatePickerInput
                         id="billing-date-picker"
-                        pattern="\d{1,2}\/\d{1,2}\/\d{4}"
                         placeholder="DD-MMM-YYYY"
                         labelText=""
                         size="md"

@@ -11,6 +11,72 @@
   background: colors.$white-0;
   border-bottom: 1px solid colors.$gray-20;
 }
+
+.headerContainer {
+  width: 100%;
+  background-color: colors.$white-0;
+}
+
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: layout.$spacing-05;
+}
+
+.leftSection {
+  display: flex;
+  align-items: center;
+}
+
+.iconContainer {
+  width: 48px;
+  height: 48px;
+  background-color: colors.$teal-50;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: layout.$spacing-04;
+
+  svg {
+    fill: colors.$white-0;
+  }
+}
+
+.titleContainer {
+  display: flex;
+  flex-direction: column;
+}
+
+.location {
+  @include type.type-style('body-compact-01');
+  color: colors.$gray-70;
+  margin: 0 0 layout.$spacing-02 0;
+}
+
+.billingTitle {
+  @include type.type-style('heading-04');
+  color: colors.$gray-100;
+  margin: 0;
+  font-weight: 600;
+}
+
+.rightSection {
+  display: flex;
+  align-items: center;
+}
+
+.datePickerContainer {
+  margin-left: layout.$spacing-04;
+}
+
+.navigationContainer {
+  background-color: colors.$gray-10;
+  border-bottom: 1px solid colors.$gray-20;
+  padding: 0 layout.$spacing-05;
+}
+
 .subTabsContainer {
   margin-top: 0;
   border-bottom: none;
@@ -38,157 +104,5 @@
 
   :global(.cds--tab-content) {
     padding: 0;
-  }
-}
-.headerContainer {
-  width: 100%;
-  background-color: colors.$white-0;
-}
-
-.headerContent {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: layout.$spacing-05 layout.$spacing-05 layout.$spacing-03;
-  background-color: colors.$white-0;
-}
-
-.leftSection {
-  display: flex;
-  align-items: center;
-  gap: layout.$spacing-03;
-}
-
-.rightSection {
-  display: flex;
-  align-items: center;
-  gap: layout.$spacing-03;
-  
-  :global(.cds--overflow-menu) {
-    height: 2rem;
-    
-    &:hover {
-      background: colors.$gray-10;
-    }
-  }
-}
-
-.headerIcon {
-  width: 92;
-  height: 92;
-}
-
-.location {
-  @include type.type-style('body-compact-01');
-  color: colors.$gray-70;
-}
-
-.navigationContainer {
-  :global(.cds--tabs) {
-    width: 100%;
-    padding: layout.$spacing-03 layout.$spacing-03 0;
-  }
-
-  :global(.cds--tab) {
-    height: 3rem;
-    max-width: none;
-    padding: 0 layout.$spacing-05;
-    background: colors.$white-0;
-    
-  }
-
-  :global(.cds--tab--selected) {
-    background: colors.$white-0;
-    box-shadow: 0 0 0 1px colors.$gray-20;
-  }
-
-  :global(.cds--tab-content) {
-    padding: 0;
-  }
-
-  :global(.cds--tab--contained) {
-    background: transparent;
-    
-    &:hover {
-      background: colors.$white-0;
-    }
-  }
-}
-
-.secondaryNavigation {
-  background: colors.$gray-10;
-  border-top: 1px solid colors.$gray-20;
-
-  :global(.cds--tab) {
-    height: 2.5rem;
-    padding: 0 layout.$spacing-04;
-    font-size: 0.875rem;
-  }
-}
-
-:global(.cds--date-picker-input__wrapper) {
-  display: flex;
-  align-items: center;
-  
-  span {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-}
-
-:global(.cds--date-picker) {
-  width: auto;
-  
-  .cds--date-picker__input {
-    width: 10rem;
-    background-color: transparent;
-    border: none;
-    cursor: pointer;
-    
-    &:focus {
-      outline: none;
-    }
-    
-    &::placeholder {
-      color: colors.$gray-70;
-    }
-  }
-  
-  .cds--date-picker__icon {
-    position: absolute;
-    right: 1rem;
-    fill: currentColor;
-    width: 16px;
-    height: 16px;
-  }
-}
-:global(.cds--date-picker__input.active) {
-  background-color: transparent;
-  border: none;
-}
-:global(.cds--tab-content) {
-  display: none;
-}
-
-:global(.cds--overflow-menu-options__option:focus) {
-  outline: none;
-}
-
-:global(.cds--overflow-menu-options__btn:focus) {
-  outline: none;
-}
-
-.selectedMenuItem {
-  background-color: var(--cds-layer-selected-01);
-  color: var(--cds-text-primary);
-  font-weight: 600;
-
-  &:hover {
-    background-color: var(--cds-layer-selected-hover);
-  }
-
-  &:focus {
-    outline: none;
   }
 }

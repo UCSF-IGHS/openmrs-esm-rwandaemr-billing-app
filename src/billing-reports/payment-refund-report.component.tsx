@@ -259,7 +259,6 @@ const PaymentRefundReport: React.FC = () => {
             useZebraStyles
             isSortable
             overflowMenuOnHover={false}
-            className={styles.dataTable}
           >
             {({ rows, headers, getTableProps, getTableContainerProps, getHeaderProps, getRowProps }) => (
               <TableContainer {...getTableContainerProps()}>
@@ -287,7 +286,7 @@ const PaymentRefundReport: React.FC = () => {
                             <TableExpandedRow colSpan={headers.length + 1}>
                               <strong>{t('refundedItemsDetails', 'Refunded Items Details')}</strong>{' '}
                               <div className={styles.refundedItemsTableWrapper}>
-                                <Table size="normal">
+                                <Table size="md">
                                   <TableHead>
                                     <TableRow>
                                       <TableHeader>{t('no', 'No')}</TableHeader>

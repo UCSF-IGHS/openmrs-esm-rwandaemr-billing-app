@@ -40,12 +40,13 @@
   justify-content: space-between;
   align-items: center;
   background-color: colors.$white-0;
+  padding: layout.$spacing-05;
 }
 
 .leftSection {
   display: flex;
   align-items: center;
-  gap: layout.$spacing-03;
+  gap: layout.$spacing-04;
 }
 
 .iconContainer {
@@ -54,8 +55,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: colors.$gray-10;
+  background-color: colors.$teal-50;
   border-radius: 50%;
+  
+  // Style for SVG pictograms from OpenMRS styleguide
+  svg {
+    width: 32px;
+    height: 32px;
+    fill: colors.$white-0;
+    
+    // Ensure the pictogram paths are properly colored
+    * {
+      fill: colors.$white-0;
+    }
+  }
 }
 
 .location {

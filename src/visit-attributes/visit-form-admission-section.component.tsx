@@ -587,8 +587,8 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
                       titleText={<RequiredFieldLabel label={t('diseaseType', 'Disease Type')} />}
                       id="disease-type"
                       items={diseaseTypes}
-                      itemToString={(item) => (item ? item.display : '')}
-                      onChange={({ selectedItem }) => field.onChange(selectedItem?.uuid || '')}
+                      itemToString={(item) => (item ? (item as any).display : '')}
+                      onChange={({ selectedItem }) => field.onChange((selectedItem as any)?.uuid || '')}
                       invalid={!!errors.diseaseType}
                       invalidText={errors.diseaseType?.message}
                       className={styles.sectionField}

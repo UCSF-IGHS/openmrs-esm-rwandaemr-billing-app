@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './billing.scss';
-import PaymentsDeskIcon from './images/payments-desk-icon.svg';
+import { Money, Receipt, Currency, Umbrella } from '@carbon/react/icons';
 import BillConfirmation from './bill-tabs/bill-confirmation.component';
 import SearchInsurance from './bill-tabs/search-insurance.component';
 import GlobalBillSearch from './bill-tabs/global-bill-search.component';
 import ConsommationSearch from './bill-tabs/consommation-search.component';
 import BillListTable from './recent-bills/bill-list-table.component';
-import { RadioButtonGroup, RadioButton, DatePicker, DatePickerInput } from '@carbon/react';
+import { RadioButtonGroup, RadioButton } from '@carbon/react';
 import { useSession } from '@openmrs/esm-framework';
 import { getGlobalBillSummary } from './api/billing';
 import { formatNumberCurrency } from './metrics/metrics.resources';
@@ -65,10 +65,8 @@ const Billing: React.FC = () => {
     setActiveOption(value as SearchOption);
   };
 
-  const handleDateChange = (dates) => {
-    if (dates.length > 0) {
-      setSelectedDate(dates[0]);
-    }
+  const handleDateChange = (date: Date) => {
+    setSelectedDate(date);
   };
 
   return (
@@ -79,46 +77,30 @@ const Billing: React.FC = () => {
           <div className={styles.headerContainer}>
             <div className={styles.headerContent}>
               <div className={styles.leftSection}>
-                <img src={PaymentsDeskIcon} alt="Payments Desk Icon" className={styles.headerIcon} />
-                <div>
+                <div className={styles.iconContainer}>
+                  <Money size={24} />
+                </div>
+                <div className={styles.titleContainer}>
                   <p className={styles.location}>{userLocation}</p>
-                  <p className={styles.billingTitle}>Billing</p>
+                  <h1 className={styles.billingTitle}>{t('billing', 'Billing')}</h1>
                 </div>
               </div>
               <div className={styles.rightSection}>
-                <div className="cds--date-picker-input__wrapper">
-                  <span>
-                    <DatePicker
-                      datePickerType="single"
-                      dateFormat="d-M-Y"
-                      value={selectedDate}
-                      onChange={handleDateChange}
-                    >
-                      <DatePickerInput
-                        id="billing-date-picker"
-                        pattern="\d{1,2}\/\d{1,2}\/\d{4}"
-                        placeholder="DD-MMM-YYYY"
-                        labelText=""
-                        size="md"
-                        style={{
-                          cursor: 'pointer',
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          maxWidth: '10rem',
-                        }}
-                      />
-                    </DatePicker>
-                  </span>
-                </div>
+                <div className={styles.datePickerContainer}>{/* Date picker can be added here if needed */}</div>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Metrics Section Header */}
+        <div className={styles.metricsHeaderContainer}>
+          <h2 className={styles.metricsHeaderTitle}>{t('billingMetrics', 'Billing metrics')}</h2>
+        </div>
+
         {/* Metrics Cards */}
         <div className={styles.metricsContainer}>
           {loading ? (
-            <CodeSnippetSkeleton />
+            <CodeSnippetSkeleton className={styles.skeleton} />
           ) : error ? (
             <p style={{ color: 'red' }}>{error}</p>
           ) : (

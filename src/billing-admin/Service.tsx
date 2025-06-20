@@ -41,7 +41,6 @@ const ServiceActions: React.FC<ServiceActionsProps> = ({ service, responsiveSize
         aria-label={t('actionsMenu', 'Actions menu')}
         flipped
         selectorPrimaryFocus={'#edit'}
-        size={responsiveSize}
       >
         <OverflowMenuItem
           className={styles.menuItem}
@@ -124,7 +123,6 @@ const Service: React.FC<ServiceProps> = ({ showAddButton = true }) => {
           columnCount={headers.length}
           showHeader={false}
           showToolbar={false}
-          size="sm"
           zebra
         />
       </div>
@@ -172,7 +170,7 @@ const Service: React.FC<ServiceProps> = ({ showAddButton = true }) => {
                   <Layer>
                     <Search
                       size="lg"
-                      expanded
+                      isExpanded
                       labelText=""
                       closeButtonLabelText={t('clearSearch', 'Clear search input')}
                       value={searchTerm}
@@ -231,7 +229,6 @@ const Service: React.FC<ServiceProps> = ({ showAddButton = true }) => {
               </Button>
               <Button
                 kind="ghost"
-                size="sm"
                 disabled={currentPage === Math.ceil(rows.length / defaultPageSize)}
                 onClick={() => goTo(currentPage + 1)}
               >

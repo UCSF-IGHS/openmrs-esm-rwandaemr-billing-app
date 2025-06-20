@@ -113,7 +113,6 @@ const ThirdParty: React.FC<ThirdPartyProps> = ({ showAddButton = true }) => {
           columnCount={headers.length}
           showHeader={false}
           showToolbar={false}
-          size="sm"
           zebra
         />
       </div>
@@ -163,11 +162,11 @@ const ThirdParty: React.FC<ThirdPartyProps> = ({ showAddButton = true }) => {
                   <Layer>
                     <Search
                       size="lg"
-                      expanded
+                      isExpanded
                       labelText=""
                       closeButtonLabelText={t('clearSearch', 'Clear search input')}
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
                       placeholder={t('searchTable', 'Search table')}
                     />
                   </Layer>
@@ -194,7 +193,6 @@ const ThirdParty: React.FC<ThirdPartyProps> = ({ showAddButton = true }) => {
                                 </Button>
                                 <Button
                                   kind="danger--tertiary"
-                                  size="sm"
                                   renderIcon={TrashCan}
                                   onClick={() => handleDelete(row.id)}
                                 >
@@ -238,7 +236,6 @@ const ThirdParty: React.FC<ThirdPartyProps> = ({ showAddButton = true }) => {
               </Button>
               <Button
                 kind="ghost"
-                size="sm"
                 disabled={currentPage === Math.ceil(rows.length / defaultPageSize)}
                 onClick={() => goTo(currentPage + 1)}
               >
@@ -267,14 +264,14 @@ const ThirdParty: React.FC<ThirdPartyProps> = ({ showAddButton = true }) => {
               id="thirdPartyName"
               labelText={t('thirdPartyName', 'Third Party name')}
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, name: (e.target as HTMLInputElement).value })}
               required
             />
             <NumberInput
               id="thirdPartyRate"
               label={t('thirdPartyRate', 'Third Party rate')}
               value={formData.rate}
-              onChange={(e) => setFormData({ ...formData, rate: Number(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, rate: Number((e.target as HTMLInputElement).value) })}
               required
             />
           </div>
