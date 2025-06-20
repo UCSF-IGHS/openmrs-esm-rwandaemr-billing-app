@@ -123,7 +123,7 @@ const Department: React.FC<DepartmentProps> = ({ showAddButton = true, title }) 
                   <Layer>
                     <Search
                       size="lg"
-                      expanded
+                      isExpanded
                       labelText=""
                       closeButtonLabelText={t('clearSearch', 'Clear search input')}
                       value={searchTerm}

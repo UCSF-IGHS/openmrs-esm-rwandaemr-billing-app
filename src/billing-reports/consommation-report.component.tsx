@@ -222,7 +222,6 @@ const ConsommationReport: React.FC = () => {
             useZebraStyles
             isSortable={true}
             overflowMenuOnHover={false}
-            className={styles.dataTable}
           >
             {({ rows, headers, getTableProps, getTableContainerProps, getHeaderProps, getRowProps }) => (
               <TableContainer {...getTableContainerProps()}>

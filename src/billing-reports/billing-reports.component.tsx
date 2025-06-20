@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './billing-reports.scss';
-import PaymentsDeskIcon from '../images/payments-desk-icon.svg';
+import { Receipt, Currency, Umbrella, Money } from '@carbon/react/icons';
 import { DatePicker, DatePickerInput, Dropdown } from '@carbon/react';
 import { useSession } from '@openmrs/esm-framework';
+// Fallback: Use Money icon from Carbon with proper styling until styleguide compatibility is resolved
 import CashierReport from './cashier-report.component';
 import DepositsReport from './deposits-report.component';
 import ServiceRevenueReport from './service-revenue-report.component';
@@ -50,11 +51,10 @@ const BillingReportsHome: React.FC = () => {
           <div className={styles.headerContainer}>
             <div className={styles.headerContent}>
               <div className={styles.leftSection}>
-                <img
-                  src={PaymentsDeskIcon}
-                  alt={t('paymentsDeskIconAlt', 'Payments Desk Icon')}
-                  className={styles.headerIcon}
-                />
+                {/* Fallback: Use Money icon with proper container styling */}
+                <div className={styles.iconContainer}>
+                  <Money size={32} />
+                </div>
                 <div>
                   <p className={styles.location}>{userLocation}</p>
                   <p className={styles.billingTitle}>{t('billingReports', 'Billing Reports')}</p>
@@ -71,7 +71,6 @@ const BillingReportsHome: React.FC = () => {
                     >
                       <DatePickerInput
                         id="billing-date-picker"
-                        pattern="\d{1,2}\/\d{1,2}\/\d{4}"
                         placeholder={t('datePlaceholder', 'DD-MMM-YYYY')}
                         labelText=""
                         size="md"

@@ -1,6 +1,6 @@
 @use '@carbon/styles/scss/spacing';
 @use '@carbon/styles/scss/type';
-@import '~@openmrs/esm-styleguide/src/vars';
+@use '~@openmrs/esm-styleguide/src/vars';
 
 .container {
   padding: spacing.$spacing-05;
@@ -8,7 +8,7 @@
 
 .pageTitle {
   @include type.type-style('heading-04');
-  color: $text-02;
+  color: var(--cds-text-secondary);
   margin-bottom: spacing.$spacing-05;
 }
 
@@ -17,13 +17,13 @@
   
   h2 {
     @include type.type-style('heading-03');
-    color: $text-02;
+    color: var(--cds-text-secondary);
     margin-bottom: spacing.$spacing-05;
   }
 }
 
 .error {
-  color: $danger;
+  color: var(--cds-support-error);
   margin: spacing.$spacing-05;
   @include type.type-style('body-short-02');
 }
