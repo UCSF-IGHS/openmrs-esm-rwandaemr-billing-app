@@ -46,7 +46,6 @@ const BillingReportsHome: React.FC = () => {
   return (
     <div className={styles.billingWrapper} id="billing-component-instance">
       <div className={styles.container}>
-        {/* Header - Following Appointments pattern */}
         <PageHeader className={styles.header} data-testid="billing-reports-header">
           <PageHeaderContent 
             illustration={

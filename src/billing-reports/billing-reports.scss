@@ -94,27 +94,20 @@
       font-weight: 400;
       @include type.type-style('body-compact-01');
       white-space: nowrap;
-      // Removed text truncation to show full text
-      // overflow: hidden;
-      // text-overflow: ellipsis;
-      // max-width: 180px;
     }
     
     .cds--list-box__menu {
       width: auto !important;
       min-width: 250px !important;
-      max-width: 350px !important; // Reasonable maximum width
+      max-width: 350px !important; 
       z-index: 9999;
       position: absolute !important;
-      right: 0 !important; // Align to the right edge
+      right: 0 !important; 
       left: auto !important;
     }
     
     .cds--list-box__menu-item__option {
       white-space: nowrap;
-      // Removed text truncation to show full text
-      // overflow: hidden;
-      // text-overflow: ellipsis;
       padding: 8px 12px;
       font-size: 14px;
     }
