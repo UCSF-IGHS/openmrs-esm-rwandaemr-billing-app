@@ -1,10 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './billing-reports.scss';
-import { Receipt, Currency, Umbrella, Money } from '@carbon/react/icons';
-import { DatePicker, DatePickerInput, Dropdown } from '@carbon/react';
-import { useSession } from '@openmrs/esm-framework';
-// Fallback: Use Money icon from Carbon with proper styling until styleguide compatibility is resolved
+import { Dropdown } from '@carbon/react';
+import { Document } from '@carbon/react/icons';
+import { 
+  useSession, 
+  PageHeader, 
+  PageHeaderContent, 
+  MaybePictogram 
+} from '@openmrs/esm-framework';
 import CashierReport from './cashier-report.component';
 import DepositsReport from './deposits-report.component';
 import ServiceRevenueReport from './service-revenue-report.component';
@@ -17,15 +21,13 @@ import ConsommationReport from './consommation-report.component';
 const BillingReportsHome: React.FC = () => {
   const { t } = useTranslation();
   const session = useSession();
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeReport, setActiveReport] = useState('consommationReport');
-  const userLocation = session?.sessionLocation?.display || t('unknownLocation', 'Unknown Location');
 
-  const handleDateChange = (dates) => {
-    if (Array.isArray(dates) && dates.length > 0) {
-      setSelectedDate(dates[0]);
+  const handleReportChange = useCallback(({ selectedItem }) => {
+    if (selectedItem?.key) {
+      setActiveReport(selectedItem.key);
     }
-  };
+  }, []);
 
   const reportTypes = useMemo(
     () => [
@@ -41,66 +43,35 @@ const BillingReportsHome: React.FC = () => {
     [t],
   );
 
-  const activeReportLabel = reportTypes.find((r) => r.key === activeReport)?.label || '';
-
   return (
     <div className={styles.billingWrapper} id="billing-component-instance">
       <div className={styles.container}>
-        {/* Header */}
-        <div className={styles.headerWrapper}>
-          <div className={styles.headerContainer}>
-            <div className={styles.headerContent}>
-              <div className={styles.leftSection}>
-                {/* Fallback: Use Money icon with proper container styling */}
-                <div className={styles.iconContainer}>
-                  <Money size={32} />
-                </div>
-                <div>
-                  <p className={styles.location}>{userLocation}</p>
-                  <p className={styles.billingTitle}>{t('billingReports', 'Billing Reports')}</p>
-                </div>
-              </div>
-              <div className={styles.rightSection}>
-                <div className="cds--date-picker-input__wrapper">
-                  <span>
-                    <DatePicker
-                      datePickerType="single"
-                      dateFormat="d-M-Y"
-                      value={selectedDate}
-                      onChange={handleDateChange}
-                    >
-                      <DatePickerInput
-                        id="billing-date-picker"
-                        placeholder={t('datePlaceholder', 'DD-MMM-YYYY')}
-                        labelText=""
-                        size="md"
-                        style={{
-                          cursor: 'pointer',
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          maxWidth: '10rem',
-                        }}
-                      />
-                    </DatePicker>
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Dropdown for Report Selection */}
-        <div className={styles.reportDropdownWrapper}>
-          <Dropdown
-            id="report-dropdown"
-            titleText={t('selectReportType', 'Select Report Type')}
-            label={activeReportLabel}
-            items={reportTypes}
-            itemToString={(item) => item?.label || ''}
-            onChange={({ selectedItem }) => setActiveReport(selectedItem?.key)}
+        {/* Header - Following Appointments pattern */}
+        <PageHeader className={styles.header} data-testid="billing-reports-header">
+          <PageHeaderContent 
+            illustration={
+              <MaybePictogram 
+                pictogram="omrs-pict-billing" 
+                fallback={<Document size={80} className={styles.billingDocumentIcon} />}
+              />
+            } 
+            title={t('billingReports', 'Billing Reports')} 
           />
-        </div>
+          <div className={styles.rightJustifiedItems}>
+            <Dropdown
+              id="report-type-dropdown"
+              items={reportTypes}
+              itemToString={(item) => item?.label || ''}
+              titleText=""
+              label={t('filterReportsByType', 'Filter reports by type')}
+              onChange={handleReportChange}
+              selectedItem={reportTypes.find((r) => r.key === activeReport)}
+              size="md"
+            />
+          </div>
+        </PageHeader>
 
+        {/* Report Content */}
         <div className={styles.reportTableContainer}>
           {activeReport === 'consommationReport' && <ConsommationReport />}
           {activeReport === 'cashierReport' && <CashierReport />}

@@ -1,6 +1,7 @@
 @use '@carbon/layout';
 @use '@carbon/type';
 @use '@carbon/colors';
+@use '@openmrs/esm-styleguide/src/vars' as *;
 
 .billingWrapper {
   width: 100%;
@@ -16,76 +17,108 @@
   overflow-x: hidden;
   position: relative;
   background: colors.$white-0;
-  margin: layout.$spacing-07 0;
-}
-
-/* Header Styles */
-.headerWrapper {
-  position: sticky;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1;
-  background: colors.$white-0;
-  border-bottom: 1px solid colors.$gray-20;
-}
-
-.headerContainer {
-  width: 100%;
-  background-color: colors.$white-0;
-}
-
-.headerContent {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: colors.$white-0;
-  padding: layout.$spacing-05;
-}
-
-.leftSection {
-  display: flex;
-  align-items: center;
-  gap: layout.$spacing-04;
-}
-
-.iconContainer {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: colors.$teal-50;
-  border-radius: 50%;
+  margin: 0;
   
-  // Style for SVG pictograms from OpenMRS styleguide
-  svg {
-    width: 32px;
-    height: 32px;
-    fill: colors.$white-0;
-    
-    // Ensure the pictogram paths are properly colored
-    * {
-      fill: colors.$white-0;
-    }
+  // Ensure dropdowns don't cause horizontal scroll
+  * {
+    box-sizing: border-box;
   }
 }
 
-.location {
-  @include type.type-style('body-compact-01');
-  color: colors.$gray-70;
-  margin: 0;
-}
-
-.billingTitle {
-  @include type.type-style('heading-03');
-  color: colors.$gray-100;
-  margin: 0;
-}
-
-.rightSection {
+/* Header - Following Appointments pattern exactly */
+.header {
+  background-color: $ui-02;
+  border: 1px solid $ui-03;
+  border-left: 0;
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  padding-right: layout.$spacing-03;
+  overflow: visible; // Allow dropdown to show outside header bounds
+  position: relative; // Ensure proper positioning context
+}
+
+.rightJustifiedItems {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  margin: 0 layout.$spacing-03;
+  row-gap: layout.$spacing-01;
+  width: auto; // Allow dynamic width
+  min-width: 250px; // Ensure minimum readable width
+}
+
+/* Billing Document Icon - matching billing header colors */
+.billingDocumentIcon {
+  fill: #7BBCB9 !important;
+  color: #7BBCB9 !important;
+}
+
+/* Report Content Container */
+.reportTableContainer {
+  flex: 1;
+  overflow-y: auto;
+  background-color: colors.$white-0;
+  padding: layout.$spacing-05;
+  margin: 0;
+}
+
+/* Report Dropdown specific styling - Removed as no longer needed */
+
+/* Dropdown Styling - Inline type like appointments */
+.rightJustifiedItems {
+  :global(.cds--dropdown--inline) {
+    background-color: transparent;
+    border: none;
+    width: auto; // Allow dynamic width
+    min-width: 250px; // Ensure minimum readable width
+    
+    .cds--list-box {
+      width: 100%;
+      min-width: 250px;
+    }
+    
+    .cds--list-box__field {
+      background-color: transparent;
+      border: none;
+      padding: 0;
+      height: auto;
+      min-height: auto;
+      width: 100%;
+      min-width: 250px;
+    }
+    
+    .cds--list-box__label {
+      color: colors.$gray-100;
+      font-weight: 400;
+      @include type.type-style('body-compact-01');
+      white-space: nowrap;
+      // Removed text truncation to show full text
+      // overflow: hidden;
+      // text-overflow: ellipsis;
+      // max-width: 180px;
+    }
+    
+    .cds--list-box__menu {
+      width: auto !important;
+      min-width: 250px !important;
+      max-width: 350px !important; // Reasonable maximum width
+      z-index: 9999;
+      position: absolute !important;
+      right: 0 !important; // Align to the right edge
+      left: auto !important;
+    }
+    
+    .cds--list-box__menu-item__option {
+      white-space: nowrap;
+      // Removed text truncation to show full text
+      // overflow: hidden;
+      // text-overflow: ellipsis;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+  }
 }
 
 /* Metrics Styles */
@@ -128,20 +161,13 @@
   margin: 0;
 }
 
-/* Radio Navigation Styles */
-.radioNavigationContainer {
-  padding: layout.$spacing-05;
-  border-bottom: 1px solid colors.$gray-20;
-  background-color: colors.$white-0;
-}
-
 /* Content Area Styles */
 .content {
   padding: layout.$spacing-05;
   width: 100%;
 }
 
-/* Custom Header Styles (replacing CardHeader) */
+/* Custom Header Styles */
 .customHeaderContainer {
   display: flex;
   justify-content: space-between;
@@ -226,50 +252,6 @@
   }
 }
 
-/* Billing Reports Tabs */
-
-.reportTableContainer {
-  margin-top: layout.$spacing-05;
-  background-color: colors.$white-0;
-  border: 1px solid colors.$gray-20;
-  border-radius: 4px;
-  padding: layout.$spacing-05;
-  min-height: 200px;
-}
-
-.reportsTabBar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: layout.$spacing-03;
-  margin-top: layout.$spacing-07;
-  padding-left: layout.$spacing-05;
-}
-
-.reportTabButton {
-  padding: layout.$spacing-03 layout.$spacing-05;
-  border: none;
-  border-radius: 4px;
-  background-color: colors.$gray-10;
-  color: colors.$gray-100;
-  cursor: pointer;
-  font-weight: 500;
-
-  &:hover {
-    background-color: colors.$gray-20;
-  }
-
-  &.active {
-    background-color: colors.$white-0;
-    border-bottom: 0.25rem solid colors.$green-60;
-    font-weight: 600;
-  }
-}
-
-.tabContentWrapper {
-  margin-top: layout.$spacing-05;
-  padding: layout.$spacing-05;
-}
-
 .billingDetailContent {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -310,7 +292,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(30%, 1fr));
   gap: 12px 16px;
-  padding: 16x 24;
+  padding: 16px 24px;
   background-color: #f4f4f4;
   margin: 8px 0 8px 8px;
   border-radius: 8px;
@@ -324,27 +306,12 @@
   white-space: nowrap;
 }
 
-.detailLabel {
-  font-weight: bold;
-  margin-right: 4px;
-}
-
-.detailValue {
-  display: inline-block;
-  color: #333;
-}
-
-.divider {
-  display: none;
-}
-
 .truncateText {
   max-width: 200px;
   white-space: nowrap;
   display: inline-block;
   overflow: hidden;
   text-overflow: ellipsis;
-
 }
 
 .policyColumn {
@@ -352,12 +319,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.reportDropdownWrapper {
-  max-width: 300px;
-  margin-top: 2rem;
-  margin-left: 1rem;
 }
 
 .report-filter-form {
@@ -380,9 +341,7 @@
   justify-content: flex-start;
 }
 
-
-//refund report
-
+/* Modal styles for refund reports */
 .modalBackdrop {
   position: fixed;
   top: 0;
@@ -420,7 +379,6 @@
   margin-bottom: 0.5rem;
 }
 
-//
 .refundedItemsTableWrapper {
   width: 100%;
   overflow-x: auto;
@@ -436,4 +394,16 @@
   white-space: normal;
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
+}
+
+// Overriding styles for RTL support
+html[dir='rtl'] {
+  .date-and-location {
+    & > svg {
+      order: -1;
+    }
+    & > span:nth-child(2) {
+      order: -2;
+    }
+  }
 }

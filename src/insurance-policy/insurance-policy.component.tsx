@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSession } from '@openmrs/esm-framework';
 import styles from './insurance-policy-table.scss';
 import { InsurancePolicyTable } from './insurance-policy-table.component';
-import { Money, Receipt, Currency, Umbrella } from '@carbon/react/icons';
+import InsurancePolicyDeskIcon from '../images/umbrella-icon.svg';
 import { DatePicker } from '@carbon/react';
 import { DatePickerInput } from '@carbon/react';
 
@@ -25,7 +25,7 @@ export const InsurancePolicy: React.FC = () => {
         <div className={styles.headerContainer}>
           <div className={styles.headerContent}>
             <div className={styles.leftSection}>
-              <Umbrella size={24} />
+              <img src={InsurancePolicyDeskIcon} alt="Payments Desk Icon" className={styles.headerIcon} />
               <div>
                 <p className={styles.location}>{userLocation}</p>
                 <p className={styles.billingTitle}>Insurance Policy</p>
@@ -42,6 +42,7 @@ export const InsurancePolicy: React.FC = () => {
                   >
                     <DatePickerInput
                       id="billing-date-picker"
+                      pattern="\d{1,2}\/\d{1,2}\/\d{4}"
                       placeholder="DD-MMM-YYYY"
                       labelText=""
                       size="md"
