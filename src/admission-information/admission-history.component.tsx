@@ -182,7 +182,6 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
                 placeholder={t('searchThisTable', 'Search this table')}
                 size={tableSize}
                 persistent
-                light
               />
               <Table {...getTableProps()} aria-label="Admission history" className={styles.admissionTable}>
                 <TableHead>
@@ -193,10 +192,9 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
                         className={`${styles.tableHeader} ${styles[`col${header.key.charAt(0).toUpperCase() + header.key.slice(1)}`]}`}
                         {...getHeaderProps({
                           header,
-                          isSortable: header.isSortable,
                         })}
                       >
-                        {header.header?.content ?? header.header}
+                        {header.header}
                       </TableHeader>
                     ))}
                   </TableRow>

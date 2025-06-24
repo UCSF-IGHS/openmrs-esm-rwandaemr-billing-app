@@ -39,7 +39,11 @@ function Resources() {
 
 function Card({ title, subtitle, link }: { title: string; subtitle: string; link: string }) {
   return (
-    <ClickableTile className={styles.card} href={link} target="_blank" rel="noopener noreferrer">
+    <ClickableTile
+      className={styles.card}
+      href={link}
+      onClick={() => window.open(link, '_blank', 'noopener,noreferrer')}
+    >
       <div className={styles.cardContent}>
         <div className={styles.title}>
           <h4>{title}</h4>

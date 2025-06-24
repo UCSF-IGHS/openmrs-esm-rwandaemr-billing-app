@@ -15,12 +15,7 @@ import {
 import { Printer, CheckmarkFilled } from '@carbon/react/icons';
 import { showToast, useSession } from '@openmrs/esm-framework';
 import { submitBillPayment, getConsommationById } from '../api/billing';
-import { 
-  isItemPaid, 
-  isItemPartiallyPaid, 
-  calculateChange,
-  computePaymentStatus
-} from '../utils/billing-calculations';
+import { isItemPaid, isItemPartiallyPaid, calculateChange, computePaymentStatus } from '../utils/billing-calculations';
 import { printReceipt } from '../payment-receipt/print-receipt';
 import { type ConsommationItem } from '../types';
 import styles from './payment-form.scss';
@@ -29,27 +24,30 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 
 const paymentFormSchema = z.object({
-  receivedCash: z.string()
-    .refine(value => value === '' || /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
-      message: "Must be a valid number"
+  receivedCash: z
+    .string()
+    .refine((value) => value === '' || /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
+      message: 'Must be a valid number',
     })
-    .refine(value => value === '' || parseFloat(value) >= 0, {
-      message: "Amount must be a positive number"
+    .refine((value) => value === '' || parseFloat(value) >= 0, {
+      message: 'Amount must be a positive number',
     }),
-  deductedAmount: z.string()
-    .refine(value => value === '' || /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
-      message: "Must be a valid number"
+  deductedAmount: z
+    .string()
+    .refine((value) => value === '' || /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
+      message: 'Must be a valid number',
     })
-    .refine(value => value === '' || parseFloat(value) >= 0, {
-      message: "Amount must be a positive number"
+    .refine((value) => value === '' || parseFloat(value) >= 0, {
+      message: 'Amount must be a positive number',
     }),
-  paymentAmount: z.string()
-    .refine(value => /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
-      message: "Must be a valid number"
+  paymentAmount: z
+    .string()
+    .refine((value) => /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
+      message: 'Must be a valid number',
     })
-    .refine(value => parseFloat(value) > 0, {
-      message: "Amount must be greater than zero"
-    })
+    .refine((value) => parseFloat(value) > 0, {
+      message: 'Amount must be greater than zero',
+    }),
 });
 
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
@@ -85,13 +83,7 @@ interface ConsommationInfo {
   date?: string;
 }
 
-const PaymentForm: React.FC<PaymentFormProps> = ({ 
-  isOpen, 
-  onClose, 
-  onSuccess, 
-  selectedItems,
-  onItemToggle
-}) => {
+const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, selectedItems, onItemToggle }) => {
   const { t } = useTranslation();
   const session = useSession();
   const collectorUuid = session?.user?.uuid;
@@ -105,24 +97,24 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [groupedConsommationData, setGroupedConsommationData] = useState<Record<string, ConsommationInfo> | null>(null);
   const [paidItems, setPaidItems] = useState<ConsommationItem[]>([]);
-  
-  const { 
-    control, 
-    handleSubmit, 
-    reset, 
+
+  const {
+    control,
+    handleSubmit,
+    reset,
     watch,
     setValue,
-    formState: { errors, isValid } 
+    formState: { errors, isValid },
   } = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
     mode: 'onChange',
     defaultValues: {
       paymentAmount: '',
       receivedCash: '',
-      deductedAmount: ''
-    }
+      deductedAmount: '',
+    },
   });
-  
+
   const paymentAmount = watch('paymentAmount');
   const receivedCash = watch('receivedCash');
   const deductedAmount = watch('deductedAmount');
@@ -132,7 +124,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     return localSelectedItems.reduce((total, selectedItemInfo) => {
       const item = selectedItemInfo.item;
       if (item.selected === false) return total;
-      
+
       const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
       const paidAmount = item.paidAmount || 0;
       const remainingAmount = Math.max(0, itemTotal - paidAmount);
@@ -141,23 +133,27 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   }, [localSelectedItems]);
 
   const countSelectedItems = useCallback(() => {
-    return localSelectedItems.filter(item => 
-      item.item.selected === true && !isActuallyPaid(item.item)
-    ).length;
+    return localSelectedItems.filter((item) => item.item.selected === true && !isActuallyPaid(item.item)).length;
   }, [localSelectedItems]);
 
-  const groupedAllItems = localSelectedItems.reduce((groups, selectedItemInfo) => {
-    const { consommationId, consommationService } = selectedItemInfo;
-    if (!groups[consommationId]) {
-      groups[consommationId] = {
-        consommationId,
-        consommationService,
-        items: []
-      };
-    }
-    groups[consommationId].items.push(selectedItemInfo.item);
-    return groups;
-  }, {} as Record<string, { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }>);
+  const groupedAllItems = localSelectedItems.reduce(
+    (groups, selectedItemInfo) => {
+      const { consommationId, consommationService } = selectedItemInfo;
+      if (!groups[consommationId]) {
+        groups[consommationId] = {
+          consommationId,
+          consommationService,
+          items: [],
+        };
+      }
+      groups[consommationId].items.push(selectedItemInfo.item);
+      return groups;
+    },
+    {} as Record<
+      string,
+      { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }
+    >,
+  );
 
   const isActuallyPaid = (item: ConsommationItem & { selected?: boolean }): boolean => {
     try {
@@ -169,7 +165,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     } catch (e) {
       // Ignore errors
     }
-    
+
     return isItemPaid(item);
   };
 
@@ -185,22 +181,22 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     } catch (e) {
       // Ignore session storage errors
     }
-    
+
     return computePaymentStatus(item);
   };
 
   useEffect(() => {
     if (isOpen) {
       const unpaidItemsWithSelectedState = selectedItems
-        .filter(item => !isActuallyPaid(item.item))
-        .map(item => ({
+        .filter((item) => !isActuallyPaid(item.item))
+        .map((item) => ({
           ...item,
           item: {
             ...item.item,
-            selected: true
-          }
+            selected: true,
+          },
         }));
-      
+
       setLocalSelectedItems(unpaidItemsWithSelectedState);
       setPaymentSuccess(false);
       setPaymentData(null);
@@ -210,16 +206,15 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   }, [isOpen, selectedItems]);
 
   const handleLocalItemToggle = (consommationId: string, itemId: number) => {
-    setLocalSelectedItems(prev => {
-      return prev.map(item => {
-        if (item.consommationId === consommationId && 
-            item.item.patientServiceBillId === itemId) {
+    setLocalSelectedItems((prev) => {
+      return prev.map((item) => {
+        if (item.consommationId === consommationId && item.item.patientServiceBillId === itemId) {
           return {
             ...item,
             item: {
               ...item.item,
-              selected: item.item.selected === false ? true : false
-            }
+              selected: item.item.selected === false ? true : false,
+            },
           };
         }
         return item;
@@ -238,12 +233,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     if (isOpen && !paymentSuccess) {
       setPaymentMethod('cash');
       setPaymentError('');
-      
+
       const totalDue = calculateSelectedItemsTotal();
       reset({
         paymentAmount: totalDue.toString(),
         receivedCash: '',
-        deductedAmount: ''
+        deductedAmount: '',
       });
     }
   }, [isOpen, localSelectedItems, reset, paymentSuccess, calculateSelectedItemsTotal]);
@@ -252,7 +247,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     if (paymentMethod === 'cash' && receivedCash && paymentAmount && !paymentSuccess) {
       const cashAmount = parseFloat(receivedCash);
       const amountToPay = parseFloat(paymentAmount);
-      
+
       if (cashAmount < amountToPay) {
         setPaymentError(t('insufficientCash', 'Received cash must be equal to or greater than the payment amount'));
       } else {
@@ -262,9 +257,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       const deductAmount = parseFloat(deductedAmount);
       const amountToPay = parseFloat(paymentAmount);
       const balance = parseFloat(depositBalance);
-      
+
       if (deductAmount < amountToPay) {
-        setPaymentError(t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'));
+        setPaymentError(
+          t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'),
+        );
       } else if (deductAmount > balance) {
         setPaymentError(t('insufficientBalance', 'Deducted amount exceeds available balance'));
       } else {
@@ -277,7 +274,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     if (paymentAmount && !paymentSuccess) {
       const amountToPay = parseFloat(paymentAmount);
       const itemsTotal = calculateSelectedItemsTotal();
-      
+
       if (amountToPay > itemsTotal) {
         setPaymentError(t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items'));
       }
@@ -294,15 +291,15 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         });
         return;
       }
-      
+
       // Add consommation info to paid items
-      const itemsWithConsommationInfo = paidItems.map(item => ({
+      const itemsWithConsommationInfo = paidItems.map((item) => ({
         ...item,
-        consommationId: localSelectedItems.find(selectedItem => 
-          selectedItem.item.patientServiceBillId === item.patientServiceBillId
-        )?.consommationId
+        consommationId: localSelectedItems.find(
+          (selectedItem) => selectedItem.item.patientServiceBillId === item.patientServiceBillId,
+        )?.consommationId,
       }));
-      
+
       printReceipt(paymentData, groupedConsommationData, itemsWithConsommationInfo);
     } catch (error) {
       console.error('Error printing receipt:', error);
@@ -323,45 +320,47 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
   const isFormValid = () => {
     if (!isValid || paymentError || paymentSuccess) return false;
-    
-    const hasSelectedItems = localSelectedItems.some(
-      selectedItemInfo => selectedItemInfo.item.selected === true
-    );
-    
+
+    const hasSelectedItems = localSelectedItems.some((selectedItemInfo) => selectedItemInfo.item.selected === true);
+
     return hasSelectedItems && !isSubmitting;
   };
 
   const onSubmit = async (data: PaymentFormValues) => {
     setIsSubmitting(true);
     setPaymentError('');
-  
+
     try {
       const selectedItemsTotal = calculateSelectedItemsTotal();
       const enteredAmount = parseFloat(data.paymentAmount);
-      
+
       // Additional validation checks
       if (paymentMethod === 'cash' && (!data.receivedCash || parseFloat(data.receivedCash) < enteredAmount)) {
-        throw new Error(t('insufficientCash', 'Received cash amount must be equal to or greater than the payment amount'));
+        throw new Error(
+          t('insufficientCash', 'Received cash amount must be equal to or greater than the payment amount'),
+        );
       }
-      
+
       if (paymentMethod === 'deposit') {
         if (!data.deductedAmount || parseFloat(data.deductedAmount) <= 0) {
           throw new Error(t('invalidDeductedAmount', 'Please enter a valid deducted amount'));
         }
-        
+
         if (parseFloat(data.deductedAmount) > parseFloat(depositBalance)) {
           throw new Error(t('insufficientBalance', 'Deducted amount exceeds available balance'));
         }
-        
+
         if (parseFloat(data.deductedAmount) < enteredAmount) {
-          throw new Error(t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'));
+          throw new Error(
+            t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'),
+          );
         }
       }
-      
+
       if (enteredAmount > selectedItemsTotal) {
         throw new Error(t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items'));
       }
-      
+
       if (!collectorUuid) {
         throw new Error(t('noCollectorUuid', 'Unable to retrieve collector UUID. Please ensure you are logged in.'));
       }
@@ -369,150 +368,154 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       const paymentPromises = [];
       let remainingPayment = enteredAmount;
       const allPaidItems: ConsommationItem[] = [];
-      
-      const actuallySelectedItems = localSelectedItems.filter(item => 
-        item.item.selected === true
-      );
-      
+
+      const actuallySelectedItems = localSelectedItems.filter((item) => item.item.selected === true);
+
       // Group by consommation
-      const selectedByConsommation = actuallySelectedItems.reduce((groups, item) => {
-        if (!groups[item.consommationId]) {
-          groups[item.consommationId] = {
-            consommationId: item.consommationId,
-            consommationService: item.consommationService,
-            items: []
-          };
-        }
-        groups[item.consommationId].items.push(item.item);
-        return groups;
-      }, {} as Record<string, { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }>);
-      
+      const selectedByConsommation = actuallySelectedItems.reduce(
+        (groups, item) => {
+          if (!groups[item.consommationId]) {
+            groups[item.consommationId] = {
+              consommationId: item.consommationId,
+              consommationService: item.consommationService,
+              items: [],
+            };
+          }
+          groups[item.consommationId].items.push(item.item);
+          return groups;
+        },
+        {} as Record<
+          string,
+          { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }
+        >,
+      );
+
       for (const consommationGroup of Object.values(selectedByConsommation)) {
         if (remainingPayment <= 0) break;
-        
+
         const consommationItems = consommationGroup.items;
         if (consommationItems.length === 0) continue;
-        
+
         const fullConsommationData = await getConsommationById(consommationGroup.consommationId);
-        
+
         if (!fullConsommationData?.patientBill?.patientBillId) {
           console.warn(`Could not retrieve patient bill ID for consommation ${consommationGroup.consommationId}`);
           continue;
         }
-        
+
         const consommationTotalDue = consommationItems.reduce((total, item) => {
           const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
           const paidAmount = item.paidAmount || 0;
           return total + Math.max(0, itemTotal - paidAmount);
         }, 0);
-        
+
         const paymentForThisConsommation = Math.min(remainingPayment, consommationTotalDue);
         remainingPayment -= paymentForThisConsommation;
-        
+
         let consommationRemainingPayment = paymentForThisConsommation;
         const paidItems = [];
-        
+
         const sortedItems = [...consommationItems].sort((a, b) => {
           const aCost = Math.max(0, (a.quantity || 1) * (a.unitPrice || 0) - (a.paidAmount || 0));
           const bCost = Math.max(0, (b.quantity || 1) * (b.unitPrice || 0) - (b.paidAmount || 0));
           return aCost - bCost;
         });
-        
+
         for (const item of sortedItems) {
           if (consommationRemainingPayment <= 0) break;
-          
+
           const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
           const paidAmount = item.paidAmount || 0;
           const itemCost = Math.max(0, itemTotal - paidAmount);
-          
+
           if (consommationRemainingPayment >= itemCost) {
             paidItems.push({
               billItem: { patientServiceBillId: item.patientServiceBillId },
-              paidQty: item.quantity || 1
+              paidQty: item.quantity || 1,
             });
             allPaidItems.push({ ...item, paidAmount: itemTotal });
             consommationRemainingPayment -= itemCost;
           } else {
             const itemQuantity = item.quantity || 1;
             const itemUnitPrice = item.unitPrice || 0;
-            
+
             if (itemQuantity > 1 && itemUnitPrice > 0) {
               const wholePaidQty = Math.floor(consommationRemainingPayment / itemUnitPrice);
               if (wholePaidQty >= 1) {
                 paidItems.push({
                   billItem: { patientServiceBillId: item.patientServiceBillId },
-                  paidQty: wholePaidQty
+                  paidQty: wholePaidQty,
                 });
-                allPaidItems.push({ ...item, paidAmount: (paidAmount || 0) + (wholePaidQty * itemUnitPrice) });
-                consommationRemainingPayment -= (wholePaidQty * itemUnitPrice);
+                allPaidItems.push({ ...item, paidAmount: (paidAmount || 0) + wholePaidQty * itemUnitPrice });
+                consommationRemainingPayment -= wholePaidQty * itemUnitPrice;
               }
             } else {
               paidItems.push({
                 billItem: { patientServiceBillId: item.patientServiceBillId },
-                paidQty: 1
+                paidQty: 1,
               });
               allPaidItems.push({ ...item, paidAmount: itemTotal });
               consommationRemainingPayment = 0;
             }
           }
         }
-        
+
         if (paidItems.length > 0) {
           const paymentPayload = {
             amountPaid: parseFloat(paymentForThisConsommation.toFixed(2)),
-            patientBill: { 
+            patientBill: {
               patientBillId: fullConsommationData.patientBill.patientBillId,
-              creator: collectorUuid
+              creator: collectorUuid,
             },
             dateReceived: new Date().toISOString(),
             collector: { uuid: collectorUuid },
-            paidItems: paidItems
+            paidItems: paidItems,
           };
-          
+
           paymentPromises.push({
             payload: paymentPayload,
             consommationId: consommationGroup.consommationId,
             paidItems: paidItems,
-            consommationData: fullConsommationData
+            consommationData: fullConsommationData,
           });
         }
       }
-      
+
       const paymentResults = await Promise.all(
         paymentPromises.map(async ({ payload, consommationId, paidItems, consommationData }) => {
           try {
             const response = await submitBillPayment(payload);
-            
-            paidItems.forEach(paidItem => {
+
+            paidItems.forEach((paidItem) => {
               const paymentKey = `payment_${paidItem.billItem.patientServiceBillId}`;
               try {
                 const existingPaymentData = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
                 const updatedPaymentData = {
                   ...existingPaymentData,
                   paid: true,
-                  timestamp: new Date().toISOString()
+                  timestamp: new Date().toISOString(),
                 };
                 sessionStorage.setItem(paymentKey, JSON.stringify(updatedPaymentData));
               } catch (e) {
                 console.warn('Failed to save payment to sessionStorage:', e);
               }
             });
-            
+
             return { success: true, consommationId, response, consommationData };
           } catch (error) {
             console.error(`Payment failed for consommation ${consommationId}:`, error);
             return { success: false, consommationId, error };
           }
-        })
+        }),
       );
-      
-      const successfulPayments = paymentResults.filter(result => result.success);
-      const failedPayments = paymentResults.filter(result => !result.success);
-      
+
+      const successfulPayments = paymentResults.filter((result) => result.success);
+      const failedPayments = paymentResults.filter((result) => !result.success);
+
       if (successfulPayments.length > 0) {
         const firstSuccessfulPayment = successfulPayments[0];
         const consommationDetails = firstSuccessfulPayment.consommationData;
-        
+
         const receiptPaymentData: PaymentData = {
           amountPaid: enteredAmount.toFixed(2),
           receivedCash: data.receivedCash || '',
@@ -522,28 +525,29 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           dateReceived: new Date().toISOString().split('T')[0],
           collectorName: session?.user?.display || 'Unknown',
           patientName: consommationDetails?.patientBill?.beneficiaryName || 'Unknown',
-          policyNumber: consommationDetails?.patientBill?.policyIdNumber || ''
+          policyNumber: consommationDetails?.patientBill?.policyIdNumber || '',
         };
-        
+
         // Prepare grouped consommation data for receipt
         const receiptGroupedConsommationData: Record<string, ConsommationInfo> = {};
-        Object.values(selectedByConsommation).forEach(consommationGroup => {
+        Object.values(selectedByConsommation).forEach((consommationGroup) => {
           receiptGroupedConsommationData[consommationGroup.consommationId] = {
             service: consommationGroup.consommationService,
-            date: new Date().toLocaleDateString()
+            date: new Date().toLocaleDateString(),
           };
         });
-        
+
         setPaymentData(receiptPaymentData);
         setGroupedConsommationData(receiptGroupedConsommationData);
         setPaidItems(allPaidItems);
         setPaymentSuccess(true);
-        
+
         showToast({
           title: t('paymentSuccess', 'Payment Successful'),
-          description: failedPayments.length > 0 
-            ? t('partialPaymentSuccess', 'Some payments were processed successfully')
-            : t('paymentProcessed', 'Payment has been processed successfully'),
+          description:
+            failedPayments.length > 0
+              ? t('partialPaymentSuccess', 'Some payments were processed successfully')
+              : t('paymentProcessed', 'Payment has been processed successfully'),
           kind: failedPayments.length > 0 ? 'warning' : 'success',
         });
       } else {
@@ -564,18 +568,13 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       </div>
       <h3>{t('paymentSuccessful', 'Payment Successful!')}</h3>
       <p>{t('paymentProcessedSuccessfully', 'Your payment has been processed successfully.')}</p>
-      
+
       <div className={styles.successActions}>
-        <Button
-          kind="secondary"
-          renderIcon={Printer}
-          onClick={handlePrintReceipt}
-          className={styles.printButton}
-        >
+        <Button kind="secondary" renderIcon={Printer} onClick={handlePrintReceipt} className={styles.printButton}>
           {t('printReceipt', 'Print Receipt')}
         </Button>
       </div>
-      
+
       {paymentData && (
         <div className={styles.paymentSummary}>
           <h4>{t('paymentSummary', 'Payment Summary')}</h4>
@@ -607,7 +606,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       onRequestClose={handleCloseModal}
       onRequestSubmit={paymentSuccess ? handleCloseModal : handleSubmit(onSubmit)}
       onSecondarySubmit={paymentSuccess ? undefined : onClose}
-      primaryButtonDisabled={paymentSuccess ? false : (isSubmitting || !isFormValid())}
+      primaryButtonDisabled={paymentSuccess ? false : isSubmitting || !isFormValid()}
       size="lg"
     >
       <div className={styles.modalContent}>
@@ -630,14 +629,24 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                   <div className={styles.formRow}>
                     <div className={styles.formLabel}>{t('collector', 'Collector')}</div>
                     <div className={styles.formInput}>
-                      <TextInput id="collector-name" value={session?.user?.display || 'Unknown'} readOnly />
+                      <TextInput
+                        id="collector-name"
+                        labelText={t('collector', 'Collector')}
+                        value={session?.user?.display || 'Unknown'}
+                        readOnly
+                      />
                     </div>
                   </div>
 
                   <div className={styles.formRow}>
                     <div className={styles.formLabel}>{t('receivedDate', 'Received Date')}</div>
                     <div className={styles.formInput}>
-                      <TextInput id="received-date" type="date" value={new Date().toISOString().split('T')[0]} />
+                      <TextInput
+                        id="received-date"
+                        labelText={t('receivedDate', 'Received Date')}
+                        type="date"
+                        value={new Date().toISOString().split('T')[0]}
+                      />
                     </div>
                   </div>
 
@@ -682,7 +691,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                             <NumberInput
                               id="received-cash"
                               value={field.value}
-                              onChange={(e) => field.onChange(e.target.value)}
+                              onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                               min={0}
                               step={0.01}
                               invalid={!!errors.receivedCash}
@@ -706,7 +715,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                               <NumberInput
                                 id="deducted-amount"
                                 value={field.value}
-                                onChange={(e) => field.onChange(e.target.value)}
+                                onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                                 min={0}
                                 max={parseFloat(depositBalance)}
                                 step={0.01}
@@ -720,7 +729,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                       <div className={styles.formRow}>
                         <div className={styles.formLabel}>{t('balance', 'Balance')}</div>
                         <div className={styles.formInput}>
-                          <TextInput id="deposit-balance" value={depositBalance} readOnly />
+                          <TextInput
+                            id="deposit-balance"
+                            labelText={t('balance', 'Balance')}
+                            value={depositBalance}
+                            readOnly
+                          />
                         </div>
                       </div>
                     </>
@@ -740,7 +754,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                           <NumberInput
                             id="amount-paid"
                             value={field.value}
-                            onChange={(e) => field.onChange(e.target.value)}
+                            onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                             min={0}
                             max={calculateSelectedItemsTotal()}
                             step={0.01}
@@ -771,6 +785,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                     <div className={styles.formInput}>
                       <TextInput
                         id="rest-amount"
+                        labelText={t('rest', 'Rest')}
                         value={
                           paymentMethod === 'cash'
                             ? calculateChange(receivedCash, paymentAmount)
@@ -793,32 +808,27 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
             <div className={styles.selectedItemsDetails}>
               <h5>
-                {t('selectedItems', 'Items from Multiple Consommations')} 
+                {t('selectedItems', 'Items from Multiple Consommations')}
                 <span className={styles.itemCount}>
                   ({countSelectedItems()} {t('itemsSelected', 'items selected for payment')})
                 </span>
               </h5>
-              
+
               {Object.keys(groupedAllItems).length > 0 ? (
                 <Accordion align="start">
                   {Object.values(groupedAllItems).map((consommationGroup) => {
-                    const selectedItemsCount = consommationGroup.items.filter(
-                      item => item.selected === true
-                    ).length;
-                    
+                    const selectedItemsCount = consommationGroup.items.filter((item) => item.selected === true).length;
+
                     return (
                       <AccordionItem
                         key={consommationGroup.consommationId}
                         title={
                           <div className={styles.consommationGroupTitle}>
-                            <span className={styles.consommationId}>
-                              #{consommationGroup.consommationId}
-                            </span>
-                            <span className={styles.consommationService}>
-                              {consommationGroup.consommationService}
-                            </span>
+                            <span className={styles.consommationId}>#{consommationGroup.consommationId}</span>
+                            <span className={styles.consommationService}>{consommationGroup.consommationService}</span>
                             <span className={styles.itemCount}>
-                              ({selectedItemsCount} of {consommationGroup.items.length} {t('itemsSelected', 'items selected')})
+                              ({selectedItemsCount} of {consommationGroup.items.length}{' '}
+                              {t('itemsSelected', 'items selected')})
                             </span>
                           </div>
                         }
@@ -843,17 +853,19 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                                 const paidAmt = item.paidAmount || 0;
                                 const remainingAmount = Math.max(0, itemTotal - paidAmt);
                                 const isPaid = isActuallyPaid(item);
-                                
+
                                 return (
-                                  <tr 
-                                    key={index} 
-                                    className={item.selected ? styles.selectedItem : ''}
-                                  >
+                                  <tr key={index} className={item.selected ? styles.selectedItem : ''}>
                                     <td>
                                       <Checkbox
                                         id={`payment-item-${consommationGroup.consommationId}-${item.patientServiceBillId}`}
                                         checked={item.selected || false}
-                                        onChange={() => handleLocalItemToggle(consommationGroup.consommationId, item.patientServiceBillId || 0)}
+                                        onChange={() =>
+                                          handleLocalItemToggle(
+                                            consommationGroup.consommationId,
+                                            item.patientServiceBillId || 0,
+                                          )
+                                        }
                                         labelText=""
                                       />
                                     </td>
@@ -875,13 +887,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                                 <td colSpan={1}>
                                   <strong>
                                     {consommationGroup.items
-                                      .filter(item => item.selected)
+                                      .filter((item) => item.selected)
                                       .reduce((total, item) => {
                                         const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
                                         const paidAmt = item.paidAmount || 0;
                                         const remainingAmount = Math.max(0, itemTotal - paidAmt);
                                         return total + remainingAmount;
-                                      }, 0).toFixed(2)}
+                                      }, 0)
+                                      .toFixed(2)}
                                   </strong>
                                 </td>
                               </tr>
@@ -893,9 +906,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                   })}
                 </Accordion>
               ) : (
-                <div className={styles.noItems}>
-                  {t('noItemsSelected', 'No items selected')}
-                </div>
+                <div className={styles.noItems}>{t('noItemsSelected', 'No items selected')}</div>
               )}
 
               <div className={styles.grandTotal}>

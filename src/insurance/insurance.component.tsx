@@ -186,14 +186,13 @@ const Insurance = ({ patientUuid }) => {
               <TableContainer>
                 <TableToolbarSearch
                   className={styles.searchbox}
-                  expanded
+                  isExpanded
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     setSearchTerm(e.target.value), setPage(1);
                   }}
                   placeholder={t('searchPlaceholder', 'Search insurance...')}
                   size={'md'}
                   persistent
-                  light
                 />
                 <Table {...getTableProps()} aria-label="Insurance details table">
                   <TableHead>

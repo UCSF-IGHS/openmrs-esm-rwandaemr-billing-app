@@ -169,7 +169,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     { key: 'paymentStatus', header: t('paymentStatus', 'Status') },
   ];
 
-  const tableRows: Array<typeof DataTableRow> = useMemo(
+  const tableRows: any[] = useMemo(
     () =>
       (filteredLineItems || [])
         ?.map((item, index) => {
@@ -493,7 +493,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
                 placeholder={t('searchThisTable', 'Search this table')}
                 size={responsiveSize}
                 persistent
-                light
               />
               <Table {...getTableProps()} aria-label="Invoice line items" className={styles.invoiceTable}>
                 <TableHead>
@@ -504,10 +503,9 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
                         className={styles.tableHeader}
                         {...getHeaderProps({
                           header,
-                          isSortable: header.isSortable,
                         })}
                       >
-                        {header.header?.content ?? header.header}
+                        {header.header}
                       </TableHeader>
                     ))}
                   </TableRow>

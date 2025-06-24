@@ -41,7 +41,6 @@ const InsuranceActions: React.FC<InsuranceActionsProps> = ({ insurance, responsi
         aria-label={t('actionsMenu', 'Actions menu')}
         flipped
         selectorPrimaryFocus={'#edit'}
-        size={responsiveSize}
       >
         <OverflowMenuItem
           className={styles.menuItem}
@@ -143,7 +142,6 @@ const Insurance: React.FC<InsuranceProps> = ({ showAddButton = true }) => {
           columnCount={headers.length}
           showHeader={false}
           showToolbar={false}
-          size="sm"
           zebra
         />
       </div>
@@ -191,7 +189,7 @@ const Insurance: React.FC<InsuranceProps> = ({ showAddButton = true }) => {
                   <Layer>
                     <Search
                       size="lg"
-                      expanded
+                      isExpanded
                       labelText=""
                       closeButtonLabelText={t('clearSearch', 'Clear search input')}
                       value={searchTerm}
@@ -250,7 +248,6 @@ const Insurance: React.FC<InsuranceProps> = ({ showAddButton = true }) => {
               </Button>
               <Button
                 kind="ghost"
-                size="sm"
                 disabled={currentPage === Math.ceil(rows.length / defaultPageSize)}
                 onClick={() => goTo(currentPage + 1)}
               >

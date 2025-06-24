@@ -39,41 +39,68 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 layout.$spacing-05 0;
-  background-color: colors.$white-0;
+  padding: layout.$spacing-05;
 }
 
 .leftSection {
   display: flex;
   align-items: center;
-  gap: layout.$spacing-03;
 }
 
 .iconContainer {
   width: 48px;
   height: 48px;
+  background-color: colors.$teal-50;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: colors.$gray-10;
-  border-radius: 50%;
+  margin-right: layout.$spacing-04;
+
+  svg {
+    fill: colors.$white-0;
+  }
+}
+
+.titleContainer {
+  display: flex;
+  flex-direction: column;
 }
 
 .location {
   @include type.type-style('body-compact-01');
   color: colors.$gray-70;
-  margin: 0;
+  margin: 0 0 layout.$spacing-02 0;
 }
 
 .billingTitle {
-  @include type.type-style('heading-03');
+  @include type.type-style('heading-04');
   color: colors.$gray-100;
   margin: 0;
+  font-weight: 600;
 }
 
 .rightSection {
   display: flex;
   align-items: center;
+}
+
+.datePickerContainer {
+  margin-left: layout.$spacing-04;
+}
+
+/* Metrics Header Styles */
+.metricsHeaderContainer {
+  padding: layout.$spacing-05 layout.$spacing-05 layout.$spacing-03;
+  background-color: colors.$white-0;
+  border-bottom: 1px solid colors.$gray-20;
+}
+
+.metricsHeaderTitle {
+  @include type.type-style('heading-02');
+  color: colors.$gray-100;
+  margin: 0;
+  font-weight: 600;
 }
 
 /* Metrics Styles */
@@ -111,9 +138,11 @@
 .count {
   @include type.type-style('heading-04');
   display: inline-block;
-  font-weight: 300;
-  margin-top: layout.$spacing-05;
+  font-weight: 600;
+  color: colors.$gray-100;
+  margin-top: layout.$spacing-02;
 }
+
 /* Radio Navigation Styles */
 .radioNavigationContainer {
   padding: layout.$spacing-05;
@@ -127,87 +156,6 @@
   width: 100%;
 }
 
-/* Custom Header Styles (replacing CardHeader) */
-.customHeaderContainer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: layout.$spacing-05;
-  border-bottom: 1px solid colors.$gray-20;
-  background-color: colors.$white-0;
-}
-
-.customHeaderTitle {
-  @include type.type-style('heading-compact-02');
-  color: colors.$gray-100;
-  margin: 0;
-  
-  &:after {
-    content: '';
-    display: block;
-    width: layout.$spacing-07;
-    padding-top: 3px;
-    margin-top: 3px;
-    border-bottom: 0.375rem solid;
-    border-bottom-color: colors.$blue-60;
-  }
-}
-
-/* Bill History Table Styles */
-.billHistoryContainer {
-  background-color: colors.$white-0;
-  border: 1px solid colors.$gray-20;
-  border-bottom: none;
-  width: 100%;
-  margin: 0 auto;
-  max-width: 95vw;
-  padding-bottom: 0;
-}
-
-.table {
-  width: 100%;
-  table-layout: fixed; // This helps with uniform column sizing
-  border-collapse: collapse;
-}
-
-.tableCells {
-  white-space: normal !important;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pagination {
-  overflow: hidden;
-
-  &:global(.cds--pagination) {
-    border-top: none;
-  }
-}
-
-.hiddenRow {
-  display: none;
-}
-
-.expandedRow > td > div {
-  max-height: max-content !important;
-  padding: layout.$spacing-05;
-}
-
-.desktopHeading {
-  text-align: left;
-  text-transform: capitalize;
-
-  h4 {
-    @include type.type-style('heading-compact-02');
-    color: colors.$gray-70;
-
-    &:after {
-      content: '';
-      display: block;
-      width: layout.$spacing-07;
-      padding-top: 3px;
-      border-bottom: 0.375rem solid;
-      border-bottom-color: colors.$blue-60;
-    }
-  }
+.skeleton {
+  margin-bottom: layout.$spacing-03;
 }

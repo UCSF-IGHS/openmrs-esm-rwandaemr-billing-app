@@ -71,7 +71,6 @@ const ConsommationView: React.FC = () => {
           columnCount={5}
           showHeader={false}
           showToolbar={false}
-          size={responsiveSize}
           zebra
         />
       </div>

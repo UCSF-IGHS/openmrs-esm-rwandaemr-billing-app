@@ -2,27 +2,56 @@ import React from 'react';
 
 const BillingIllustration: React.FC = () => {
   return (
-    <svg width="64" height="64" viewBox="10 10 60 60.02">
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
       <title>Billing module illustration</title>
-      <g fill="none" fillRule="evenodd">
-        <path
-          opacity="0.5"
-          d="M58.75 68.639C60.8886 66.8242 64.1114 66.8242 66.25 68.639C67.703 69.8719 70 68.8873 70 67.0314V12.9686C70 11.1128 67.703 10.1281 66.25 11.3611C64.1114 13.1758 60.8886 13.1758 58.75 11.3611C56.6114 9.54632 53.3886 9.54632 51.25 11.3611C49.1114 13.1758 45.8886 13.1758 43.75 11.3611C41.6114 9.54632 38.3886 9.54632 36.25 11.3611C34.1114 13.1758 30.8886 13.1758 28.75 11.3611C26.6114 9.54632 23.3886 9.54632 21.25 11.3611C19.1114 13.1758 15.8886 13.1758 13.75 11.3611C12.297 10.1281 10 11.1128 10 12.9686V67.0314C10 68.8873 12.297 69.8719 13.75 68.639C15.8886 66.8242 19.1114 66.8242 21.25 68.639C23.3886 70.4537 26.6114 70.4537 28.75 68.639C30.8886 66.8242 34.1114 66.8242 36.25 68.639C38.3886 70.4537 41.6114 70.4537 43.75 68.639C45.8886 66.8242 49.1114 66.8242 51.25 68.639C53.3886 70.4537 56.6114 70.4537 58.75 68.639Z"
-          fill="#CEE6E5"
-        />
-        <path
-          d="M22.5 51.6666C22.5 50.2859 23.6193 49.1666 25 49.1666H55C56.3807 49.1666 57.5 50.2859 57.5 51.6666C57.5 53.0474 56.3807 54.1666 55 54.1666H25C23.6193 54.1666 22.5 53.0474 22.5 51.6666Z"
-          fill="#7BBCB9"
-        />
-        <path
-          d="M22.5 40C22.5 38.6193 23.6193 37.5 25 37.5H55C56.3807 37.5 57.5 38.6193 57.5 40C57.5 41.3807 56.3807 42.5 55 42.5H25C23.6193 42.5 22.5 41.3807 22.5 40Z"
-          fill="#7BBCB9"
-        />
-        <path
-          d="M22.5 28.3333C22.5 26.9526 23.6193 25.8333 25 25.8333H55C56.3807 25.8333 57.5 26.9526 57.5 28.3333C57.5 29.714 56.3807 30.8333 55 30.8333H25C23.6193 30.8333 22.5 29.714 22.5 28.3333Z"
-          fill="#7BBCB9"
-        />
-      </g>
+      <defs>
+        <linearGradient id="billingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#0f62fe" stopOpacity="0.1" />
+          <stop offset="100%" stopColor="#0f62fe" stopOpacity="0.05" />
+        </linearGradient>
+      </defs>
+
+      {/* Background circle */}
+      <circle cx="32" cy="32" r="30" fill="url(#billingGradient)" stroke="#0f62fe" strokeWidth="1" opacity="0.3" />
+
+      {/* Main money/bill icon */}
+      <rect x="16" y="24" width="32" height="20" rx="2" fill="#0f62fe" opacity="0.8" />
+      <rect x="18" y="26" width="28" height="16" rx="1" fill="white" />
+
+      {/* Dollar sign in center */}
+      <path
+        d="M30 30 L30 28 L32 28 L32 30 L34 30 L34 32 L32 32 L32 34 L34 34 L34 36 L32 36 L32 38 L30 38 L30 36 L28 36 L28 34 L30 34 L30 32 L28 32 L28 30 L30 30 Z"
+        fill="#0f62fe"
+        opacity="0.8"
+      />
+
+      {/* Decorative coins */}
+      <circle cx="20" cy="18" r="4" fill="#0f62fe" opacity="0.3" />
+      <circle cx="44" cy="18" r="3" fill="#0f62fe" opacity="0.25" />
+      <circle cx="18" cy="48" r="3" fill="#0f62fe" opacity="0.2" />
+      <circle cx="46" cy="48" r="4" fill="#0f62fe" opacity="0.3" />
+
+      {/* Currency symbols on coins */}
+      <text x="20" y="22" fontSize="6" fill="#0f62fe" opacity="0.6" textAnchor="middle" fontWeight="bold">
+        $
+      </text>
+      <text x="44" y="21" fontSize="5" fill="#0f62fe" opacity="0.6" textAnchor="middle" fontWeight="bold">
+        €
+      </text>
+      <text x="18" y="51" fontSize="5" fill="#0f62fe" opacity="0.6" textAnchor="middle" fontWeight="bold">
+        ¥
+      </text>
+      <text x="46" y="52" fontSize="6" fill="#0f62fe" opacity="0.6" textAnchor="middle" fontWeight="bold">
+        ₹
+      </text>
+
+      {/* Receipt/bill lines */}
+      <line x1="20" y1="30" x2="26" y2="30" stroke="#0f62fe" strokeWidth="1" opacity="0.4" />
+      <line x1="20" y1="32" x2="24" y2="32" stroke="#0f62fe" strokeWidth="1" opacity="0.4" />
+      <line x1="36" y1="30" x2="44" y2="30" stroke="#0f62fe" strokeWidth="1" opacity="0.4" />
+      <line x1="38" y1="32" x2="44" y2="32" stroke="#0f62fe" strokeWidth="1" opacity="0.4" />
+      <line x1="20" y1="36" x2="28" y2="36" stroke="#0f62fe" strokeWidth="1" opacity="0.4" />
+      <line x1="36" y1="36" x2="42" y2="36" stroke="#0f62fe" strokeWidth="1" opacity="0.4" />
     </svg>
   );
 };

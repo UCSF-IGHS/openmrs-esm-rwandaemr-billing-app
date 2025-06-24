@@ -12,8 +12,6 @@ const BillingAdminCardLink: React.FC = () => {
     <Layer className="billing-admin-card">  {/* ✅ Add class here */}
       <ClickableTile
         href={`${window.spaBase}/billing-admin`}
-        target="_blank"
-        rel="noopener noreferrer"
         className="billing-admin-card"  // ✅ Add class here
       >
         <div>

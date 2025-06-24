@@ -243,7 +243,6 @@ const BillListTable: React.FC = () => {
           showToolbar={false}
           zebra
           columnCount={headerData?.length}
-          size={responsiveSize}
         />
       </div>
     );
@@ -277,7 +276,6 @@ const BillListTable: React.FC = () => {
               items={filterItems}
               itemToString={(item) => (item ? item.text : '')}
               onChange={handleFilterChange}
-              size={responsiveSize}
               type="inline"
               titleText=""
               label=""
@@ -294,7 +292,6 @@ const BillListTable: React.FC = () => {
               items={searchCategories}
               itemToString={(item) => (item ? item.text : '')}
               onChange={handleSearchCategoryChange}
-              size={responsiveSize}
               type="inline"
               titleText=""
               label=""
@@ -306,7 +303,6 @@ const BillListTable: React.FC = () => {
               labelText=""
               placeholder={t('searchBills', 'Search bills')}
               onChange={handleSearch}
-              size={responsiveSize}
             />
           </div>
         </div>
@@ -316,11 +312,9 @@ const BillListTable: React.FC = () => {
             <DataTable
               rows={rowData}
               headers={headerData}
-              size="sm"
               useZebraStyles
               isSortable={false}
               overflowMenuOnHover={false}
-              className={styles.dataTable}
             >
               {({ rows, headers, getTableProps, getTableContainerProps, getHeaderProps, getRowProps }) => (
                 <TableContainer {...getTableContainerProps()}>
@@ -414,7 +408,6 @@ const BillListTable: React.FC = () => {
                   pageSizes={[10, 20, 30, 40, 50]}
                   totalItems={filteredBills?.length}
                   className={styles.pagination}
-                  size="sm"
                   onChange={({ page, pageSize: newPageSize }) => {
                     if (newPageSize !== pageSize) {
                       setPageSize(newPageSize);
@@ -422,7 +415,6 @@ const BillListTable: React.FC = () => {
                     goTo(page);
                   }}
                   itemsPerPageText={t('itemsPerPage', 'Items per page')}
-                  itemsPerPageFollowsText={true}
                   pageInputDisabled={false}
                   pagesUnknown={false}
                   isLastPage={false}

@@ -143,7 +143,7 @@ const ConsommationSearch = () => {
           <p><strong>{t('department', 'Department')}:</strong> {consommationDetails.department?.name || 'N/A'}</p>
         </div>
 
-        <Tabs className={styles.detailsTabs}>
+        <Tabs>
           <TabList aria-label="Bill Details">
             <Tab>{t('billItems', 'Bill Items')}</Tab>
             <Tab>{t('payments', 'Payments')}</Tab>
