@@ -61,7 +61,7 @@ const BillingReportsHome: React.FC = () => {
               id="report-type-dropdown"
               items={reportTypes}
               itemToString={(item) => item?.label || ''}
-              titleText=""
+              titleText={t('selectReportType', 'Select Report Type')}
               label={t('filterReportsByType', 'Filter reports by type')}
               onChange={handleReportChange}
               selectedItem={reportTypes.find((r) => r.key === activeReport)}
