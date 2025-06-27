@@ -3,12 +3,7 @@ import { useTranslation } from 'react-i18next';
 import styles from './billing-reports.scss';
 import { Dropdown } from '@carbon/react';
 import { Document } from '@carbon/react/icons';
-import { 
-  useSession, 
-  PageHeader, 
-  PageHeaderContent, 
-  MaybePictogram 
-} from '@openmrs/esm-framework';
+import { useSession, PageHeader, PageHeaderContent, MaybePictogram } from '@openmrs/esm-framework';
 import CashierReport from './cashier-report.component';
 import DepositsReport from './deposits-report.component';
 import ServiceRevenueReport from './service-revenue-report.component';
@@ -45,18 +40,18 @@ const BillingReportsHome: React.FC = () => {
 
   return (
     <div className={styles.billingWrapper} id="billing-component-instance">
-      <div className={styles.container}>
-        <PageHeader className={styles.header} data-testid="billing-reports-header">
-          <PageHeaderContent 
+      <div className={styles.billingContainer}>
+        <PageHeader className={styles.billingHeader} data-testid="billing-reports-header">
+          <PageHeaderContent
             illustration={
-              <MaybePictogram 
-                pictogram="omrs-pict-billing" 
+              <MaybePictogram
+                pictogram="omrs-pict-billing"
                 fallback={<Document size={80} className={styles.billingDocumentIcon} />}
               />
-            } 
-            title={t('billingReports', 'Billing Reports')} 
+            }
+            title={t('billingReports', 'Billing Reports')}
           />
-          <div className={styles.rightJustifiedItems}>
+          <div className={styles.billingRightJustifiedItems}>
             <Dropdown
               id="report-type-dropdown"
               items={reportTypes}
@@ -71,7 +66,7 @@ const BillingReportsHome: React.FC = () => {
         </PageHeader>
 
         {/* Report Content */}
-        <div className={styles.reportTableContainer}>
+        <div className={styles.billingReportTableContainer}>
           {activeReport === 'consommationReport' && <ConsommationReport />}
           {activeReport === 'cashierReport' && <CashierReport />}
           {activeReport === 'deposits' && <DepositsReport />}
