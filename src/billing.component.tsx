@@ -7,7 +7,7 @@ import SearchInsurance from './bill-tabs/search-insurance.component';
 import GlobalBillSearch from './bill-tabs/global-bill-search.component';
 import ConsommationSearch from './bill-tabs/consommation-search.component';
 import BillListTable from './recent-bills/bill-list-table.component';
-import { RadioButtonGroup, RadioButton, DatePicker, DatePickerInput } from '@carbon/react';
+import { RadioButtonGroup, RadioButton } from '@carbon/react';
 import { useSession } from '@openmrs/esm-framework';
 import { getGlobalBillSummary } from './api/billing';
 import { formatNumberCurrency } from './metrics/metrics.resources';
@@ -20,7 +20,6 @@ const Billing: React.FC = () => {
   const { t } = useTranslation();
   const session = useSession();
   const [activeOption, setActiveOption] = useState<SearchOption>('search-insurance');
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const userLocation = session?.sessionLocation?.display || 'Unknown Location';
 
   // State for fetched metrics
@@ -65,12 +64,6 @@ const Billing: React.FC = () => {
     setActiveOption(value as SearchOption);
   };
 
-  const handleDateChange = (dates) => {
-    if (dates.length > 0) {
-      setSelectedDate(dates[0]);
-    }
-  };
-
   return (
     <div className={styles.billingWrapper} id="billing-component-instance">
       <div className={styles.container}>
@@ -85,32 +78,7 @@ const Billing: React.FC = () => {
                   <p className={styles.billingTitle}>Billing</p>
                 </div>
               </div>
-              <div className={styles.rightSection}>
-                <div className="cds--date-picker-input__wrapper">
-                  <span>
-                    <DatePicker
-                      datePickerType="single"
-                      dateFormat="d-M-Y"
-                      value={selectedDate}
-                      onChange={handleDateChange}
-                    >
-                      <DatePickerInput
-                        id="billing-date-picker"
-                        pattern="\d{1,2}\/\d{1,2}\/\d{4}"
-                        placeholder="DD-MMM-YYYY"
-                        labelText=""
-                        size="md"
-                        style={{
-                          cursor: 'pointer',
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          maxWidth: '10rem',
-                        }}
-                      />
-                    </DatePicker>
-                  </span>
-                </div>
-              </div>
+              <div className={styles.rightSection}></div>
             </div>
           </div>
         </div>
