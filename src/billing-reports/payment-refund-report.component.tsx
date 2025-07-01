@@ -253,13 +253,7 @@ const PaymentRefundReport: React.FC = () => {
       {!loading && results.length > 0 && (
         <div className={styles.reportTableContainer}>
           <Button onClick={handleExportClick}>{t('exportExcel', 'Export to Excel')}</Button>
-          <DataTable
-            rows={rows}
-            headers={headers}
-            useZebraStyles
-            isSortable
-            overflowMenuOnHover={false}
-          >
+          <DataTable rows={rows} headers={headers} useZebraStyles isSortable overflowMenuOnHover={false}>
             {({ rows, headers, getTableProps, getTableContainerProps, getHeaderProps, getRowProps }) => (
               <TableContainer {...getTableContainerProps()}>
                 <Table {...getTableProps()}>

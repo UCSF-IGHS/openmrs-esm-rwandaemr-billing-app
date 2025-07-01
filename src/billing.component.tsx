@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './billing.scss';
-import { Money, Receipt, Currency, Umbrella } from '@carbon/react/icons';
+import PaymentsDeskIcon from './images/payments-desk-icon.svg';
 import BillConfirmation from './bill-tabs/bill-confirmation.component';
 import SearchInsurance from './bill-tabs/search-insurance.component';
 import GlobalBillSearch from './bill-tabs/global-bill-search.component';
@@ -20,7 +20,6 @@ const Billing: React.FC = () => {
   const { t } = useTranslation();
   const session = useSession();
   const [activeOption, setActiveOption] = useState<SearchOption>('search-insurance');
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const userLocation = session?.sessionLocation?.display || 'Unknown Location';
 
   // State for fetched metrics
@@ -65,10 +64,6 @@ const Billing: React.FC = () => {
     setActiveOption(value as SearchOption);
   };
 
-  const handleDateChange = (date: Date) => {
-    setSelectedDate(date);
-  };
-
   return (
     <div className={styles.billingWrapper} id="billing-component-instance">
       <div className={styles.container}>
@@ -77,30 +72,21 @@ const Billing: React.FC = () => {
           <div className={styles.headerContainer}>
             <div className={styles.headerContent}>
               <div className={styles.leftSection}>
-                <div className={styles.iconContainer}>
-                  <Money size={24} />
-                </div>
-                <div className={styles.titleContainer}>
+                <img src={PaymentsDeskIcon} alt="Payments Desk Icon" className={styles.headerIcon} />
+                <div>
                   <p className={styles.location}>{userLocation}</p>
-                  <h1 className={styles.billingTitle}>{t('billing', 'Billing')}</h1>
+                  <p className={styles.billingTitle}>Billing</p>
                 </div>
               </div>
-              <div className={styles.rightSection}>
-                <div className={styles.datePickerContainer}>{/* Date picker can be added here if needed */}</div>
-              </div>
+              <div className={styles.rightSection}></div>
             </div>
           </div>
-        </div>
-
-        {/* Metrics Section Header */}
-        <div className={styles.metricsHeaderContainer}>
-          <h2 className={styles.metricsHeaderTitle}>{t('billingMetrics', 'Billing metrics')}</h2>
         </div>
 
         {/* Metrics Cards */}
         <div className={styles.metricsContainer}>
           {loading ? (
-            <CodeSnippetSkeleton className={styles.skeleton} />
+            <CodeSnippetSkeleton />
           ) : error ? (
             <p style={{ color: 'red' }}>{error}</p>
           ) : (
