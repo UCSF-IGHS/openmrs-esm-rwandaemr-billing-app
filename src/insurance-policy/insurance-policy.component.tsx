@@ -42,7 +42,6 @@ export const InsurancePolicy: React.FC = () => {
                   >
                     <DatePickerInput
                       id="billing-date-picker"
-                      pattern="\d{1,2}\/\d{1,2}\/\d{4}"
                       placeholder="DD-MMM-YYYY"
                       labelText=""
                       size="md"
