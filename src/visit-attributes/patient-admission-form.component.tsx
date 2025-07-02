@@ -95,7 +95,7 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
       isAdmitted: false,
       admissionDate: new Date(),
       diseaseType: '',
-      admissionType: '',
+      admissionType: '1', 
     },
   });
 
@@ -344,7 +344,7 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
           return;
         }
 
-        const admissionTypeNumber = parseInt(data.admissionType);
+        const admissionTypeNumber = parseInt(data.admissionType) || 1;
         const result = await createAdmissionWithGlobalBill({
           patientUuid: patientUuid,
           isAdmitted: data.isAdmitted,

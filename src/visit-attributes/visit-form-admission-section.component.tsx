@@ -95,7 +95,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
       isAdmitted: false,
       admissionDate: new Date(),
       diseaseType: '',
-      admissionType: '',
+      admissionType: '1',
     },
   });
 
@@ -341,7 +341,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
           });
         }
 
-        const admissionTypeNumber = parseInt(data.admissionType);
+        const admissionTypeNumber = parseInt(data.admissionType) || 1;
         const result = await createAdmissionWithGlobalBill({
           patientUuid: patientUuid,
           isAdmitted: data.isAdmitted,
@@ -351,6 +351,12 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
           insuranceCardNumber: data.insuranceCardNumber,
           insurancePolicyId: insurancePolicyId,
           insuranceId: selectedInsurance?.insuranceId || 1,
+        });
+
+        showSnackbar({
+          title: 'Global Bill',
+          subtitle: 'Global bill has been created successfully',
+          kind: 'success',
         });
 
         setExtraVisitInfo({
