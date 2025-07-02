@@ -260,7 +260,7 @@ export const createDirectGlobalBill = async (data: any): Promise<any> => {
         insurancePolicy: {
           insurancePolicyId: data.insurancePolicyId,
         },
-        admissionType: data.admissionType,
+        admissionType: data.admissionType || 1,
       },
     };
 

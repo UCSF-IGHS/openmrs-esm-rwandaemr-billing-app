@@ -882,7 +882,7 @@ export const createDirectGlobalBill = async (globalBillData: {
         insurancePolicy: {
           insurancePolicyId: globalBillData.insurancePolicyId,
         },
-        admissionType: globalBillData.admissionType,
+        admissionType: globalBillData.admissionType || 1,
       },
     };
 
