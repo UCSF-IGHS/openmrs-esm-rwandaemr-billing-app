@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dropdown, Form, NumberInput, TextInput, Button, InlineLoading, Tile } from '@carbon/react';
 import { openmrsFetch, useConfig } from '@openmrs/esm-framework';
+import { errorHandler, commonErrorMessages } from '../utils/error-handler';
 import {
   getServices,
   getServiceCategories,
@@ -69,10 +70,17 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
           }));
           setDepartments(transformedDepts);
         } else {
-          console.error('Failed to fetch departments: No data returned');
+          errorHandler.handleWarning('No departments found in response', null, {
+            component: 'service-calculator',
+            action: 'fetchDepartments',
+          });
         }
       } catch (error) {
-        console.error('Error fetching departments:', error);
+        errorHandler.handleError(
+          error,
+          { component: 'service-calculator', action: 'fetchDepartments' },
+          commonErrorMessages.fetchError,
+        );
       } finally {
         setIsLoadingDepartments(false);
       }
@@ -99,10 +107,17 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
         if (categories && categories.results && categories.results.length > 0) {
           setServiceCategories(categories.results);
         } else {
-          console.error('Failed to fetch service categories: No data returned');
+          errorHandler.handleWarning('No service categories found in response', null, {
+            component: 'service-calculator',
+            action: 'fetchServiceCategories',
+          });
         }
       } catch (error) {
-        console.error('Error fetching service categories:', error);
+        errorHandler.handleError(
+          error,
+          { component: 'service-calculator', action: 'fetchServiceCategories' },
+          commonErrorMessages.fetchError,
+        );
       } finally {
         setIsLoadingServiceCategories(false);
       }
@@ -139,10 +154,17 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
 
         setBillableServices(formattedServices);
       } else {
-        console.warn('No billable services found or invalid response format');
+        errorHandler.handleWarning('No billable services found or invalid response format', null, {
+          component: 'service-calculator',
+          action: 'fetchBillableServices',
+        });
       }
     } catch (error) {
-      console.error('Error fetching billable services:', error);
+      errorHandler.handleError(
+        error,
+        { component: 'service-calculator', action: 'fetchBillableServices' },
+        commonErrorMessages.fetchError,
+      );
     } finally {
       setIsLoadingBillableServices(false);
     }
@@ -203,7 +225,11 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
     try {
       const service = getBillableServiceById(serviceId);
       if (!service) {
-        console.error('Service not found for ID:', serviceId);
+        errorHandler.handleError(
+          `Service not found for ID: ${serviceId}`,
+          { component: 'service-calculator', action: 'addService', metadata: { serviceId } },
+          { title: 'Service Not Found', subtitle: 'The selected service could not be found.', kind: 'error' },
+        );
         return;
       }
 
@@ -212,12 +238,16 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
         billableServiceId = await getBillableServiceId(serviceCategoryId, serviceId);
 
         if (billableServiceId === null) {
-          console.error('Failed to retrieve billable service ID');
-          console.warn('Continuing without billable service ID - this may cause errors when saving');
+          errorHandler.handleWarning('Failed to retrieve billable service ID', null, {
+            component: 'service-calculator',
+            action: 'addService',
+          });
         }
       } catch (error) {
-        console.error('Error retrieving billable service ID:', error);
-        console.warn('Continuing without billable service ID - this may cause errors when saving');
+        errorHandler.handleWarning('Error retrieving billable service ID', error, {
+          component: 'service-calculator',
+          action: 'addService',
+        });
       }
 
       const existingIndex = calculatorItems.findIndex((item) => item.serviceId.toString() === serviceId);
@@ -267,7 +297,15 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
       setQuantity(1);
       setDrugFrequency('');
     } catch (error) {
-      console.error('Error adding service:', error);
+      errorHandler.handleError(
+        error,
+        { component: 'service-calculator', action: 'addService' },
+        {
+          title: 'Failed to Add Service',
+          subtitle: 'Unable to add the selected service. Please try again.',
+          kind: 'error',
+        },
+      );
     }
   };
 

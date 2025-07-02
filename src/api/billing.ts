@@ -1,6 +1,7 @@
 import { openmrsFetch } from '@openmrs/esm-framework';
 import dayjs from 'dayjs';
 import { formatToYMD } from '../billing-reports/utils/download-utils';
+import { errorHandler, commonErrorMessages } from '../utils/error-handler';
 
 const BASE_API_URL = '/ws/rest/v1/mohbilling';
 const BASE_MAMBA_API = '/ws/rest/v1/mamba/report';
@@ -76,15 +77,20 @@ export const getServiceCategories = async (
   departmentId: string,
   ipCardNumber: string = '0',
 ): Promise<ServiceCategoryResponse> => {
-  try {
-    const response = await openmrsFetch<ServiceCategoryResponse>(
-      `${BASE_API_URL}/serviceCategory?departmentId=${departmentId}&ipCardNumber=${ipCardNumber}`,
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching service categories:', error);
-    throw error;
-  }
+  const handler = errorHandler.createComponentHandler('billing-api');
+
+  return (
+    errorHandler.wrapAsync(
+      async () => {
+        const response = await openmrsFetch<ServiceCategoryResponse>(
+          `${BASE_API_URL}/serviceCategory?departmentId=${departmentId}&ipCardNumber=${ipCardNumber}`,
+        );
+        return response.data;
+      },
+      { component: 'billing-api', action: 'getServiceCategories', metadata: { departmentId, ipCardNumber } },
+      commonErrorMessages.fetchError,
+    ) || { results: [] }
+  );
 };
 
 /**
@@ -144,15 +150,18 @@ export interface BillableServiceResponse {
  * @returns Promise with billable services
  */
 export const getBillableServices = async (serviceCategoryId: string): Promise<BillableServiceResponse> => {
-  try {
-    const response = await openmrsFetch<BillableServiceResponse>(
-      `${BASE_API_URL}/billableService?serviceCategoryId=${serviceCategoryId}`,
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching billable services:', error);
-    throw error;
-  }
+  return (
+    errorHandler.wrapAsync(
+      async () => {
+        const response = await openmrsFetch<BillableServiceResponse>(
+          `${BASE_API_URL}/billableService?serviceCategoryId=${serviceCategoryId}`,
+        );
+        return response.data;
+      },
+      { component: 'billing-api', action: 'getBillableServices', metadata: { serviceCategoryId } },
+      commonErrorMessages.fetchError,
+    ) || { results: [] }
+  );
 };
 
 // Legacy interface for facility service price - keeping for backward compatibility
@@ -220,13 +229,16 @@ export interface InsuranceResponse {
  * @returns Promise containing array of insurance providers
  */
 export const getInsurances = async (): Promise<Array<Insurance>> => {
-  try {
-    const response = await openmrsFetch<InsuranceResponse>(`${BASE_API_URL}/insurance`);
-    return response.data.results;
-  } catch (error) {
-    console.error('Error fetching insurances:', error);
-    throw error;
-  }
+  return (
+    errorHandler.wrapAsync(
+      async () => {
+        const response = await openmrsFetch<InsuranceResponse>(`${BASE_API_URL}/insurance`);
+        return response.data.results;
+      },
+      { component: 'billing-api', action: 'getInsurances' },
+      commonErrorMessages.fetchError,
+    ) || []
+  );
 };
 
 export interface ThirdParty {
@@ -250,21 +262,22 @@ export const getThirdParties = async (): Promise<Array<ThirdParty>> => {
 };
 
 export async function fetchGlobalBillsByInsuranceCard(insuranceCardNumber: string) {
-  try {
-    const response = await openmrsFetch(
-      `${BASE_API_URL}/insurancePolicy?insuranceCardNo=${insuranceCardNumber}&v=full`,
-    );
+  return errorHandler.wrapAsync(
+    async () => {
+      const response = await openmrsFetch(
+        `${BASE_API_URL}/insurancePolicy?insuranceCardNo=${insuranceCardNumber}&v=full`,
+      );
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || 'Failed to fetch data');
-    }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to fetch data');
+      }
 
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching global bills:', error);
-    throw new Error(error.message || 'An unknown error occurred');
-  }
+      return await response.json();
+    },
+    { component: 'billing-api', action: 'fetchGlobalBillsByInsuranceCard', metadata: { insuranceCardNumber } },
+    commonErrorMessages.fetchError,
+  );
 }
 
 export interface PatientBill {
@@ -444,13 +457,16 @@ export const getConsommationsByGlobalBillId = async (globalBillId: string): Prom
  * @returns Promise with the API response data
  */
 export const fetchGlobalBillsByPatient = async (patientUuid: string) => {
-  try {
-    const response = await openmrsFetch(`${BASE_API_URL}/globalBill?patient=${patientUuid}&v=full`);
-    return response.data || { results: [] };
-  } catch (error) {
-    console.error('Error fetching global bills by patient UUID:', error);
-    throw error;
-  }
+  return (
+    errorHandler.wrapAsync(
+      async () => {
+        const response = await openmrsFetch(`${BASE_API_URL}/globalBill?patient=${patientUuid}&v=full`);
+        return response.data || { results: [] };
+      },
+      { component: 'billing-api', action: 'fetchGlobalBillsByPatient', metadata: { patientUuid } },
+      commonErrorMessages.fetchError,
+    ) || { results: [] }
+  );
 };
 
 export interface GlobalBillSummary {
@@ -539,7 +555,11 @@ export const submitBillPayment = async (paymentData: BillPaymentRequest): Promis
 
     return response.data;
   } catch (error) {
-    console.error('Payment submission error:', error);
+    errorHandler.handleError(
+      error,
+      { component: 'billing-api', action: 'submitBillPayment' },
+      commonErrorMessages.saveError,
+    );
     throw error;
   }
 };
@@ -605,11 +625,11 @@ export async function getConsommationItems(consommationId: string) {
 
     return items;
   } catch (error) {
-    console.error('Error fetching consommation items:', {
-      consommationId,
-      errorMessage: error.message,
-      stack: error.stack,
-    });
+    errorHandler.handleError(
+      error,
+      { component: 'billing-api', action: 'getConsommationItems', metadata: { consommationId } },
+      commonErrorMessages.fetchError,
+    );
     throw error;
   }
 }
@@ -630,10 +650,11 @@ function extractPatientServiceBillId(item: any, index: number): number {
 
     return 10372855 + index;
   } catch (error) {
-    console.warn('Error extracting patient service bill ID:', {
-      error: error.message,
-      item,
-    });
+    errorHandler.handleWarning(
+      'Error extracting patient service bill ID',
+      { error: error.message, item },
+      { component: 'billing-api', action: 'extractPatientServiceBillId' },
+    );
     return 10372855 + index;
   }
 }

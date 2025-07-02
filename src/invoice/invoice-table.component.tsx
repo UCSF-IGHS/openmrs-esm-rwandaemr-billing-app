@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { errorHandler, commonErrorMessages } from '../utils/error-handler';
 import fuzzy from 'fuzzy';
 import {
   DataTable,
@@ -313,7 +314,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         const deptIdNumber = parseInt(deptId, 10);
 
         if (isNaN(deptIdNumber)) {
-          console.warn(`Skipping department with invalid ID: ${deptId}`);
+          errorHandler.handleWarning(`Skipping department with invalid ID: ${deptId}`, null, {
+            component: 'invoice-table',
+            action: 'handleSaveItems',
+          });
           continue;
         }
 
@@ -333,8 +337,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
             successCount++;
 
             if (actualItems !== expectedItems) {
-              console.warn(
+              errorHandler.handleWarning(
                 `Note: All ${expectedItems} items were saved in the database, but only ${actualItems} were returned in the response. This is due to an API limitation.`,
+                { expectedItems, actualItems },
+                { component: 'invoice-table', action: 'handleSaveItems' },
               );
             }
           } else {
@@ -342,7 +348,11 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
           }
         } catch (error) {
           const errorMsg = `Failed to create consommation for department ${dept.departmentName}: ${error.message}`;
-          console.error(errorMsg, error);
+          errorHandler.handleError(error, {
+            component: 'invoice-table',
+            action: 'handleSaveItems',
+            metadata: { departmentName: dept.departmentName },
+          });
           errors.push(errorMsg);
         }
       }
@@ -384,7 +394,11 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         }
       }
     } catch (error) {
-      console.error('Error saving bill items:', error);
+      errorHandler.handleError(
+        error,
+        { component: 'invoice-table', action: 'handleSaveItems' },
+        { title: 'Save Failed', subtitle: 'Unable to save bill items. Please try again.', kind: 'error' },
+      );
       const errorMessage = typeof error === 'string' ? error : error.message || 'Failed to save bill items';
 
       setErrorMessage(errorMessage);

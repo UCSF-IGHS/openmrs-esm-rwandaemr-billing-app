@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSession } from '@openmrs/esm-framework';
+import { DatePicker, DatePickerInput } from '@carbon/react';
 import styles from './insurance-policy-table.scss';
 import { InsurancePolicyTable } from './insurance-policy-table.component';
 import InsurancePolicyDeskIcon from '../images/umbrella-icon.svg';
-import { DatePicker } from '@carbon/react';
-import { DatePickerInput } from '@carbon/react';
 
 export const InsurancePolicy: React.FC = () => {
   const { t } = useTranslation();

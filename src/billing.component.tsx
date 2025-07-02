@@ -7,12 +7,10 @@ import SearchInsurance from './bill-tabs/search-insurance.component';
 import GlobalBillSearch from './bill-tabs/global-bill-search.component';
 import ConsommationSearch from './bill-tabs/consommation-search.component';
 import BillListTable from './recent-bills/bill-list-table.component';
-import { RadioButtonGroup, RadioButton } from '@carbon/react';
 import { useSession } from '@openmrs/esm-framework';
+import { RadioButtonGroup, RadioButton, CodeSnippetSkeleton, StructuredListSkeleton } from '@carbon/react';
 import { getGlobalBillSummary } from './api/billing';
 import { formatNumberCurrency } from './metrics/metrics.resources';
-import { CodeSnippetSkeleton } from '@carbon/react';
-import { StructuredListSkeleton } from '@carbon/react';
 
 type SearchOption = 'bill-confirmation' | 'search-insurance' | 'global-bill' | 'consommation';
 
