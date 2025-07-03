@@ -95,7 +95,7 @@ const PatientAdmissionForm: React.FC<PatientAdmissionFormProps> = ({
       isAdmitted: false,
       admissionDate: new Date(),
       diseaseType: '',
-      admissionType: '1', 
+      admissionType: '1',
     },
   });
 

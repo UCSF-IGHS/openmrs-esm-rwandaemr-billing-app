@@ -1,5 +1,6 @@
 import useSWR, { mutate } from 'swr';
 import { openmrsFetch, restBaseUrl, useConfig } from '@openmrs/esm-framework';
+import { errorHandler, commonErrorMessages } from '../utils/error-handler';
 
 const BASE_API_URL = '/ws/rest/v1/mohbilling';
 
@@ -78,12 +79,10 @@ const extractInsurancePolicyId = (policyResponse: any): number | null => {
     if (policyResponse?.results && policyResponse.results.length > 0) {
       const policy = policyResponse.results[0];
 
-      // First check if policy has insurancePolicyId property
       if (policy.insurancePolicyId) {
         return policy.insurancePolicyId;
       }
 
-      // If not, try to extract from links
       if (policy.links && policy.links.length > 0) {
         const selfLink = policy.links.find((link) => link.rel === 'self');
         if (selfLink && selfLink.uri) {
@@ -96,7 +95,7 @@ const extractInsurancePolicyId = (policyResponse: any): number | null => {
     }
     return null;
   } catch (error) {
-    console.error('Error extracting insurance policy ID:', error);
+    errorHandler.handleError(error, { component: 'patient-admission-resource', action: 'extractInsurancePolicyId' });
     return null;
   }
 };
@@ -402,4 +401,135 @@ export const getPatientVisits = async (patientUuid: string, fromDate?: Date, toD
     console.error('Error fetching patient visits:', error);
     throw error;
   }
+};
+
+/**
+ * Fetches insurance policies for a specific patient
+ * Consolidated from direct openmrsFetch calls in admission components
+ */
+export const getInsurancePoliciesByPatientUuid = async (patientUuid: string): Promise<any> => {
+  return errorHandler.wrapAsync(
+    async () => {
+      const response = await openmrsFetch(`${BASE_API_URL}/insurancePolicy?patient=${patientUuid}&v=full`);
+      return response.data;
+    },
+    { component: 'patient-admission-resource', action: 'getInsurancePoliciesByPatientUuid', metadata: { patientUuid } },
+    commonErrorMessages.fetchError,
+  );
+};
+
+/**
+ * Comprehensive patient policy loading with fallback logic
+ * Consolidated from admission components
+ */
+export const loadPatientPoliciesForAdmission = async (patientUuid: string) => {
+  return errorHandler.wrapAsync(
+    async () => {
+      // First try to get from global bills
+      const { fetchGlobalBillsByPatient } = await import('./billing');
+      const policyData = await fetchGlobalBillsByPatient(patientUuid);
+      let patientPolicyInfo = null;
+
+      if (policyData && policyData.results && policyData.results.length > 0) {
+        const openGlobalBill = policyData.results.find((bill) => bill.closed === false);
+
+        if (openGlobalBill) {
+          if (openGlobalBill.admission?.insurancePolicy) {
+            patientPolicyInfo = openGlobalBill.admission.insurancePolicy;
+            if (openGlobalBill.insurance) {
+              patientPolicyInfo.insurance = openGlobalBill.insurance;
+            }
+          }
+          return { patientPolicyInfo, existingGlobalBill: openGlobalBill };
+        } else if (policyData.results.length > 0) {
+          const latestBill = policyData.results[0];
+          if (latestBill.admission?.insurancePolicy) {
+            patientPolicyInfo = latestBill.admission.insurancePolicy;
+            if (latestBill.insurance) {
+              patientPolicyInfo.insurance = latestBill.insurance;
+            }
+          }
+        }
+      }
+
+      // Fallback to direct patient policy fetch
+      if (!patientPolicyInfo) {
+        const patientResponse = await getInsurancePoliciesByPatientUuid(patientUuid);
+        if (patientResponse?.results && patientResponse.results.length > 0) {
+          patientPolicyInfo = patientResponse.results[0];
+
+          // Get detailed insurance information if needed
+          if (patientPolicyInfo.insurance?.insuranceId) {
+            const { getInsuranceById } = await import('./billing');
+            const insuranceDetails = await getInsuranceById(patientPolicyInfo.insurance.insuranceId);
+            if (insuranceDetails) {
+              patientPolicyInfo.insurance = insuranceDetails;
+            }
+          }
+        }
+      }
+
+      return { patientPolicyInfo, existingGlobalBill: null };
+    },
+    { component: 'patient-admission-resource', action: 'loadPatientPoliciesForAdmission', metadata: { patientUuid } },
+    commonErrorMessages.fetchError,
+  );
+};
+
+/**
+ * Verifies insurance card and returns policy information
+ * Consolidated from admission components
+ */
+export const verifyInsuranceCardForAdmission = async (cardNumber: string) => {
+  return errorHandler.wrapAsync(
+    async () => {
+      const policyResponse = await getInsurancePolicyByCardNumber(cardNumber);
+      const policyId = extractInsurancePolicyId(policyResponse);
+
+      let result = {
+        isValid: false,
+        policy: null,
+        policyId: null,
+        insurance: null,
+        existingGlobalBill: null,
+        message: '',
+      };
+
+      if (policyResponse && policyResponse.results && policyResponse.results.length > 0) {
+        const policy = policyResponse.results[0];
+        result.policy = policy;
+        result.isValid = true;
+
+        if (policyId) {
+          result.policyId = policyId;
+          if (policy.insurance) {
+            result.insurance = policy.insurance;
+          }
+
+          // Check for existing global bills
+          const { fetchGlobalBillsByInsuranceCard } = await import('./billing');
+          const gbResponse = await fetchGlobalBillsByInsuranceCard(cardNumber);
+          if (gbResponse && gbResponse.results && gbResponse.results.length > 0) {
+            const openGlobalBill = gbResponse.results.find((bill) => bill.closed === false);
+            if (openGlobalBill) {
+              result.existingGlobalBill = openGlobalBill;
+              result.message = `Patient already has an open global bill (ID: ${openGlobalBill.billIdentifier})`;
+            } else {
+              result.message = 'Insurance card validated successfully';
+            }
+          } else {
+            result.message = 'Insurance card validated successfully';
+          }
+        } else {
+          result.message = 'Insurance verified but policy ID not found';
+        }
+      } else {
+        result.message = 'Insurance card not found or invalid';
+      }
+
+      return result;
+    },
+    { component: 'patient-admission-resource', action: 'verifyInsuranceCardForAdmission', metadata: { cardNumber } },
+    commonErrorMessages.fetchError,
+  );
 };

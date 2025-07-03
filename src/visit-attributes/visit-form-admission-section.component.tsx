@@ -17,12 +17,20 @@ import {
   getInsurancePolicyByCardNumber,
   getInsuranceById,
 } from '../api/billing';
+import {
+  InlineNotification,
+  TextInput,
+  DatePicker,
+  InlineLoading,
+  ComboBox,
+  DatePickerInput,
+  Checkbox,
+  Toggle,
+  Button,
+} from '@carbon/react';
+import { z } from 'zod';
 import styles from './visit-form-admission-section.scss';
 import { createAdmissionWithGlobalBill, useDiseaseType } from '../api/patient-admission.resource';
-import { InlineNotification } from '@carbon/react';
-import { TextInput, DatePicker, InlineLoading, ComboBox, DatePickerInput, Checkbox, Toggle } from '@carbon/react';
-import { z } from 'zod';
-import { Button } from '@carbon/react';
 
 const ADMISSION_TYPES = [
   { id: '1', text: 'Ordinary Admission' },

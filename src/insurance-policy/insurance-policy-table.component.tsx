@@ -24,15 +24,17 @@ import {
 } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { Umbrella } from '@carbon/react/icons';
+import {
+  TableToolbarSearch,
+  Tag,
+  TableExpandHeader,
+  TableExpandRow,
+  TableExpandedRow,
+  OverflowMenu,
+  OverflowMenuItem,
+} from '@carbon/react';
 import styles from './insurance-policy-table.scss';
 import { useInsurancePolicy } from './insurance-policy.resource';
-import { TableToolbarSearch } from '@carbon/react';
-import { Tag } from '@carbon/react';
-import { TableExpandHeader } from '@carbon/react';
-import { TableExpandRow } from '@carbon/react';
-import { TableExpandedRow } from '@carbon/react';
-import { OverflowMenu } from '@carbon/react';
-import { OverflowMenuItem } from '@carbon/react';
 import EditInsuranceModal from '../insurance/edit-insurance.workspace';
 import dayjs from 'dayjs';
 

@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Tab, Tabs, TabList, DatePicker, DatePickerInput } from '@carbon/react';
-import PaymentsDeskIcon from '../images/payments-desk-icon.svg';
-import { Receipt, Currency } from '@carbon/react/icons';
 import { useSession } from '@openmrs/esm-framework';
+import { Tab, Tabs, TabList, DatePicker, DatePickerInput } from '@carbon/react';
+import { Receipt, Currency } from '@carbon/react/icons';
+import PaymentsDeskIcon from '../images/payments-desk-icon.svg';
 import styles from './billing-header.scss';
 
 interface BillingHeaderProps {
   onTabChange: (tabIndex: number) => void;
   onMenuItemSelect?: (item: string) => void;
   activeTab: number;
-  
+
   // Make these props optional
   onSubTabChange?: (tabIndex: number, subTabIndex: number) => void;
   activeSubTab?: number;
-  
+
   isAdminView?: boolean;
-  
+
   // New prop to disable sub-navigation
   showSubNavigation?: boolean;
 }
@@ -25,9 +25,9 @@ const BillingHeader: React.FC<BillingHeaderProps> = ({
   onTabChange,
   onSubTabChange,
   activeTab,
-  activeSubTab = 0,  // Default value if not provided
+  activeSubTab = 0, // Default value if not provided
   isAdminView = false,
-  showSubNavigation = true,  // Default to showing sub-navigation
+  showSubNavigation = true, // Default to showing sub-navigation
   onMenuItemSelect,
 }) => {
   const { t } = useTranslation();
