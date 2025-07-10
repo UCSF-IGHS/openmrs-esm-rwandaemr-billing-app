@@ -20,9 +20,17 @@ interface ReportFilterFormProps {
   fields: ReportFilterField[];
   onSearch: (formData: Record<string, any>) => void;
   insuranceOptions?: { label: string; value: number }[];
+  companyOptions?: { label: string; value: string }[];
+  collectorOptions?: { label: string; value: string }[];
 }
 
-const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, insuranceOptions }) => {
+const ReportFilterForm: React.FC<ReportFilterFormProps> = ({
+  fields,
+  onSearch,
+  insuranceOptions,
+  companyOptions,
+  collectorOptions,
+}) => {
   const { t } = useTranslation();
   const [formData, setFormData] = React.useState({});
 
@@ -140,23 +148,27 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({ fields, onSearch, i
 
       case 'company':
         return (
-          <TextInput
+          <Dropdown
             id="company"
-            labelText={t('company', 'Company')}
-            placeholder={t('enterCompanyName', 'Enter company name')}
-            aria-label={t('company', 'Company')}
-            onChange={(e) => handleChange('company', e.target.value)}
+            titleText={t('company', 'Company')}
+            size="md"
+            label={t('select', 'Select')}
+            items={companyOptions || []}
+            itemToString={(item) => item?.label || ''}
+            onChange={({ selectedItem }) => handleChange('company', selectedItem?.value)}
           />
         );
 
       case 'collector':
         return (
-          <TextInput
+          <Dropdown
             id="collector"
-            labelText={t('collector', 'Collector')}
-            placeholder={t('enterUserName', 'Enter user name')}
-            aria-label={t('collector', 'Collector')}
-            onChange={(e) => handleChange('collector', e.target.value)}
+            titleText={t('collector', 'Collector')}
+            size="md"
+            label={t('select', 'Select')}
+            items={collectorOptions || []}
+            itemToString={(item) => item?.label || ''}
+            onChange={({ selectedItem }) => handleChange('collector', selectedItem?.value)}
           />
         );
 

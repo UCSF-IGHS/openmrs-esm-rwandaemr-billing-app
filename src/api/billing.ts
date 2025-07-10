@@ -1,4 +1,4 @@
-import { openmrsFetch } from '@openmrs/esm-framework';
+import { openmrsFetch, restBaseUrl } from '@openmrs/esm-framework';
 import dayjs from 'dayjs';
 import { formatToYMD } from '../billing-reports/utils/download-utils';
 import { errorHandler, commonErrorMessages } from '../utils/error-handler';
@@ -220,6 +220,25 @@ export interface Insurance {
   }>;
 }
 
+export interface User {
+  uuid: string;
+  display: string;
+  username: string;
+  person: {
+    uuid: string;
+    display: string;
+  };
+  links: Array<{
+    rel: string;
+    uri: string;
+    resourceAlias: string;
+  }>;
+}
+
+export interface UserResponse {
+  results: Array<User>;
+}
+
 export interface InsuranceResponse {
   results: Array<Insurance>;
 }
@@ -236,6 +255,23 @@ export const getInsurances = async (): Promise<Array<Insurance>> => {
         return response.data.results;
       },
       { component: 'billing-api', action: 'getInsurances' },
+      commonErrorMessages.fetchError,
+    ) || []
+  );
+};
+
+/**
+ * Fetches all users/providers who can be collectors
+ * @returns Promise containing array of users
+ */
+export const getUsers = async (): Promise<Array<User>> => {
+  return (
+    errorHandler.wrapAsync(
+      async () => {
+        const response = await openmrsFetch<UserResponse>(`${restBaseUrl}/user?v=default`);
+        return response.data.results;
+      },
+      { component: 'billing-api', action: 'getUsers' },
       commonErrorMessages.fetchError,
     ) || []
   );

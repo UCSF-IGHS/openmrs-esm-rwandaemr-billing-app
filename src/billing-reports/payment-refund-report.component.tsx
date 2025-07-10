@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReportFilterForm from './report-filter-form.component';
 import {
   Table,
@@ -23,6 +23,7 @@ import { exportToExcel, formatValue, formatToYMD, exportSingleRecordToPDF } from
 import styles from './billing-reports.scss';
 import { useTranslation } from 'react-i18next';
 import { fetchRefundPaymentReport, fetchAllRefundPaymentReport } from './api/billing-reports';
+import { getUsers } from '../api/billing';
 import { showSnackbar } from '@openmrs/esm-framework';
 
 export interface ReportRecord {
@@ -56,6 +57,29 @@ const PaymentRefundReport: React.FC = () => {
   const [, setPaginatedResults] = useState([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [collectorOptions, setCollectorOptions] = useState<{ label: string; value: string }[]>([]);
+
+  // Fetch users/collectors on component mount
+  useEffect(() => {
+    const fetchCollectors = async () => {
+      try {
+        const users = await getUsers();
+        const options = users.map((user) => ({
+          label: user.display || user.username,
+          value: user.username, // Use username as value since that's likely what the backend expects
+        }));
+        setCollectorOptions(options);
+      } catch (error) {
+        console.error('Error fetching collectors:', error);
+        showSnackbar({
+          title: t('errorFetchingCollectors', 'Failed to load collectors.'),
+          kind: 'error',
+        });
+      }
+    };
+
+    fetchCollectors();
+  }, [t]);
 
   const paginateResults = (data, currentPage, size) => {
     const startIndex = (currentPage - 1) * size;
@@ -237,6 +261,7 @@ const PaymentRefundReport: React.FC = () => {
             fields={['startDate', 'endDate', 'collector']}
             onSearch={handleSearch}
             insuranceOptions={[]}
+            collectorOptions={collectorOptions}
           />
         </div>
       </div>
