@@ -18,6 +18,7 @@ import {
   DataTableSkeleton,
 } from '@carbon/react';
 import { fetchConsommationReport, fetchAllConsommationReport } from './api/billing-reports';
+import { getInsurances } from '../api/billing';
 import dayjs from 'dayjs';
 import { exportSingleRecordToPDF, exportToExcel, formatValue } from './utils/download-utils';
 import styles from './billing-reports.scss';
@@ -52,6 +53,29 @@ const ConsommationReport: React.FC = () => {
   const [currentFilters, setCurrentFilters] = useState<Filters | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [insuranceOptions, setInsuranceOptions] = useState<{ label: string; value: string }[]>([]);
+
+  // Fetch insurance companies on component mount
+  useEffect(() => {
+    const fetchInsuranceCompanies = async () => {
+      try {
+        const insurances = await getInsurances();
+        const options = insurances.map((insurance) => ({
+          label: insurance.name,
+          value: insurance.name,
+        }));
+        setInsuranceOptions(options);
+      } catch (error) {
+        console.error('Error fetching insurance companies:', error);
+        showSnackbar({
+          title: t('errorFetchingInsurances', 'Failed to load insurance companies.'),
+          kind: 'error',
+        });
+      }
+    };
+
+    fetchInsuranceCompanies();
+  }, [t]);
 
   const getValue = (record: ReportRecord[], column: string): string => {
     const found = record.find((item) => item.column === column);
@@ -180,7 +204,11 @@ const ConsommationReport: React.FC = () => {
       {t('consommationReport', 'Consommation Report')}
       <div className={styles.reportContent}>
         <div className={styles.filterSection}>
-          <ReportFilterForm fields={['startDate', 'endDate', 'company']} onSearch={handleSearch} />
+          <ReportFilterForm
+            fields={['startDate', 'endDate', 'company']}
+            onSearch={handleSearch}
+            companyOptions={insuranceOptions}
+          />
         </div>
       </div>
 
@@ -248,36 +276,113 @@ const ConsommationReport: React.FC = () => {
                         </TableExpandRow>
                         {row.isExpanded && (
                           <TableExpandedRow colSpan={headers.length + 1}>
-                            <div className={styles.expandedContentRow}>
-                              {recordMap.has(row.id) &&
-                                filterRecordItems(recordMap.get(row.id)!).map((item, i) => (
-                                  <div className={styles.inlineDetailItem} key={i}>
-                                    <span className={styles.detailLabel}>
-                                      {headerDisplayMap[item.column] || item.column}:
-                                    </span>{' '}
-                                    <span className={styles.detailValue}>{formatValue(item.value)}</span>
-                                    {i !== 9 && <span className={styles.divider}>|</span>}
-                                  </div>
-                                ))}
+                            <div className={styles.billingExpandedTableContainer}>
+                              <h6 className={styles.billingExpandedTableTitle}>
+                                {t('additionalDetails', 'Additional Details')}
+                              </h6>
+                              {recordMap.has(row.id) && (
+                                <table className={styles.billingExpandedDetailsTable}>
+                                  <tbody>
+                                    {/* First row: Financial details */}
+                                    <tr>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('globalAmount', 'Global Amount')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'global_amount')?.value,
+                                        )}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('patientDue', 'Patient Due')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'patientdue')?.value,
+                                        )}
+                                      </td>
+                                    </tr>
+                                    {/* Second row: Insurance and payment details */}
+                                    <tr>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('insuranceDue', 'Insurance Due')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'insurancedue')?.value,
+                                        )}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('paidAmount', 'Paid Amount')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'paid_amount')?.value,
+                                        )}
+                                      </td>
+                                    </tr>
+                                    {/* Third row: Status and type details */}
+                                    <tr>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('billStatus', 'Bill Status')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'bill_status')?.value,
+                                        ) || 'N/A'}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('admissionType', 'Admission Type')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'admission_type')
+                                            ?.value,
+                                        )}
+                                      </td>
+                                    </tr>
+                                    {/* Fourth row: Global bill status and collector */}
+                                    <tr>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('globalBillStatus', 'Global Bill Status')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'global_bill_status')
+                                            ?.value,
+                                        )}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('collectorName', 'Collector Name')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'collectorname')?.value,
+                                        )}
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              )}
+                              {recordMap.has(row.id) && (
+                                <div className={styles.expandedDownloadRow}>
+                                  <Button
+                                    size="sm"
+                                    kind="primary"
+                                    onClick={() => {
+                                      const fullRecord = recordMap.get(row.id)!;
+                                      const formattedRecord = fullRecord.map((item) => ({
+                                        column: item.column,
+                                        value: formatValue(item.value),
+                                      }));
+                                      exportSingleRecordToPDF(formattedRecord);
+                                    }}
+                                  >
+                                    {t('download', 'Download')}
+                                  </Button>
+                                </div>
+                              )}
                             </div>
-                            {recordMap.has(row.id) && (
-                              <div className={styles.expandedDownloadRow}>
-                                <Button
-                                  size="sm"
-                                  kind="primary"
-                                  onClick={() => {
-                                    const fullRecord = recordMap.get(row.id)!;
-                                    const formattedRecord = fullRecord.map((item) => ({
-                                      column: item.column,
-                                      value: formatValue(item.value),
-                                    }));
-                                    exportSingleRecordToPDF(formattedRecord);
-                                  }}
-                                >
-                                  {t('download', 'Download')}
-                                </Button>
-                              </div>
-                            )}
                           </TableExpandedRow>
                         )}
                       </React.Fragment>
