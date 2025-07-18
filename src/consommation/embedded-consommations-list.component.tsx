@@ -18,6 +18,8 @@ import {
   getConsommationItems,
   getConsommationById,
   getConsommationRates,
+  getMultipleConsommationStatuses,
+  isConsommationPaid,
 } from '../api/billing';
 import { isItemPaid, isItemPartiallyPaid } from '../utils/billing-calculations';
 import {
@@ -114,78 +116,54 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       }
     }, []);
 
-    const updateConsommationStatus = useCallback(
-      (consommationId: string, items: ConsommationItem[]) => {
-        if (!items || items.length === 0) return 'UNPAID';
+    const updateConsommationStatus = useCallback(async (consommationId: string): Promise<string> => {
+      try {
+        const isPaid = await isConsommationPaid(consommationId);
+        const status = isPaid ? 'PAID' : 'UNPAID';
 
-        const allItemsStatus = items.map((item) => {
-          const paymentKey = `payment_${item.patientServiceBillId}`;
-          const storedPayment = getPersistedPaymentStatus(paymentKey);
-          return storedPayment.paid || isItemPaid(item);
-        });
-
-        const allItemsPaid = allItemsStatus.every((isPaid) => isPaid);
-
-        let status = 'UNPAID';
-
-        if (allItemsPaid) {
-          status = 'PAID';
-        }
-
-        const consommationKey = `consommation_status_${consommationId}`;
-        persistPaymentStatus(consommationKey, {
-          paid: allItemsPaid,
-          timestamp: new Date().toISOString(),
-          globalBillId: globalBillId,
-        });
+        setConsommationStatuses((prev) => ({
+          ...prev,
+          [consommationId]: status,
+        }));
 
         return status;
-      },
-      [getPersistedPaymentStatus, persistPaymentStatus, globalBillId],
-    );
+      } catch (error) {
+        console.error(`Error updating consommation status for ${consommationId}:`, error);
+        return 'UNPAID';
+      }
+    }, []);
 
-    const loadConsommationStatuses = useCallback(
-      async (consommationsList: ConsommationListItem[]) => {
-        const statusPromises = consommationsList.map(async (consommation) => {
-          const consommationId = consommation.consommationId?.toString() || '';
-          if (!consommationId) return { consommationId, status: 'UNPAID' };
+    const loadConsommationStatuses = useCallback(async (consommationsList: ConsommationListItem[]) => {
+      try {
+        const consommationIds = consommationsList
+          .map((consommation) => consommation.consommationId?.toString())
+          .filter((id): id is string => Boolean(id));
 
-          try {
-            const consommationKey = `consommation_status_${consommationId}`;
-            const storedStatus = getPersistedPaymentStatus(consommationKey);
-            if (storedStatus.paid) {
-              return { consommationId, status: 'PAID' };
-            }
+        if (consommationIds.length === 0) {
+          setConsommationStatuses({});
+          return;
+        }
 
-            const rawPatientDue = Number(consommation.patientBill?.amount ?? 0);
-            const rawPaidAmount = Number(
-              consommation.patientBill?.payments?.reduce((sum, p) => sum + (p.amountPaid || 0), 0) ?? 0,
-            );
+        const statusMap = await getMultipleConsommationStatuses(consommationIds);
 
-            if (rawPaidAmount >= rawPatientDue && rawPatientDue > 0) {
-              return { consommationId, status: 'PAID' };
-            } else {
-              return { consommationId, status: 'UNPAID' };
-            }
-          } catch (error) {
-            console.error(`Error getting status for consommation ${consommationId}:`, error);
-            return { consommationId, status: 'UNPAID' };
-          }
+        const newStatusMap: Record<string, string> = {};
+        Object.entries(statusMap).forEach(([consommationId, isPaid]) => {
+          newStatusMap[consommationId] = isPaid ? 'PAID' : 'UNPAID';
         });
 
-        try {
-          const results = await Promise.all(statusPromises);
-          const newStatusMap: Record<string, string> = {};
-          results.forEach(({ consommationId, status }) => {
-            newStatusMap[consommationId] = status;
-          });
-          setConsommationStatuses(newStatusMap);
-        } catch (error) {
-          console.error('Error loading consommation statuses:', error);
-        }
-      },
-      [getPersistedPaymentStatus],
-    );
+        setConsommationStatuses(newStatusMap);
+      } catch (error) {
+        console.error('Error loading consommation statuses from API:', error);
+        const fallbackStatusMap: Record<string, string> = {};
+        consommationsList.forEach((consommation) => {
+          const consommationId = consommation.consommationId?.toString();
+          if (consommationId) {
+            fallbackStatusMap[consommationId] = 'UNPAID';
+          }
+        });
+        setConsommationStatuses(fallbackStatusMap);
+      }
+    }, []);
 
     const fetchConsommations = useCallback(async () => {
       if (!globalBillId) return;
@@ -280,39 +258,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       try {
         if (!globalBillId) return;
 
-        const freshData = await getConsommationsByGlobalBillId(globalBillId);
-        if (freshData && freshData.results) {
-          for (const consommation of freshData.results) {
-            const consommationId = consommation.consommationId?.toString();
-            if (!consommationId) continue;
-
-            try {
-              const freshItems = await getConsommationItems(consommationId);
-
-              for (const item of freshItems) {
-                const paymentKey = `payment_${item.patientServiceBillId}`;
-                const localPayment = getPersistedPaymentStatus(paymentKey);
-                const serverPaid = isItemPaid(item);
-
-                if (localPayment.paid !== serverPaid) {
-                  const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-                  persistPaymentStatus(paymentKey, {
-                    paid: serverPaid,
-                    paidAmount: serverPaid ? itemTotal : item.paidAmount || 0,
-                    timestamp: new Date().toISOString(),
-                    consommationId: consommationId,
-                    globalBillId: globalBillId,
-                    syncedFromServer: true,
-                  });
-                }
-              }
-            } catch (error) {
-              console.error(`Error syncing consommation ${consommationId}:`, error);
-            }
-          }
-        }
-
-        fetchConsommations();
+        await fetchConsommations();
 
         showToast({
           title: t('syncComplete', 'Sync Complete'),
@@ -327,7 +273,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           kind: 'error',
         });
       }
-    }, [globalBillId, getPersistedPaymentStatus, persistPaymentStatus, fetchConsommations, t]);
+    }, [globalBillId, fetchConsommations, t]);
 
     const fetchInsuranceRates = useCallback(async (consommationId: string) => {
       try {
@@ -378,13 +324,14 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     );
 
     const updateConsommationStatusImmediately = useCallback(
-      (consommationId: string, items: ConsommationItem[]) => {
-        const status = updateConsommationStatus(consommationId, items);
-        setConsommationStatuses((prev) => ({
-          ...prev,
-          [consommationId]: status,
-        }));
-        return status;
+      async (consommationId: string) => {
+        try {
+          const status = await updateConsommationStatus(consommationId);
+          return status;
+        } catch (error) {
+          console.error(`Error updating consommation status immediately for ${consommationId}:`, error);
+          return 'UNPAID';
+        }
       },
       [updateConsommationStatus],
     );
@@ -446,7 +393,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
             setSelectedItems((prev) => [...prev, ...paidItemsToSelect]);
           }
 
-          const status = updateConsommationStatusImmediately(consommationId, paidItems);
+          updateConsommationStatusImmediately(consommationId);
         } catch (error) {
           console.error(`Error loading items for consommation ${consommationId}:`, error);
           setConsommationsWithItems((prev) =>
@@ -539,8 +486,8 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
             return item;
           });
 
-          setTimeout(() => {
-            updateConsommationStatusImmediately(consommationId, updatedItems);
+          setTimeout(async () => {
+            await updateConsommationStatusImmediately(consommationId);
           }, 0);
 
           return { ...consommation, items: updatedItems };
@@ -736,16 +683,25 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
         return consommation;
       });
 
-      const updatedStatusMap: Record<string, string> = {};
-      updatedConsommationsWithItems.forEach((consommation) => {
-        const id = consommation.consommationId?.toString() || '';
-        if (id) {
-          const status = updateConsommationStatus(id, consommation.items);
-          updatedStatusMap[id] = status;
-        }
-      });
       setConsommationsWithItems(updatedConsommationsWithItems);
-      setConsommationStatuses(updatedStatusMap);
+
+      const consommationIds = updatedConsommationsWithItems
+        .map((consommation) => consommation.consommationId?.toString())
+        .filter((id): id is string => Boolean(id));
+
+      if (consommationIds.length > 0) {
+        getMultipleConsommationStatuses(consommationIds)
+          .then((statusMap) => {
+            const updatedStatusMap: Record<string, string> = {};
+            Object.entries(statusMap).forEach(([consommationId, isPaid]) => {
+              updatedStatusMap[consommationId] = isPaid ? 'PAID' : 'UNPAID';
+            });
+            setConsommationStatuses((prev) => ({ ...prev, ...updatedStatusMap }));
+          })
+          .catch((error) => {
+            console.error('Error updating consommation statuses after payment:', error);
+          });
+      }
 
       setSelectedItems((prev) => {
         const itemsToKeep = prev.filter(
