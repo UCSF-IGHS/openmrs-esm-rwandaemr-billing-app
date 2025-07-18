@@ -2,69 +2,71 @@ import { openmrsFetch, restBaseUrl } from '@openmrs/esm-framework';
 import dayjs from 'dayjs';
 import { formatToYMD } from '../billing-reports/utils/download-utils';
 import { errorHandler, commonErrorMessages } from '../utils/error-handler';
+import { API_CONFIG, BILLING_CONSTANTS, INSURANCE_CONSTANTS, ADMISSION_CONSTANTS, HTTP_STATUS } from '../constants';
+import type {
+  Department,
+  HopService,
+  ServiceCategory,
+  BillableService,
+  FacilityServicePrice,
+  Insurance,
+  User,
+  ThirdParty,
+  PatientBill,
+  GlobalBill,
+  Consommation,
+  BillPaymentRequest,
+  BillPaymentResponse,
+  ConsommationItem,
+  ConsommationRates,
+  GlobalBillSummary,
+  ConsommationListResponse,
+  ConsommationStatusResponse,
+  ApiResponse,
+  PaginatedResponse,
+} from './types';
 
-const BASE_API_URL = '/ws/rest/v1/mohbilling';
-const BASE_MAMBA_API = '/ws/rest/v1/mamba/report';
+export type {
+  Department,
+  HopService,
+  ServiceCategory,
+  BillableService,
+  FacilityServicePrice,
+  Insurance,
+  User,
+  ThirdParty,
+  PatientBill,
+  GlobalBill,
+  Consommation,
+  BillPaymentRequest,
+  BillPaymentResponse,
+  ConsommationItem,
+  ConsommationRates,
+  GlobalBillSummary,
+  ConsommationListResponse,
+  ConsommationStatusResponse,
+  ApiResponse,
+  PaginatedResponse,
+} from './types';
 
-export interface Department {
-  departmentId: number;
-  name: string;
-  description: string;
-  links: Array<{
-    rel: string;
-    uri: string;
-    resourceAlias: string;
-  }>;
-}
+const BASE_API_URL = API_CONFIG.BASE_BILLING_URL;
+const BASE_MAMBA_API = API_CONFIG.BASE_MAMBA_URL;
 
-export interface DepartmentResponse {
-  results: Array<Department>;
-}
+export type DepartmentResponse = ApiResponse<Department>;
 
 export const getDepartments = async (): Promise<Array<Department>> => {
   const response = await openmrsFetch<DepartmentResponse>(`${BASE_API_URL}/department`);
   return response.data.results;
 };
 
-export interface HopService {
-  serviceId: number;
-  name: string;
-  description: string;
-  links: Array<{
-    rel: string;
-    uri: string;
-    resourceAlias: string;
-  }>;
-}
-
-export interface ServiceResponse {
-  results: Array<HopService>;
-}
+export type ServiceResponse = ApiResponse<HopService>;
 
 export const getServices = async (): Promise<Array<HopService>> => {
   const response = await openmrsFetch<ServiceResponse>(`${BASE_API_URL}/hopService`);
   return response.data.results;
 };
 
-/**
- * New interfaces for Service Categories
- */
-export interface ServiceCategory {
-  serviceCategoryId: number;
-  name: string;
-  description: string;
-  departmentId: number;
-  retired: boolean;
-  links: Array<{
-    rel: string;
-    uri: string;
-    resourceAlias: string;
-  }>;
-}
-
-export interface ServiceCategoryResponse {
-  results: Array<ServiceCategory>;
-}
+export type ServiceCategoryResponse = ApiResponse<ServiceCategory>;
 
 /**
  * Fetches service categories for a specific department
@@ -93,55 +95,7 @@ export const getServiceCategories = async (
   );
 };
 
-/**
- * Interface for Facility Service Price
- */
-export interface FacilityServicePrice {
-  facilityServicePriceId: number;
-  name: string;
-  shortName: string;
-  description: string;
-  category: string;
-  fullPrice: number;
-  itemType: number;
-  hidden: boolean;
-  concept?: {
-    uuid: string;
-    display: string;
-    links: Array<{
-      rel: string;
-      uri: string;
-      resourceAlias: string;
-    }>;
-  };
-  links: Array<{
-    rel: string;
-    uri: string;
-    resourceAlias: string;
-  }>;
-}
-
-/**
- * New interface for Billable Service
- */
-export interface BillableService {
-  serviceId: number;
-  facilityServicePrice: FacilityServicePrice;
-  startDate: string;
-  endDate: string | null;
-  retired: boolean;
-  insurance?: any;
-  maximaToPay?: number;
-  links: Array<{
-    rel: string;
-    uri: string;
-    resourceAlias: string;
-  }>;
-}
-
-export interface BillableServiceResponse {
-  results: Array<BillableService>;
-}
+export type BillableServiceResponse = ApiResponse<BillableService>;
 
 /**
  * Fetches billable services for a specific service category
@@ -184,64 +138,8 @@ export const getFacilityServicePrices = async (
   return response.data;
 };
 
-export interface Insurance {
-  insuranceId: number;
-  name: string;
-  address: string;
-  phone: string;
-  category: string;
-  rate: number | null;
-  flatFee: string | null;
-  depositBalance: string;
-  voided: boolean;
-  concept?: {
-    uuid: string;
-    display: string;
-    links: Array<{
-      rel: string;
-      uri: string;
-      resourceAlias: string;
-    }>;
-  };
-  creator?: {
-    uuid: string;
-    display: string;
-    links: Array<{
-      rel: string;
-      uri: string;
-      resourceAlias: string;
-    }>;
-  };
-  createdDate?: string;
-  links: Array<{
-    rel: string;
-    uri: string;
-    resourceAlias: string;
-  }>;
-}
-
-export interface User {
-  uuid: string;
-  display: string;
-  username: string;
-  person: {
-    uuid: string;
-    display: string;
-  };
-  links: Array<{
-    rel: string;
-    uri: string;
-    resourceAlias: string;
-  }>;
-}
-
-export interface UserResponse {
-  results: Array<User>;
-}
-
-export interface InsuranceResponse {
-  results: Array<Insurance>;
-}
+export type InsuranceResponse = ApiResponse<Insurance>;
+export type UserResponse = ApiResponse<User>;
 
 /**
  * Fetches all insurance providers
@@ -277,20 +175,7 @@ export const getUsers = async (): Promise<Array<User>> => {
   );
 };
 
-export interface ThirdParty {
-  thirdPartyId: number;
-  name: string;
-  rate: number;
-  links: Array<{
-    rel: string;
-    uri: string;
-    resourceAlias: string;
-  }>;
-}
-
-export interface ThirdPartyResponse {
-  results: Array<ThirdParty>;
-}
+export type ThirdPartyResponse = ApiResponse<ThirdParty>;
 
 export const getThirdParties = async (): Promise<Array<ThirdParty>> => {
   const response = await openmrsFetch<ThirdPartyResponse>(`${BASE_API_URL}/thirdParty`);
@@ -316,40 +201,7 @@ export async function fetchGlobalBillsByInsuranceCard(insuranceCardNumber: strin
   );
 }
 
-export interface PatientBill {
-  patientBillId: number;
-  amount: number;
-  isPaid: boolean;
-  createdDate: string;
-  status: string | null;
-  voided: boolean;
-  payments: Array<{
-    amountPaid: number;
-    dateReceived: string;
-    collector: {
-      uuid: string;
-      display: string;
-    };
-  }>;
-  phoneNumber: string | null;
-  transactionStatus: string | null;
-  paymentConfirmedBy: any | null;
-  paymentConfirmedDate: string | null;
-  creator: string;
-  departmentName: string;
-  policyIdNumber: string;
-  beneficiaryName: string;
-  insuranceName: string;
-  links: Array<{
-    rel: string;
-    uri: string;
-    resourceAlias: string;
-  }>;
-}
-
-export interface PatientBillResponse {
-  results: Array<PatientBill>;
-}
+export type PatientBillResponse = ApiResponse<PatientBill>;
 
 export const getPatientBills = async (
   startDate: string,
@@ -361,32 +213,7 @@ export const getPatientBills = async (
   return response.data;
 };
 
-export interface GlobalBill {
-  globalBillId: number;
-  billIdentifier: string;
-  globalAmount: number;
-  createdDate: string;
-  closingDate: string | null;
-  closed: boolean;
-  closingReason: string;
-  admission: {
-    insurancePolicy: {
-      insuranceCardNo: string;
-      owner: {
-        display: string;
-      };
-    };
-    admissionDate: string;
-    dischargingDate: string | null;
-  };
-  creator: {
-    display: string;
-  };
-}
-
-export interface GlobalBillResponse {
-  results: Array<GlobalBill>;
-}
+export type GlobalBillResponse = ApiResponse<GlobalBill>;
 
 export const getGlobalBillByIdentifier = async (billIdentifier: string): Promise<GlobalBillResponse> => {
   const response = await openmrsFetch<GlobalBillResponse>(
@@ -395,89 +222,12 @@ export const getGlobalBillByIdentifier = async (billIdentifier: string): Promise
   return response.data;
 };
 
-export interface Consommation {
-  consommationId: number;
-  department: {
-    departmentId: number;
-    name: string;
-    description: string;
-  };
-  billItems: Array<{
-    serviceDate: string;
-    unitPrice: number;
-    quantity: number;
-    paidQuantity: number;
-    paid: boolean;
-    serviceOther: string | null;
-    serviceOtherDescription: string | null;
-    drugFrequency: string;
-    itemType: number;
-    service?: {
-      // Added to represent BillableService
-      serviceId: number;
-      facilityServicePrice?: {
-        name: string;
-        fullPrice: number;
-      };
-    };
-    links?: Array<{
-      rel: string;
-      uri: string;
-      resourceAlias: string;
-    }>;
-  }>;
-  patientBill: {
-    patientBillId: number;
-    amount: number;
-    createdDate: string;
-    payments: Array<{
-      amountPaid: number;
-      dateReceived: string;
-      collector: {
-        uuid: string;
-        display: string;
-      };
-    }>;
-    creator: string;
-    departmentName: string;
-    policyIdNumber: string;
-    beneficiaryName: string;
-    insuranceName: string;
-  };
-  insuranceBill: {
-    amount: number;
-    creator: {
-      person: {
-        display: string;
-      };
-    };
-    createdDate: string;
-  };
-}
 
 export const getConsommationById = async (consommationId: string): Promise<Consommation> => {
   const response = await openmrsFetch<Consommation>(`${BASE_API_URL}/consommation/${consommationId}`);
   return response.data;
 };
 
-export interface ConsommationListItem {
-  consommationId: number;
-  createdDate: string;
-  service: string;
-  createdBy: string;
-  insuranceCardNo: string;
-  insuranceDue: number;
-  thirdPartyDue: number;
-  patientDue: number;
-  paidAmount: number;
-  status: string;
-}
-
-export interface ConsommationListResponse {
-  results: Array<ConsommationListItem>;
-  totalDueAmount: number;
-  totalPaidAmount: number;
-}
 
 export const getConsommationsByGlobalBillId = async (globalBillId: string): Promise<ConsommationListResponse> => {
   const response = await openmrsFetch<ConsommationListResponse>(
@@ -505,47 +255,14 @@ export const fetchGlobalBillsByPatient = async (patientUuid: string) => {
   );
 };
 
-export interface GlobalBillSummary {
-  total: number;
-  closed: number;
-  open: number;
-}
+// GlobalBillSummary interface moved to ./types.ts
 
 export const getGlobalBillSummary = async (): Promise<GlobalBillSummary> => {
   const response = await openmrsFetch<GlobalBillSummary>(`${BASE_API_URL}/globalBill/summary`);
   return response.data;
 };
 
-export interface BillPaymentItem {
-  billItem: {
-    patientServiceBillId: number;
-  };
-  paidQty: number;
-}
-
-export interface BillPaymentRequest {
-  amountPaid: number | string;
-  patientBill: {
-    patientBillId: number;
-  };
-  dateReceived: string;
-  collector: {
-    uuid: string;
-  };
-  paidItems: BillPaymentItem[];
-}
-
-export interface BillPaymentResponse {
-  billPaymentId: number;
-  amountPaid: number;
-  dateReceived: string;
-  status: string;
-  links: Array<{
-    rel: string;
-    uri: string;
-    resourceAlias: string;
-  }>;
-}
+// BillPaymentItem, BillPaymentRequest, and BillPaymentResponse interfaces moved to ./types.ts
 
 /**
  * Submits a bill payment
@@ -684,14 +401,14 @@ function extractPatientServiceBillId(item: any, index: number): number {
       }
     }
 
-    return 10372855 + index;
+    return BILLING_CONSTANTS.DEFAULT_PATIENT_SERVICE_BILL_ID_BASE + index;
   } catch (error) {
     errorHandler.handleWarning(
       'Error extracting patient service bill ID',
       { error: error.message, item },
       { component: 'billing-api', action: 'extractPatientServiceBillId' },
     );
-    return 10372855 + index;
+    return BILLING_CONSTANTS.DEFAULT_PATIENT_SERVICE_BILL_ID_BASE + index;
   }
 }
 
@@ -993,31 +710,31 @@ export const findBeneficiaryByPolicyNumber = async (insurancePolicyNumber: strin
  * @param isPaid - Payment status (defaults to false)
  * @returns Promise with the created patient bill
  */
-export const createSimplePatientBill = async (amount: number = 0, isPaid: boolean = false): Promise<any> => {
-  try {
-    const patientBillPayload = {
-      amount: amount,
-      isPaid: isPaid,
-    };
+export const createSimplePatientBill = async (amount: number = 0, isPaid: boolean = false): Promise<PatientBill> => {
+  return errorHandler.wrapAsync(
+    async () => {
+      const patientBillPayload = {
+        amount: amount,
+        isPaid: isPaid,
+      };
 
-    const response = await openmrsFetch(`${BASE_API_URL}/patientBill`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(patientBillPayload),
-    });
+      const response = await openmrsFetch<PatientBill>(`${BASE_API_URL}/patientBill`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(patientBillPayload),
+      });
 
-    if (!response.ok) {
-      console.error('Patient bill creation failed:', response);
-      throw new Error(`API returned status ${response.status}`);
-    }
+      if (response.status >= HTTP_STATUS.BAD_REQUEST) {
+        throw new Error(`API returned status ${response.status}`);
+      }
 
-    return response.data;
-  } catch (error) {
-    console.error('Error creating patient bill:', error);
-    throw error;
-  }
+      return response.data;
+    },
+    { component: 'billing-api', action: 'createSimplePatientBill', metadata: { amount, isPaid } },
+    commonErrorMessages.saveError,
+  );
 };
 
 /**
@@ -1093,24 +810,94 @@ export const createDirectConsommationWithBeneficiary = async (
       billItems,
     };
 
-    const response = await openmrsFetch(`${BASE_API_URL}/consommation`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(consommationPayload),
-    });
+    let response;
+    let consommationId;
 
-    if (!response.ok) {
-      console.error('Consommation creation failed:', response);
-      throw new Error(`API returned status ${response.status}`);
+    try {
+      response = await openmrsFetch(`${BASE_API_URL}/consommation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(consommationPayload),
+      });
+
+      if (!response.ok) {
+        console.error('Consommation creation failed:', response);
+        throw new Error(`API returned status ${response.status}`);
+      }
+
+      consommationId = response.data?.consommationId;
+    } catch (error) {
+      // Handle the specific paymentStatus serialization error
+      const isPaymentStatusError =
+        error.message &&
+        (error.message.includes('paymentStatus') ||
+          error.message.includes('ConversionException') ||
+          error.message.includes('NullPointerException'));
+
+      // Also check for 500 status which might indicate backend serialization error
+      const isSerializationError = error.status === 500 && error.responseText;
+
+      if (isPaymentStatusError || isSerializationError) {
+        errorHandler.handleWarning(
+          'Consommation creation likely succeeded but response serialization failed due to paymentStatus issue',
+          { error: error.message, status: error.status },
+          { component: 'billing-api', action: 'createDirectConsommationWithBeneficiary' },
+        );
+
+        // Try to find the most recently created consommation for this global bill
+        try {
+          const recentConsommationsResponse = await openmrsFetch(
+            `${BASE_API_URL}/consommation?globalBillId=${globalBillId}&limit=1&sort=createdDate:desc`,
+          );
+
+          if (recentConsommationsResponse.ok && recentConsommationsResponse.data?.results?.length > 0) {
+            const recentConsommation = recentConsommationsResponse.data.results[0];
+            consommationId = recentConsommation.consommationId;
+            errorHandler.handleInfo(
+              'Found recently created consommation',
+              { consommationId },
+              { component: 'billing-api', action: 'createDirectConsommationWithBeneficiary' },
+            );
+          } else {
+            // Try alternative approach - get all consommations for this global bill
+            const allConsommationsResponse = await openmrsFetch(
+              `${BASE_API_URL}/consommation?globalBillId=${globalBillId}&v=default`,
+            );
+
+            if (allConsommationsResponse.ok && allConsommationsResponse.data?.results?.length > 0) {
+              // Find the most recent one by sorting by ID (assuming higher IDs are newer)
+              const sortedConsommations = allConsommationsResponse.data.results.sort(
+                (a, b) => b.consommationId - a.consommationId,
+              );
+              consommationId = sortedConsommations[0].consommationId;
+              errorHandler.handleInfo(
+                'Found consommation using alternative method',
+                { consommationId },
+                { component: 'billing-api', action: 'createDirectConsommationWithBeneficiary' },
+              );
+            }
+          }
+        } catch (fetchError) {
+          errorHandler.handleError(
+            fetchError,
+            { component: 'billing-api', action: 'createDirectConsommationWithBeneficiary' },
+            { title: 'Failed to fetch recent consommations', kind: 'error' },
+          );
+        }
+      }
+
+      if (!consommationId) {
+        console.error('Error creating consommation:', error);
+        throw error;
+      }
     }
 
-    const consommationId = response.data?.consommationId;
     if (!consommationId) {
       console.error('No consommation ID found in response');
       return {
-        ...response.data,
+        ...response?.data,
         _itemsCount: expectedItemCount,
         _actualItemsReturned: 0,
       };
@@ -1194,5 +981,76 @@ export const getInsurancePoliciesByPatient = async (patientUuid: string): Promis
   } catch (error) {
     console.error(`Failed to fetch insurance policies for patient ${patientUuid}:`, error);
     return [];
+  }
+};
+
+/**
+ * ConsommationStatusResponse interface moved to ./types.ts
+ */
+
+/**
+ * Fetches the real-time consommation status from the server using the isPaid flag
+ * @param consommationId - The consommation ID to check status for
+ * @returns Promise with the consommation status response containing isPaid status
+ */
+export const getConsommationStatus = async (consommationId: string): Promise<ConsommationStatusResponse | null> => {
+  return (
+    errorHandler.wrapAsync(
+      async () => {
+        const response = await openmrsFetch<ConsommationStatusResponse>(
+          `${BASE_API_URL}/consommation/${consommationId}?v=custom:(department,billItems,patientBill:(isPaid))`,
+        );
+        return response.data;
+      },
+      { component: 'billing-api', action: 'getConsommationStatus', metadata: { consommationId } },
+      commonErrorMessages.fetchError,
+    ) || null
+  );
+};
+
+/**
+ * Checks if a consommation is paid based on the server-side isPaid flag
+ * @param consommationId - The consommation ID to check
+ * @returns Promise with boolean indicating if the consommation is paid
+ */
+export const isConsommationPaid = async (consommationId: string): Promise<boolean> => {
+  try {
+    const statusResponse = await getConsommationStatus(consommationId);
+    return statusResponse?.patientBill?.isPaid === true;
+  } catch (error) {
+    errorHandler.handleError(
+      error,
+      { component: 'billing-api', action: 'isConsommationPaid', metadata: { consommationId } },
+      commonErrorMessages.fetchError,
+    );
+    return false;
+  }
+};
+
+/**
+ * Fetches payment status for multiple consommations
+ * @param consommationIds - Array of consommation IDs to check
+ * @returns Promise with a map of consommation ID to payment status
+ */
+export const getMultipleConsommationStatuses = async (consommationIds: string[]): Promise<Record<string, boolean>> => {
+  const statusPromises = consommationIds.map(async (id) => {
+    const isPaid = await isConsommationPaid(id);
+    return { id, isPaid };
+  });
+
+  try {
+    const results = await Promise.all(statusPromises);
+    const statusMap: Record<string, boolean> = {};
+    results.forEach(({ id, isPaid }) => {
+      statusMap[id] = isPaid;
+    });
+    return statusMap;
+  } catch (error) {
+    errorHandler.handleError(
+      error,
+      { component: 'billing-api', action: 'getMultipleConsommationStatuses' },
+      commonErrorMessages.fetchError,
+    );
+    return {};
   }
 };

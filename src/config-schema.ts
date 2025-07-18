@@ -1,4 +1,5 @@
 import { Type } from '@openmrs/esm-framework';
+import { CONFIG_CONSTANTS } from './constants';
 
 export interface BillingConfig {}
 
@@ -7,7 +8,7 @@ export const configSchema = {
     _type: Type.Object,
     _description: 'GET disease types such as Natural Disease, Professional Disease e.t.c.',
     _default: {
-      diseaseTypeConcept: '90029723-7058-40bd-b20a-e369524cb355',
+      diseaseTypeConcept: CONFIG_CONSTANTS.DISEASE_TYPE_CONCEPT,
     },
   },
 
@@ -15,12 +16,12 @@ export const configSchema = {
     _type: Type.Object,
     _description: 'Concept UUIDs for admission-related attributes',
     _default: {
-      patientName: '1528AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      billIdentifier: '159465AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      insuranceName: '8da67e73-776c-43f6-9758-79d1f6786db3',
-      cardNumber: 'b78996b6-1ee8-4201-8cb8-69ab676ee7d2',
+      patientName: CONFIG_CONSTANTS.ADMISSION_CONCEPTS.PATIENT_NAME,
+      billIdentifier: CONFIG_CONSTANTS.ADMISSION_CONCEPTS.BILL_IDENTIFIER,
+      insuranceName: CONFIG_CONSTANTS.ADMISSION_CONCEPTS.INSURANCE_NAME,
+      cardNumber: CONFIG_CONSTANTS.ADMISSION_CONCEPTS.CARD_NUMBER,
     },
-  }
+  },
 };
 
 export interface ConfigObject {
