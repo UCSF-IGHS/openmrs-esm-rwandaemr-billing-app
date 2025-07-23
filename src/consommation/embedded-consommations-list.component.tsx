@@ -20,6 +20,7 @@ import {
   getConsommationRates,
   getMultipleConsommationStatuses,
   isConsommationPaid,
+  getDepartments,
 } from '../api/billing';
 import { isItemPaid, isItemPartiallyPaid } from '../utils/billing-calculations';
 import {
@@ -78,6 +79,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     const [isLoading, setIsLoading] = useState(true);
     const [consommations, setConsommations] = useState<ConsommationListResponse | null>(null);
     const [consommationsWithItems, setConsommationsWithItems] = useState<ConsommationWithItems[]>([]);
+    const [departments, setDepartments] = useState([]);
     const [selectedItems, setSelectedItems] = useState<SelectedItemInfo[]>([]);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [consommationStatuses, setConsommationStatuses] = useState<Record<string, string>>({});
@@ -93,6 +95,35 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       results: paginatedConsommations,
       currentPage,
     } = usePagination(consommationsWithItems || [], pageSize);
+
+    const getDepartmentName = useCallback(
+      (consommationItem) => {
+        if (consommationItem?.department?.name) {
+          return consommationItem.department.name;
+        }
+
+        if (consommationItem?.department?.departmentId && departments.length > 0) {
+          const dept = departments.find((d) => d.departmentId === consommationItem.department.departmentId);
+          if (dept) {
+            return dept.name;
+          }
+        }
+
+        if (consommationItem?.billItems?.length > 0) {
+          const firstItem = consommationItem.billItems[0];
+          if (firstItem?.hopService?.name) {
+            return firstItem.hopService.name;
+          }
+        }
+
+        if (consommationItem?.consommationId) {
+          return `Service ${consommationItem.consommationId}`;
+        }
+
+        return t('unknownService', 'Unknown Service');
+      },
+      [departments, t],
+    );
 
     const persistPaymentStatus = useCallback((key: string, data: any) => {
       try {
@@ -170,11 +201,16 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
       setIsLoading(true);
       try {
-        const data = await getConsommationsByGlobalBillId(globalBillId);
-        setConsommations(data);
+        const [consommationData, departmentData] = await Promise.all([
+          getConsommationsByGlobalBillId(globalBillId),
+          getDepartments().catch(() => []),
+        ]);
 
-        if (data && data.results && data.results.length > 0) {
-          const consommationsWithItemsData: ConsommationWithItems[] = data.results.map((consommation) => ({
+        setConsommations(consommationData);
+        setDepartments(departmentData);
+
+        if (consommationData && consommationData.results && consommationData.results.length > 0) {
+          const consommationsWithItemsData: ConsommationWithItems[] = consommationData.results.map((consommation) => ({
             ...consommation,
             items: [],
             isLoadingItems: false,
@@ -187,7 +223,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
           setConsommationsWithItems(consommationsWithItemsData);
 
-          loadConsommationStatuses(data.results);
+          loadConsommationStatuses(consommationData.results);
         }
       } catch (error) {
         showToast({
@@ -379,7 +415,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           const currentConsommation = consommationsWithItems.find(
             (c) => c.consommationId?.toString() === consommationId,
           );
-          const serviceName = currentConsommation?.department?.name || `Service ${consommationId}`;
+          const serviceName = getDepartmentName(currentConsommation);
 
           const paidItemsToSelect = paidItems
             .filter((item) => isActuallyPaid(item))
@@ -417,6 +453,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
         fetchInsuranceRates,
         isActuallyPaid,
         updateConsommationStatusImmediately,
+        getDepartmentName,
       ],
     );
 
@@ -448,55 +485,58 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       }
     };
 
-    const handleItemSelection = (consommationId: string, itemIndex: number) => {
-      const consommation = consommationsWithItems.find((c) => c.consommationId?.toString() === consommationId);
+    const handleItemSelection = useCallback(
+      (consommationId: string, itemIndex: number) => {
+        const consommation = consommationsWithItems.find((c) => c.consommationId?.toString() === consommationId);
 
-      if (!consommation) return;
+        if (!consommation) return;
 
-      const item = consommation.items[itemIndex];
+        const item = consommation.items[itemIndex];
 
-      const updatedConsommations = consommationsWithItems.map((consommation) => {
-        if (consommation.consommationId?.toString() === consommationId) {
-          const updatedItems = consommation.items.map((item, index) => {
-            if (index === itemIndex) {
-              const isCurrentlySelected = item.selected || false;
-              const newSelectedState = !isCurrentlySelected;
+        const updatedConsommations = consommationsWithItems.map((consommation) => {
+          if (consommation.consommationId?.toString() === consommationId) {
+            const updatedItems = consommation.items.map((item, index) => {
+              if (index === itemIndex) {
+                const isCurrentlySelected = item.selected || false;
+                const newSelectedState = !isCurrentlySelected;
 
-              if (newSelectedState) {
-                const selectedItemInfo: SelectedItemInfo = {
-                  item: { ...item, selected: true },
-                  consommationId: consommationId,
-                  consommationService: consommation.department?.name || `Service ${consommationId}`,
-                };
-                setSelectedItems((prev) => [...prev, selectedItemInfo]);
-              } else {
-                setSelectedItems((prev) =>
-                  prev.filter(
-                    (selectedItem) =>
-                      !(
-                        selectedItem.consommationId === consommationId &&
-                        selectedItem.item.patientServiceBillId === item.patientServiceBillId
-                      ),
-                  ),
-                );
+                if (newSelectedState) {
+                  const selectedItemInfo: SelectedItemInfo = {
+                    item: { ...item, selected: true },
+                    consommationId: consommationId,
+                    consommationService: getDepartmentName(consommation),
+                  };
+                  setSelectedItems((prev) => [...prev, selectedItemInfo]);
+                } else {
+                  setSelectedItems((prev) =>
+                    prev.filter(
+                      (selectedItem) =>
+                        !(
+                          selectedItem.consommationId === consommationId &&
+                          selectedItem.item.patientServiceBillId === item.patientServiceBillId
+                        ),
+                    ),
+                  );
+                }
+
+                return { ...item, selected: newSelectedState };
               }
+              return item;
+            });
 
-              return { ...item, selected: newSelectedState };
-            }
-            return item;
-          });
+            setTimeout(async () => {
+              await updateConsommationStatusImmediately(consommationId);
+            }, 0);
 
-          setTimeout(async () => {
-            await updateConsommationStatusImmediately(consommationId);
-          }, 0);
+            return { ...consommation, items: updatedItems };
+          }
+          return consommation;
+        });
 
-          return { ...consommation, items: updatedItems };
-        }
-        return consommation;
-      });
-
-      setConsommationsWithItems(updatedConsommations);
-    };
+        setConsommationsWithItems(updatedConsommations);
+      },
+      [consommationsWithItems, getDepartmentName, updateConsommationStatusImmediately],
+    );
 
     const computeItemPaymentStatus = useCallback(
       (item: ConsommationItem): string => {
@@ -797,9 +837,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                         <div className={styles.accordionTitle}>
                           <div className={styles.consommationInfo}>
                             <span className={styles.consommationId}>#{consommationId}</span>
-                            <span className={styles.consommationService}>
-                              {consommation.department?.name || `Service ${consommationId}`}
-                            </span>
+                            <span className={styles.consommationService}>{getDepartmentName(consommation)}</span>
                             <span className={styles.consommationDate}>
                               {consommation.createdDate ? new Date(consommation.createdDate).toLocaleDateString() : '-'}
                             </span>
