@@ -7,11 +7,14 @@ import {
   getServices,
   getServiceCategories,
   getBillableServices,
+  getDepartments,
   type HopService,
   type ServiceCategory,
   type BillableService,
+  type Department,
   getBillableServiceId,
 } from '../api/billing';
+import { mapHopServiceToDepartmentEnhanced, createHopServiceToDepartmentMapping } from '../utils/department-mapping';
 import styles from './service-calculator.scss';
 
 interface ServiceCalculatorProps {
@@ -22,7 +25,7 @@ interface ServiceCalculatorProps {
 }
 
 interface NormalizedService {
-  serviceId: string | number;
+  serviceId: number;
   name: string;
   price: number;
   originalData: any;
@@ -39,7 +42,9 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
   const [quantity, setQuantity] = useState(1);
   const [drugFrequency, setDrugFrequency] = useState('');
 
-  const [departments, setDepartments] = useState<HopService[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [hopServices, setHopServices] = useState<HopService[]>([]);
+  const [hopServiceToDepartmentMap, setHopServiceToDepartmentMap] = useState<Map<number, number>>(new Map());
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
   const [isLoadingServiceCategories, setIsLoadingServiceCategories] = useState(false);
   const [isLoadingBillableServices, setIsLoadingBillableServices] = useState(false);
@@ -57,28 +62,63 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
   const [calculatorItems, setCalculatorItems] = useState([]);
   const [total, setTotal] = useState(0);
 
+  // Helper function to determine if current selection is for medications/drugs
+  const isDrugCategory = useCallback(() => {
+    if (!serviceCategoryId || !serviceCategories.length) return false;
+
+    const selectedCategory = serviceCategories.find((cat) => cat.serviceCategoryId?.toString() === serviceCategoryId);
+
+    if (!selectedCategory) return false;
+
+    const categoryName = selectedCategory.name.toLowerCase();
+
+    const drugKeywords = [
+      'medicament',
+      'medication',
+      'drug',
+      'medicine',
+      'pharmacy',
+      'pharmaceutique',
+      'pharmacie',
+      'médicament',
+    ];
+
+    return drugKeywords.some((keyword) => categoryName.includes(keyword));
+  }, [serviceCategoryId, serviceCategories]);
+
   useEffect(() => {
-    const fetchDepartments = async () => {
+    const fetchDepartmentsAndServices = async () => {
       setIsLoadingDepartments(true);
       try {
-        const services = await getServices();
+        const [departmentResults, hopServiceResults] = await Promise.all([getDepartments(), getServices()]);
 
-        if (services && services.length > 0) {
-          const transformedDepts = services.map((dept) => ({
-            ...dept,
-            uuid: dept.serviceId.toString(),
-          }));
-          setDepartments(transformedDepts);
+        if (departmentResults && departmentResults.length > 0) {
+          setDepartments(departmentResults);
         } else {
           errorHandler.handleWarning('No departments found in response', null, {
             component: 'service-calculator',
             action: 'fetchDepartments',
           });
         }
+
+        if (hopServiceResults && hopServiceResults.length > 0) {
+          setHopServices(hopServiceResults);
+
+                      // Create the mapping between HopServices and Departments
+            if (departmentResults && departmentResults.length > 0) {
+              const mapping = createHopServiceToDepartmentMapping(hopServiceResults, departmentResults);
+              setHopServiceToDepartmentMap(mapping);
+            }
+        } else {
+          errorHandler.handleWarning('No hop services found in response', null, {
+            component: 'service-calculator',
+            action: 'fetchHopServices',
+          });
+        }
       } catch (error) {
         errorHandler.handleError(
           error,
-          { component: 'service-calculator', action: 'fetchDepartments' },
+          { component: 'service-calculator', action: 'fetchDepartmentsAndServices' },
           commonErrorMessages.fetchError,
         );
       } finally {
@@ -86,7 +126,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
       }
     };
 
-    fetchDepartments();
+    fetchDepartmentsAndServices();
   }, []);
 
   const fetchServiceCategories = useCallback(
@@ -95,19 +135,17 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
 
       setIsLoadingServiceCategories(true);
       setServiceCategories([]);
-      setBillableServices([]);
       setServiceCategoryId('');
       setServiceId('');
+      setDrugFrequency('');
 
       try {
-        const ipCardNumber = insuranceCardNo || '0';
+        const response = await getServiceCategories(departmentId, insuranceCardNo || '0');
 
-        const categories = await getServiceCategories(departmentId, ipCardNumber);
-
-        if (categories && categories.results && categories.results.length > 0) {
-          setServiceCategories(categories.results);
+        if (response && response.results && response.results.length > 0) {
+          setServiceCategories(response.results);
         } else {
-          errorHandler.handleWarning('No service categories found in response', null, {
+          errorHandler.handleWarning('No service categories found for department', null, {
             component: 'service-calculator',
             action: 'fetchServiceCategories',
           });
@@ -125,50 +163,56 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
     [insuranceCardNo],
   );
 
-  const fetchBillableServices = useCallback(async (serviceCategoryId: string) => {
-    if (!serviceCategoryId) return;
+  const fetchBillableServices = useCallback(
+    async (serviceCategoryId: string) => {
+      if (!serviceCategoryId) return;
 
-    setIsLoadingBillableServices(true);
-    setBillableServices([]);
-    setServiceId('');
-
-    try {
-      const services = await getBillableServices(serviceCategoryId);
-
-      if (services && services.results && services.results.length > 0) {
-        const formattedServices = services.results
-          .filter((service) => service != null)
-          .map((service, index) => {
-            const id = service.serviceId || index + 1;
-            const serviceName = service.facilityServicePrice?.name || (service as any).name || `Service ${index + 1}`;
-
-            const servicePrice = service.facilityServicePrice?.fullPrice || (service as any).maximaToPay || 0;
-
-            return {
-              serviceId: id,
-              name: serviceName || `Unknown Service ${id}`,
-              price: servicePrice,
-              originalData: service,
-            };
-          });
-
-        setBillableServices(formattedServices);
-      } else {
-        errorHandler.handleWarning('No billable services found or invalid response format', null, {
-          component: 'service-calculator',
-          action: 'fetchBillableServices',
-        });
+      setIsLoadingBillableServices(true);
+      setBillableServices([]);
+      setServiceId('');
+      if (!isDrugCategory()) {
+        setDrugFrequency('');
       }
-    } catch (error) {
-      errorHandler.handleError(
-        error,
-        { component: 'service-calculator', action: 'fetchBillableServices' },
-        commonErrorMessages.fetchError,
-      );
-    } finally {
-      setIsLoadingBillableServices(false);
-    }
-  }, []);
+
+      try {
+        const services = await getBillableServices(serviceCategoryId);
+
+        if (services && services.results && services.results.length > 0) {
+          const formattedServices = services.results
+            .filter((service) => service != null)
+            .map((service, index) => {
+              const id = service.serviceId || index + 1;
+              const serviceName = service.facilityServicePrice?.name || (service as any).name || `Service ${index + 1}`;
+
+              const servicePrice = service.facilityServicePrice?.fullPrice || (service as any).maximaToPay || 0;
+
+              return {
+                serviceId: id,
+                name: serviceName || `Unknown Service ${id}`,
+                price: servicePrice,
+                originalData: service,
+              };
+            });
+
+          setBillableServices(formattedServices);
+        } else {
+          errorHandler.handleWarning('No billable services found or invalid response format', null, {
+            component: 'service-calculator',
+            action: 'fetchBillableServices',
+          });
+        }
+      } catch (error) {
+        errorHandler.handleError(
+          error,
+          { component: 'service-calculator', action: 'fetchBillableServices' },
+          commonErrorMessages.fetchError,
+        );
+      } finally {
+        setIsLoadingBillableServices(false);
+      }
+    },
+    [isDrugCategory],
+  );
 
   useEffect(() => {
     if (departmentUuid) {
@@ -182,75 +226,36 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
     }
   }, [serviceCategoryId, fetchBillableServices]);
 
-  const getBillableServiceById = (serviceId: string) => {
-    if (!serviceId) {
-      return null;
-    }
+  useEffect(() => {
+    const newTotal = calculatorItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    setTotal(newTotal);
+  }, [calculatorItems]);
 
-    const service = billableServices.find((service) => service.serviceId.toString() === serviceId);
-    return service;
-  };
-
-  const validateForm = () => {
+  const validateInputs = () => {
     const newErrors = {
-      departmentUuid: '',
-      serviceCategoryId: '',
-      serviceId: '',
-      quantity: '',
+      departmentUuid: !departmentUuid ? t('departmentRequired', 'Department is required') : '',
+      serviceCategoryId: !serviceCategoryId ? t('serviceCategoryRequired', 'Service category is required') : '',
+      serviceId: !serviceId ? t('serviceRequired', 'Service is required') : '',
+      quantity: quantity <= 0 ? t('quantityRequired', 'Quantity must be greater than 0') : '',
     };
 
-    if (!departmentUuid) {
-      newErrors.departmentUuid = t('departmentRequired', 'Department is required');
-    }
-
-    if (!serviceCategoryId) {
-      newErrors.serviceCategoryId = t('serviceCategoryRequired', 'Service Category is required');
-    }
-
-    if (!serviceId) {
-      newErrors.serviceId = t('serviceRequired', 'Service is required');
-    }
-
-    if (!quantity || quantity < 1) {
-      newErrors.quantity = t('quantityRequired', 'Quantity must be at least 1');
-    }
-
     setErrors(newErrors);
-    return !Object.values(newErrors).some((error) => error);
+    return Object.values(newErrors).every((error) => !error);
   };
 
   const addService = async () => {
-    if (!validateForm()) return;
+    if (!validateInputs()) return;
+
+    const service = billableServices.find((s) => s.serviceId?.toString() === serviceId);
+    if (!service) return;
 
     try {
-      const service = getBillableServiceById(serviceId);
-      if (!service) {
-        errorHandler.handleError(
-          `Service not found for ID: ${serviceId}`,
-          { component: 'service-calculator', action: 'addService', metadata: { serviceId } },
-          { title: 'Service Not Found', subtitle: 'The selected service could not be found.', kind: 'error' },
-        );
-        return;
-      }
+      const billableServiceId = await getBillableServiceId(serviceCategoryId, serviceId);
 
-      let billableServiceId = null;
-      try {
-        billableServiceId = await getBillableServiceId(serviceCategoryId, serviceId);
-
-        if (billableServiceId === null) {
-          errorHandler.handleWarning('Failed to retrieve billable service ID', null, {
-            component: 'service-calculator',
-            action: 'addService',
-          });
-        }
-      } catch (error) {
-        errorHandler.handleWarning('Error retrieving billable service ID', error, {
-          component: 'service-calculator',
-          action: 'addService',
-        });
-      }
-
-      const existingIndex = calculatorItems.findIndex((item) => item.serviceId.toString() === serviceId);
+      const existingIndex = calculatorItems.findIndex(
+        (item) =>
+          item.facilityServicePriceId?.toString() === serviceId && item.departmentId?.toString() === departmentUuid,
+      );
 
       let updatedItems;
       if (existingIndex >= 0) {
@@ -261,10 +266,33 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
           drugFrequency: drugFrequency || updatedItems[existingIndex].drugFrequency,
         };
       } else {
-        const department = departments.find((d) => d.serviceId.toString() === departmentUuid);
+        const department = departments.find((d) => d.departmentId.toString() === departmentUuid);
         const serviceCategory = serviceCategories.find((c) => c.serviceCategoryId?.toString() === serviceCategoryId);
 
-        const hopServiceId = department?.serviceId || parseInt(departmentUuid, 10);
+        if (!department) {
+          errorHandler.handleError(
+            new Error(`Department with ID ${departmentUuid} not found`),
+            { component: 'service-calculator', action: 'addService' },
+            { title: 'Department not found', kind: 'error' },
+          );
+          return;
+        }
+
+          let correspondingHopService = hopServices.find(
+          (hs) => mapHopServiceToDepartmentEnhanced(hs, departments)?.departmentId === department.departmentId,
+        );
+
+        if (!correspondingHopService) {
+          correspondingHopService = hopServices.find(
+            (hs) =>
+              hs.name.toLowerCase().includes(department.name.toLowerCase()) ||
+              department.name.toLowerCase().includes(hs.name.toLowerCase()),
+          );
+        }
+
+        if (!correspondingHopService && hopServices.length > 0) {
+          correspondingHopService = hopServices[0];
+        }
 
         const newItem = {
           id: serviceId,
@@ -272,22 +300,22 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
           name: service.name,
           price: service.price,
           totalPrice: service.price * quantity,
-          departmentName: department?.name || '',
-          departmentId: Number(departmentUuid),
+          departmentName: department.name,
+          departmentId: department.departmentId,
           serviceCategoryId: Number(serviceCategoryId),
           serviceCategoryName: serviceCategory?.name || '',
           originalData: service.originalData,
           quantity,
-          drugFrequency: drugFrequency || '',
-          isDrug: departmentUuid === '11',
+          drugFrequency: isDrugCategory() ? drugFrequency || '' : '',
+          isDrug: isDrugCategory(),
           serviceDate: new Date().toISOString(),
           itemType: service.originalData?.facilityServicePrice?.itemType || 1,
           billableServiceId: billableServiceId,
           facilityServicePriceId: parseInt(serviceId, 10),
-          hopServiceId: hopServiceId,
+          hopServiceId: correspondingHopService?.serviceId || department.departmentId,
         };
 
-        updatedItems = [...calculatorItems, newItem];
+                updatedItems = [...calculatorItems, newItem];
       }
 
       setCalculatorItems(updatedItems);
@@ -295,56 +323,27 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
 
       setServiceId('');
       setQuantity(1);
-      setDrugFrequency('');
+      if (isDrugCategory()) {
+        setDrugFrequency('');
+      }
     } catch (error) {
       errorHandler.handleError(
         error,
         { component: 'service-calculator', action: 'addService' },
-        {
-          title: 'Failed to Add Service',
-          subtitle: 'Unable to add the selected service. Please try again.',
-          kind: 'error',
-        },
+        { title: 'Error adding service', kind: 'error' },
       );
     }
   };
 
-  useEffect(() => {
-    const newTotal = calculatorItems.reduce((sum, item) => sum + (item.totalPrice || item.price * item.quantity), 0);
-    setTotal(newTotal);
-  }, [calculatorItems]);
-
-  const removeItem = (index) => {
-    const updatedItems = [...calculatorItems];
-    updatedItems.splice(index, 1);
+  const removeItem = (index: number) => {
+    const updatedItems = calculatorItems.filter((_, i) => i !== index);
     setCalculatorItems(updatedItems);
-
     onSave && onSave(updatedItems);
   };
 
-  const updateItemQuantity = (index, newQuantity) => {
-    if (newQuantity < 1) return;
-
-    const updatedItems = [...calculatorItems];
-    updatedItems[index] = {
-      ...updatedItems[index],
-      quantity: newQuantity,
-    };
-    setCalculatorItems(updatedItems);
-
-    onSave && onSave(updatedItems);
-  };
-
-  // Update drug frequency
-  const updateDrugFrequency = (index, frequency) => {
-    const updatedItems = [...calculatorItems];
-    updatedItems[index] = {
-      ...updatedItems[index],
-      drugFrequency: frequency,
-    };
-    setCalculatorItems(updatedItems);
-
-    onSave && onSave(updatedItems);
+  const clearAll = () => {
+    setCalculatorItems([]);
+    onSave && onSave([]);
   };
 
   return (
@@ -352,205 +351,183 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
       <Tile light className={styles.formTile}>
         <Form className={styles.form}>
           <div className={styles.formGrid}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel}>{t('department', 'Department')}</label>
-              <Dropdown
-                id="department"
-                titleText={t('department', 'Department')}
-                label={isLoadingDepartments ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
-                items={departments.map((dept) => dept.serviceId.toString())}
-                itemToString={(uuid) => departments.find((d) => d.serviceId.toString() === uuid)?.name || ''}
-                invalid={!!errors.departmentUuid}
-                invalidText={errors.departmentUuid}
-                onChange={({ selectedItem }) => {
-                  setDepartmentUuid(selectedItem);
-                  setServiceCategoryId('');
-                  setServiceId('');
-                }}
-                selectedItem={departmentUuid}
-                size="sm"
-                disabled={isLoadingDepartments}
-              />
-              {isLoadingDepartments && <InlineLoading className={styles.inlineLoading} />}
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel}>{t('serviceCategory', 'Service Category')}</label>
-              <Dropdown
-                id="serviceCategory"
-                titleText={t('serviceCategory', 'Service Category')}
-                label={isLoadingServiceCategories ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
-                items={serviceCategories
-                  .filter((cat) => cat && cat.serviceCategoryId) // Filter out categories with missing IDs
-                  .map((cat) => cat.serviceCategoryId.toString())}
-                itemToString={(id) => {
-                  if (!id) return '';
-                  return (
-                    serviceCategories.find((cat) => cat.serviceCategoryId && cat.serviceCategoryId.toString() === id)
-                      ?.name || ''
-                  );
-                }}
-                invalid={!!errors.serviceCategoryId}
-                invalidText={errors.serviceCategoryId}
-                onChange={({ selectedItem }) => {
-                  setServiceCategoryId(selectedItem);
-                  setServiceId('');
-                }}
-                selectedItem={serviceCategoryId}
-                size="sm"
-                disabled={!departmentUuid || isLoadingServiceCategories}
-              />
-              {isLoadingServiceCategories && <InlineLoading className={styles.inlineLoading} />}
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel}>{t('service', 'Service')}</label>
-              <Dropdown
-                id="service"
-                titleText={t('service', 'Service')}
-                label={
-                  isLoadingBillableServices
-                    ? t('loading', 'Loading...')
-                    : billableServices.length === 0
-                      ? t('noServicesAvailable', 'No services available')
-                      : t('pleaseSelect', 'Please select')
-                }
-                items={billableServices.map((svc) => svc.serviceId?.toString() || '')}
-                itemToString={(id) => {
-                  if (!id) return '';
-                  const service = billableServices.find((s) => s.serviceId?.toString() === id);
-                  if (!service) return `Service ID: ${id}`;
-                  return `${service.name || 'Unnamed Service'} (${service.price || 0} ${defaultCurrency})`;
-                }}
-                invalid={!!errors.serviceId}
-                invalidText={errors.serviceId}
-                onChange={({ selectedItem }) => {
-                  setServiceId(selectedItem);
-                }}
-                selectedItem={serviceId}
-                disabled={!serviceCategoryId || isLoadingBillableServices || billableServices.length === 0}
-                size="md"
-              />
-              {isLoadingBillableServices && <InlineLoading className={styles.inlineLoading} />}
-              {!isLoadingBillableServices && billableServices.length === 0 && (
-                <div className={styles.emptyStateMessage}></div>
-              )}
-            </div>
-          </div>
-
-          <div className={styles.formControls}>
-            <div className={styles.controlsGroup}>
+            <div className={styles.formRow}>
               <div className={styles.formField}>
-                <label className={styles.fieldLabel}>{t('quantity', 'Quantity')}</label>
-                <NumberInput
-                  id="quantity"
-                  min={1}
-                  value={quantity}
-                  onChange={(e, { value }) => setQuantity(Number(value))}
-                  invalidText={errors.quantity}
-                  invalid={!!errors.quantity}
-                  hideSteppers={true}
-                  size="md"
-                  className={styles.numberInput}
+                <label className={styles.fieldLabel}>{t('department', 'Department')}</label>
+                <Dropdown
+                  id="department"
+                  titleText=""
+                  label={isLoadingDepartments ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
+                  items={departments.map((dept) => dept.departmentId.toString())}
+                  itemToString={(id) => departments.find((d) => d.departmentId.toString() === id)?.name || ''}
+                  invalid={!!errors.departmentUuid}
+                  invalidText={errors.departmentUuid}
+                  onChange={({ selectedItem }) => {
+                    setDepartmentUuid(selectedItem);
+                    setServiceCategoryId('');
+                    setServiceId('');
+                    setDrugFrequency(''); 
+                  }}
+                  selectedItem={departmentUuid}
+                  size="sm"
+                  disabled={isLoadingDepartments}
                 />
+                {isLoadingDepartments && <InlineLoading className={styles.inlineLoading} />}
               </div>
 
-              {departmentUuid === '11' && (
-                <div className={styles.formField}>
-                  <label className={styles.fieldLabel}>{t('frequency', 'Frequency')}</label>
-                  <TextInput
-                    id="drugFrequency"
-                    labelText={t('frequency', 'Frequency')}
-                    value={drugFrequency}
-                    onChange={(e) => setDrugFrequency(e.target.value)}
-                    placeholder="e.g. 1×3"
-                    size="md"
-                  />
-                </div>
-              )}
+              <div className={styles.formField}>
+                <label className={styles.fieldLabel}>{t('serviceCategory', 'Service Category')}</label>
+                <Dropdown
+                  id="serviceCategory"
+                  titleText=""
+                  label={isLoadingServiceCategories ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
+                  items={serviceCategories
+                    .filter((cat) => cat && cat.serviceCategoryId)
+                    .map((cat) => cat.serviceCategoryId.toString())}
+                  itemToString={(id) => {
+                    if (!id) return '';
+                    return (
+                      serviceCategories.find((cat) => cat.serviceCategoryId && cat.serviceCategoryId.toString() === id)
+                        ?.name || ''
+                    );
+                  }}
+                  invalid={!!errors.serviceCategoryId}
+                  invalidText={errors.serviceCategoryId}
+                  onChange={({ selectedItem }) => {
+                    setServiceCategoryId(selectedItem);
+                    setServiceId('');
+                    setDrugFrequency(''); 
+                  }}
+                  selectedItem={serviceCategoryId}
+                  size="sm"
+                  disabled={!departmentUuid || isLoadingServiceCategories}
+                />
+                {isLoadingServiceCategories && <InlineLoading className={styles.inlineLoading} />}
+              </div>
             </div>
 
-            <div className={styles.addButtonContainer}>
-              <Button className={styles.addButton} kind="primary" onClick={addService} disabled={!serviceId} size="md">
-                {t('addItem', 'Add Item')}
-              </Button>
+            <div className={styles.formRow}>
+              <div className={styles.formField}>
+                <label className={styles.fieldLabel}>{t('service', 'Service')}</label>
+                <Dropdown
+                  id="service"
+                  titleText=""
+                  label={
+                    isLoadingBillableServices
+                      ? t('loading', 'Loading...')
+                      : billableServices.length === 0
+                        ? t('noServicesAvailable', 'No services available')
+                        : t('pleaseSelect', 'Please select')
+                  }
+                  items={billableServices.map((svc) => svc.serviceId?.toString() || '')}
+                  itemToString={(id) => {
+                    if (!id) return '';
+                    const service = billableServices.find((s) => s.serviceId?.toString() === id);
+                    if (!service) return `Service ID: ${id}`;
+                    return `${service.name || 'Unnamed Service'} (${service.price || 0} ${defaultCurrency})`;
+                  }}
+                  invalid={!!errors.serviceId}
+                  invalidText={errors.serviceId}
+                  onChange={({ selectedItem }) => {
+                    setServiceId(selectedItem);
+                  }}
+                  selectedItem={serviceId}
+                  disabled={!serviceCategoryId || isLoadingBillableServices || billableServices.length === 0}
+                  size="md"
+                />
+                {isLoadingBillableServices && <InlineLoading className={styles.inlineLoading} />}
+              </div>
+
+              <div className={styles.formField}>
+                <NumberInput
+                  id="quantity"
+                  label={t('quantity', 'Quantity')}
+                  min={1}
+                  value={quantity}
+                  onChange={(event) => setQuantity(event.target.value ? parseInt(event.target.value, 10) : 1)}
+                  invalid={!!errors.quantity}
+                  invalidText={errors.quantity}
+                  size="sm"
+                />
+              </div>
+            </div>
+
+            {/* Drug Frequency - Only show for medication categories */}
+            {isDrugCategory() && (
+              <div className={styles.formRow}>
+                <div className={styles.formField}>
+                  <TextInput
+                    id="drugFrequency"
+                    labelText={t('drugFrequency', 'Drug Frequency')}
+                    placeholder={t('enterFrequency', 'e.g., 1×3, 2×2, etc.')}
+                    value={drugFrequency}
+                    onChange={(e) => setDrugFrequency(e.target.value)}
+                    size="sm"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className={styles.formRow}>
+              <div className={styles.formField}>
+                <Button
+                  onClick={addService}
+                  kind="primary"
+                  size="sm"
+                  disabled={!serviceId || isLoadingBillableServices}
+                >
+                  {t('addService', 'Add Service')}
+                </Button>
+              </div>
             </div>
           </div>
         </Form>
       </Tile>
 
-      {/* Items table */}
       {calculatorItems.length > 0 && (
-        <div className={styles.tableContainerCompact}>
-          <table className={styles.itemsTable}>
-            <thead>
-              <tr>
-                <th className={styles.itemColumn}>{t('item', 'Item')}</th>
-                <th className={styles.qtyColumn}>{t('qty', 'Qty')}</th>
-                <th className={styles.dosageColumn}>{t('dosage', 'Dosage')}</th>
-                <th className={styles.priceColumn}>{t('price', 'Price')}</th>
-                <th className={styles.actionColumn}></th>
-              </tr>
-            </thead>
+        <Tile className={styles.itemsList}>
+          <div className={styles.itemsHeader}>
+            <h4>{t('selectedServices', 'Selected Services')}</h4>
+            <Button onClick={clearAll} kind="ghost" size="sm">
+              {t('clearAll', 'Clear All')}
+            </Button>
+          </div>
 
-            <tbody>
-              {calculatorItems.map((item, index) => (
-                <tr key={`${item.serviceId}-${index}`}>
-                  <td className={styles.itemCell}>
-                    <div className={styles.itemName}>{item.name}</div>
-                    <div className={styles.itemDept}>
-                      {item.departmentName} - {item.serviceCategoryName}
-                    </div>
-                  </td>
+          {calculatorItems.map((item, index) => (
+            <div key={index} className={styles.itemRow}>
+              <div className={styles.itemDetails}>
+                <strong>{item.name}</strong>
+                <p className={styles.itemMeta}>
+                  {item.departmentName} - {item.serviceCategoryName}
+                </p>
+                <p className={styles.itemCalculation}>
+                  {t('quantity', 'Quantity')}: {item.quantity} × {item.price.toLocaleString()} {defaultCurrency} ={' '}
+                  {item.totalPrice.toLocaleString()} {defaultCurrency}
+                </p>
+                {item.drugFrequency && (
+                  <p className={styles.itemFrequency}>
+                    <strong>{t('frequency', 'Frequency')}:</strong> {item.drugFrequency}
+                  </p>
+                )}
+              </div>
+              <Button
+                onClick={() => removeItem(index)}
+                kind="ghost"
+                size="sm"
+                hasIconOnly
+                iconDescription={t('remove', 'Remove')}
+              >
+                ×
+              </Button>
+            </div>
+          ))}
 
-                  <td className={styles.qtyCell}>
-                    <input
-                      type="number"
-                      id={`item-qty-${index}`}
-                      value={item.quantity}
-                      min={1}
-                      onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
-                      className={styles.qtyInputPlain}
-                    />
-                  </td>
-
-                  <td className={styles.dosageCell}>
-                    {item.isDrug ? item.drugFrequency : <span className={styles.notApplicable}>-</span>}
-                  </td>
-
-                  <td className={styles.priceCell}>
-                    {(item.totalPrice || item.price * item.quantity).toLocaleString()} {defaultCurrency}
-                  </td>
-
-                  <td className={styles.actionCell}>
-                    <Button
-                      kind="ghost"
-                      size="sm"
-                      onClick={() => removeItem(index)}
-                      className={styles.removeButton}
-                      iconDescription={t('remove', 'Remove')}
-                    >
-                      ×
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-
-            <tfoot>
-              <tr className={styles.totalRow}>
-                <td colSpan={3} className={styles.totalLabelCell}>
-                  <span className={styles.totalLabel}>{t('total', 'Total')}:</span>
-                </td>
-                <td colSpan={2} className={styles.totalAmountCell}>
-                  <span className={styles.totalAmount}>
-                    {total.toLocaleString()} {defaultCurrency}
-                  </span>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+          <div className={styles.totalSection}>
+            <strong>
+              {t('total', 'Total')}: {total.toLocaleString()} {defaultCurrency}
+            </strong>
+          </div>
+        </Tile>
       )}
     </div>
   );
