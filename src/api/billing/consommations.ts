@@ -1,7 +1,6 @@
 import { openmrsFetch } from '@openmrs/esm-framework';
 import { errorHandler, commonErrorMessages } from '../../utils/error-handler';
 import { API_CONFIG, BILLING_CONSTANTS } from '../../constants';
-import { createSimplePatientBill } from './payments';
 import type {
   Consommation,
   ConsommationListResponse,
@@ -249,8 +248,8 @@ async function getInsuranceById(insuranceId: number): Promise<Insurance | null> 
 
 /**
  * Creates a consommation directly with beneficiary
+ * Backend will handle creating PatientBill, InsuranceBill, and ThirdPartyBill based on insurance policy rates
  * With proper unitPrice handling to ensure Double values
- * Includes client-side workaround to fetch all bill items
  *
  * @param globalBillId - The global bill ID
  * @param departmentId - The department ID
@@ -271,33 +270,6 @@ export const createDirectConsommationWithBeneficiary = async (
   }>,
 ): Promise<any> => {
   try {
-    let patientBillId;
-    try {
-      const patientBillResponse = await openmrsFetch(`${BASE_API_URL}/patientBill?globalBillId=${globalBillId}`);
-
-      if (patientBillResponse.data && patientBillResponse.data.results && patientBillResponse.data.results.length > 0) {
-        patientBillId = patientBillResponse.data.results[0].patientBillId;
-      } else {
-        const initialAmount = 0;
-        const isPaid = false;
-
-        const newPatientBill = await createSimplePatientBill(initialAmount, isPaid);
-
-        if (!newPatientBill || !newPatientBill.patientBillId) {
-          throw new Error('Failed to create patient bill: Invalid response from API');
-        }
-
-        patientBillId = newPatientBill.patientBillId;
-      }
-    } catch (error) {
-      errorHandler.handleError(
-        error,
-        { component: 'billing-api', action: 'createDirectConsommationWithBeneficiary', metadata: { globalBillId } },
-        { title: 'Error getting or creating patient bill', kind: 'error' },
-      );
-      throw new Error(`Failed to get or create patient bill: ${error.message}`);
-    }
-
     const billItems = items.map((item) => {
       const unitPrice = parseFloat((item.price || 0).toString()) + 0.000001;
       const serviceIdForPayload = parseInt(item.serviceId?.toString() || '0', 10);
@@ -320,7 +292,6 @@ export const createDirectConsommationWithBeneficiary = async (
       globalBill: { globalBillId },
       department: { departmentId },
       beneficiary: { beneficiaryId },
-      patientBill: { patientBillId },
       billItems,
     };
 
