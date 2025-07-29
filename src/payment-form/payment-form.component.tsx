@@ -840,6 +840,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, s
                               <tr>
                                 <th></th>
                                 <th>{t('itemName', 'Item Name')}</th>
+                                {consommationGroup.items.some((item) => item.drugFrequency) && (
+                                  <th>{t('frequency', 'Frequency')}</th>
+                                )}
                                 <th>{t('quantity', 'Qty')}</th>
                                 <th>{t('unitPrice', 'Unit Price')}</th>
                                 <th>{t('itemTotal', 'Total')}</th>
@@ -870,6 +873,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, s
                                       />
                                     </td>
                                     <td title={item.itemName || '-'}>{item.itemName || '-'}</td>
+                                    {consommationGroup.items.some((item) => item.drugFrequency) && (
+                                      <td>{item.drugFrequency || '-'}</td>
+                                    )}
                                     <td>{item.quantity || '1'}</td>
                                     <td>{Number(item.unitPrice || 0).toFixed(2)}</td>
                                     <td>{Number(itemTotal).toFixed(2)}</td>
@@ -881,7 +887,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, s
                             </tbody>
                             <tfoot>
                               <tr>
-                                <td colSpan={6}>
+                                <td colSpan={consommationGroup.items.some((item) => item.drugFrequency) ? 8 : 7}>
                                   <strong>{t('consommationTotal', 'Consommation Selected Total')}</strong>
                                 </td>
                                 <td colSpan={1}>
