@@ -59,7 +59,7 @@ export {
 } from './insurance';
 
 // Payment operations
-export { getPatientBills, submitBillPayment, createSimplePatientBill, type PatientBillResponse } from './payments';
+export { getPatientBills, submitBillPayment, type PatientBillResponse } from './payments';
 
 // Global Bill operations
 export {
