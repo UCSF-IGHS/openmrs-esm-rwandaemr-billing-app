@@ -868,6 +868,9 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                                   <th></th>
                                   <th>{t('serviceDate', 'Date')}</th>
                                   <th>{t('itemName', 'Item Name')}</th>
+                                  {consommation.items.some((item) => item.drugFrequency) && (
+                                    <th>{t('frequency', 'Frequency')}</th>
+                                  )}
                                   <th>{t('quantity', 'Qty')}</th>
                                   <th>{t('unitPrice', 'Unit Price')}</th>
                                   <th>{t('itemTotal', 'Total')}</th>
@@ -903,6 +906,9 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                                       <td title={item.itemName || '-'} className={styles.itemNameCell}>
                                         {item.itemName || '-'}
                                       </td>
+                                      {consommation.items.some(item => item.drugFrequency) && (
+                                        <td>{item.drugFrequency || '-'}</td>
+                                      )}
                                       <td>{item.quantity || '1'}</td>
                                       <td>{Number(item.unitPrice || 0).toFixed(2)}</td>
                                       <td>{Number(itemTotal).toFixed(2)}</td>
