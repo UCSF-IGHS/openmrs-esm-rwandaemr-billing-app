@@ -22,6 +22,7 @@ interface ReportFilterFormProps {
   insuranceOptions?: { label: string; value: number }[];
   companyOptions?: { label: string; value: string }[];
   collectorOptions?: { label: string; value: string }[];
+  thirdPartyOptions?: { label: string; value: string }[];
 }
 
 const ReportFilterForm: React.FC<ReportFilterFormProps> = ({
@@ -30,6 +31,7 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({
   insuranceOptions,
   companyOptions,
   collectorOptions,
+  thirdPartyOptions,
 }) => {
   const { t } = useTranslation();
   const [formData, setFormData] = React.useState({});
@@ -90,9 +92,9 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({
             titleText={t('thirdParty', 'Third Party')}
             size="md"
             label={t('select', 'Select')}
-            items={['Prison', 'RNUD', 'GBV', 'Others']}
-            itemToString={(item) => item}
-            onChange={({ selectedItem }) => handleChange('thirdParty', selectedItem)}
+            items={thirdPartyOptions || []}
+            itemToString={(item) => item?.label || ''}
+            onChange={({ selectedItem }) => handleChange('thirdParty', selectedItem?.value)}
           />
         );
 
@@ -161,14 +163,12 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({
 
       case 'collector':
         return (
-          <Dropdown
+          <TextInput
             id="collector"
-            titleText={t('collector', 'Collector')}
-            size="md"
-            label={t('select', 'Select')}
-            items={collectorOptions || []}
-            itemToString={(item) => item?.label || ''}
-            onChange={({ selectedItem }) => handleChange('collector', selectedItem?.value)}
+            labelText={t('collector', 'Collector')}
+            placeholder={t('enterCollectorName', 'Enter collector name')}
+            aria-label={t('collector', 'Collector')}
+            onChange={(e) => handleChange('collector', e.target.value)}
           />
         );
 

@@ -15,20 +15,20 @@ import { EmptyState } from '@openmrs/esm-patient-common-lib';
 
 const ServiceRevenueReport: React.FC = () => {
   const { t } = useTranslation();
-  const [hasDateRange, setHasDateRange] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [reportData, setReportData] = useState([]);
 
   const headerTitle = t('serviceRevenueReport', 'Service Revenue Report');
 
   const handleSearch = (filters: any) => {
+    setHasSearched(true);
+
     // Check if date range is provided
     if (filters.startDate && filters.endDate) {
-      setHasDateRange(true);
       // TODO: When endpoint is ready, fetch data here
       // For now, just set empty data
       setReportData([]);
     } else {
-      setHasDateRange(false);
       setReportData([]);
     }
   };
@@ -60,54 +60,41 @@ const ServiceRevenueReport: React.FC = () => {
     { key: 'total', header: t('total', 'Total') },
   ];
 
-  // Sample row structure - will be populated when endpoint is ready
-  const sampleRows = [];
-
   return (
     <div>
       <h2>{headerTitle}</h2>
       <ReportFilterForm fields={['startDate', 'endDate']} onSearch={handleSearch} />
 
-      {!hasDateRange ? (
-        <EmptyState
-          displayText={t('selectDateRange', 'Please select a date range to view the service revenue report')}
-          headerTitle={headerTitle}
-        />
+      {!hasSearched || reportData.length === 0 ? (
+        <EmptyState displayText={headerTitle} headerTitle={headerTitle} />
       ) : (
         <div style={{ marginTop: '1rem' }}>
-          {reportData.length === 0 ? (
-            <EmptyState
-              displayText={t('noServiceRevenueData', 'No service revenue data available for the selected date range')}
-              headerTitle={headerTitle}
-            />
-          ) : (
-            <DataTable rows={reportData} headers={serviceColumns}>
-              {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
-                <TableContainer>
-                  <Table {...getTableProps()}>
-                    <TableHead>
-                      <TableRow>
-                        {headers.map((header) => (
-                          <TableHeader key={header.key} {...getHeaderProps({ header })}>
-                            {header.header}
-                          </TableHeader>
+          <DataTable rows={reportData} headers={serviceColumns}>
+            {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
+              <TableContainer>
+                <Table {...getTableProps()}>
+                  <TableHead>
+                    <TableRow>
+                      {headers.map((header) => (
+                        <TableHeader key={header.key} {...getHeaderProps({ header })}>
+                          {header.header}
+                        </TableHeader>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {rows.map((row) => (
+                      <TableRow key={row.id} {...getRowProps({ row })}>
+                        {row.cells.map((cell) => (
+                          <TableCell key={cell.id}>{cell.value}</TableCell>
                         ))}
                       </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {rows.map((row) => (
-                        <TableRow key={row.id} {...getRowProps({ row })}>
-                          {row.cells.map((cell) => (
-                            <TableCell key={cell.id}>{cell.value}</TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </DataTable>
-          )}
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </DataTable>
         </div>
       )}
     </div>
