@@ -14,10 +14,12 @@ import {
 } from '@carbon/react';
 import { Printer, CheckmarkFilled } from '@carbon/react/icons';
 import { showToast, useSession } from '@openmrs/esm-framework';
-import { submitBillPayment, getConsommationById } from '../api/billing';
+import { submitBillPayment, getConsommationById, getConsommationRates } from '../api/billing';
 import { isItemPaid, isItemPartiallyPaid, calculateChange, computePaymentStatus } from '../utils/billing-calculations';
 import { printReceipt } from '../payment-receipt/print-receipt';
 import { type ConsommationItem } from '../types';
+import { usePatientInsurancePolicies } from '../patient-insurance-tag/patient-insurance-tag.resource';
+
 import styles from './payment-form.scss';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -64,6 +66,7 @@ interface PaymentFormProps {
   onSuccess: () => void;
   selectedItems: SelectedItemInfo[];
   onItemToggle: (consommationId: string, itemIndex: number) => void;
+  patientUuid?: string;
 }
 
 interface PaymentData {
@@ -76,6 +79,10 @@ interface PaymentData {
   collectorName: string;
   patientName?: string;
   policyNumber?: string;
+  thirdPartyAmount?: string;
+  thirdPartyProvider?: string;
+  totalAmount?: string;
+  insuranceRate?: number;
 }
 
 interface ConsommationInfo {
@@ -83,7 +90,14 @@ interface ConsommationInfo {
   date?: string;
 }
 
-const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, selectedItems, onItemToggle }) => {
+const PaymentForm: React.FC<PaymentFormProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  selectedItems,
+  onItemToggle,
+  patientUuid,
+}) => {
   const { t } = useTranslation();
   const session = useSession();
   const collectorUuid = session?.user?.uuid;
@@ -97,6 +111,37 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, s
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [groupedConsommationData, setGroupedConsommationData] = useState<Record<string, ConsommationInfo> | null>(null);
   const [paidItems, setPaidItems] = useState<ConsommationItem[]>([]);
+  const [thirdPartyAmount, setThirdPartyAmount] = useState('0.00');
+  const [patientBalance, setPatientBalance] = useState(0);
+  const [insuranceRate, setInsuranceRate] = useState<number | null>(null);
+
+  const { data: insurancePolicies } = usePatientInsurancePolicies(patientUuid || '');
+
+  useEffect(() => {
+    const getInsuranceRateFromConsommations = async () => {
+      if (localSelectedItems.length > 0) {
+        try {
+          const firstItem = localSelectedItems[0];
+          const consommationId = firstItem.consommationId;
+
+          const rates = await getConsommationRates(consommationId);
+
+          if (rates?.insuranceRate !== undefined) {
+            setInsuranceRate(rates.insuranceRate);
+          } else {
+            setInsuranceRate(null);
+          }
+        } catch (error) {
+          console.error('Failed to fetch insurance rate from consommation:', error);
+          setInsuranceRate(null);
+        }
+      } else {
+        setInsuranceRate(null);
+      }
+    };
+
+    getInsuranceRateFromConsommations();
+  }, [localSelectedItems]);
 
   const {
     control,
@@ -273,13 +318,54 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, s
   useEffect(() => {
     if (paymentAmount && !paymentSuccess) {
       const amountToPay = parseFloat(paymentAmount);
-      const itemsTotal = calculateSelectedItemsTotal();
+      const maxAllowedAmount =
+        insuranceRate !== null && insuranceRate >= 0 && insuranceRate <= 100
+          ? patientBalance
+          : calculateSelectedItemsTotal();
 
-      if (amountToPay > itemsTotal) {
-        setPaymentError(t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items'));
+      if (amountToPay > maxAllowedAmount) {
+        const coverageInfo = insuranceRate !== null ? `${insuranceRate}% insurance coverage` : 'no insurance coverage';
+
+        const errorMessage =
+          insuranceRate !== null && insuranceRate >= 0 && insuranceRate <= 100
+            ? t(
+                'amountExceedsPatientBalance',
+                `Payment amount cannot exceed patient balance (${maxAllowedAmount.toFixed(2)}) with ${coverageInfo}`,
+              )
+            : t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items');
+        setPaymentError(errorMessage);
+      } else {
+        setPaymentError('');
       }
     }
-  }, [paymentAmount, t, paymentSuccess, calculateSelectedItemsTotal]);
+  }, [paymentAmount, t, paymentSuccess, calculateSelectedItemsTotal, patientBalance, insuranceRate]);
+
+  // Calculate insurance coverage amounts and patient balance (CROSS-CUTTING for all insurance percentages)
+  useEffect(() => {
+    if (localSelectedItems.length > 0) {
+      const total = calculateSelectedItemsTotal();
+
+      if (insuranceRate !== null && insuranceRate >= 0 && insuranceRate <= 100) {
+        const insurancePays = Math.round(((total * insuranceRate) / 100) * 100) / 100;
+        const patientPays = Math.round((total - insurancePays) * 100) / 100;
+
+        const safeInsurancePays = Math.max(0, insurancePays);
+        const safePatientPays = Math.max(0, patientPays);
+
+        setThirdPartyAmount(safeInsurancePays.toFixed(2));
+        setPatientBalance(safePatientPays);
+
+        setValue('paymentAmount', safePatientPays.toFixed(2));
+      } else {
+        setThirdPartyAmount('0.00');
+        setPatientBalance(total);
+        setValue('paymentAmount', total.toFixed(2));
+      }
+    } else {
+      setThirdPartyAmount('0.00');
+      setPatientBalance(0);
+    }
+  }, [insuranceRate, localSelectedItems, calculateSelectedItemsTotal, setValue]);
 
   const handlePrintReceipt = async () => {
     try {
@@ -337,7 +423,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, s
       // Additional validation checks
       if (paymentMethod === 'cash' && (!data.receivedCash || parseFloat(data.receivedCash) < enteredAmount)) {
         throw new Error(
-          t('insufficientCash', 'Received cash amount must be equal to or greater than the payment amount'),
+          t('insufficientCash', 'Received cash amount must be equal to the payment amount'),
         );
       }
 
@@ -357,8 +443,20 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, s
         }
       }
 
-      if (enteredAmount > selectedItemsTotal) {
-        throw new Error(t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items'));
+      const maxAllowedAmount =
+        insuranceRate !== null && insuranceRate >= 0 && insuranceRate <= 100 ? patientBalance : selectedItemsTotal;
+
+      if (enteredAmount > maxAllowedAmount) {
+        const coverageInfo = insuranceRate !== null ? `${insuranceRate}% insurance coverage` : 'no insurance coverage';
+
+        const errorMessage =
+          insuranceRate !== null && insuranceRate >= 0 && insuranceRate <= 100
+            ? t(
+                'amountExceedsPatientBalance',
+                `Payment amount cannot exceed patient balance (${maxAllowedAmount.toFixed(2)}) with ${coverageInfo}`,
+              )
+            : t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items');
+        throw new Error(errorMessage);
       }
 
       if (!collectorUuid) {
@@ -516,6 +614,16 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, s
         const firstSuccessfulPayment = successfulPayments[0];
         const consommationDetails = firstSuccessfulPayment.consommationData;
 
+        const activeInsurancePolicy = insurancePolicies?.find((policy) => {
+          const isNotExpired = new Date(policy.expirationDate) > new Date();
+          return isNotExpired;
+        });
+
+        let insuranceProviderName = '';
+        if (activeInsurancePolicy?.insurance?.name) {
+          insuranceProviderName = activeInsurancePolicy.insurance.name;
+        }
+
         const receiptPaymentData: PaymentData = {
           amountPaid: enteredAmount.toFixed(2),
           receivedCash: data.receivedCash || '',
@@ -526,6 +634,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, s
           collectorName: session?.user?.display || 'Unknown',
           patientName: consommationDetails?.patientBill?.beneficiaryName || 'Unknown',
           policyNumber: consommationDetails?.patientBill?.policyIdNumber || '',
+          thirdPartyAmount: thirdPartyAmount,
+          thirdPartyProvider: insuranceProviderName,
+          totalAmount: selectedItemsTotal.toFixed(2),
+          insuranceRate: insuranceRate,
         };
 
         // Prepare grouped consommation data for receipt
@@ -756,7 +868,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, s
                             value={field.value}
                             onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                             min={0}
-                            max={calculateSelectedItemsTotal()}
+                            max={
+                              insuranceRate !== null && insuranceRate >= 0 && insuranceRate <= 100
+                                ? patientBalance
+                                : calculateSelectedItemsTotal()
+                            }
                             step={0.01}
                             invalid={!!errors.paymentAmount}
                             invalidText={errors.paymentAmount?.message}
@@ -767,11 +883,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ isOpen, onClose, onSuccess, s
                   </div>
 
                   <div className={styles.formRow}>
-                    <div className={styles.formLabel}>{t('paidByThirdParty', 'Paid by Third Party')}</div>
+                    <div className={styles.formLabel}>{t('paidByInsurance', 'Paid by Insurance')}</div>
                     <div className={styles.formInput}>
                       <NumberInput
                         id="third-party-payment"
-                        value=""
+                        value={thirdPartyAmount}
                         min={0}
                         step={0.01}
                         readOnly
