@@ -906,7 +906,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                                       <td title={item.itemName || '-'} className={styles.itemNameCell}>
                                         {item.itemName || '-'}
                                       </td>
-                                      {consommation.items.some(item => item.drugFrequency) && (
+                                      {consommation.items.some((item) => item.drugFrequency) && (
                                         <td>{item.drugFrequency || '-'}</td>
                                       )}
                                       <td>{item.quantity || '1'}</td>
@@ -1022,6 +1022,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                 onSuccess={handlePaymentSuccess}
                 selectedItems={selectedItems.filter((item) => !isActuallyPaid(item.item))}
                 onItemToggle={handleItemSelection}
+                patientUuid={patientUuid}
               />
             )}
           </>
