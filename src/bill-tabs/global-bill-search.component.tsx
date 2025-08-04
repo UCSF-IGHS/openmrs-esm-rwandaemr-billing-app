@@ -40,11 +40,11 @@ const GlobalBillSearch: React.FC = () => {
       }
 
       const result = await getGlobalBillByIdentifier(globalBillIdentifier);
-      
+
       if (!result?.results || result.results.length === 0) {
         setErrorMessage(t('noResults', 'No results found.'));
       } else {
-        const validResults = result.results.filter(item => item !== null);
+        const validResults = result.results.filter((item) => item !== null);
         if (validResults.length === 0) {
           setErrorMessage(t('noResults', 'No results found.'));
         } else {
@@ -64,7 +64,9 @@ const GlobalBillSearch: React.FC = () => {
   };
 
   const handleRowClick = (result) => {
-    navigate({ to: `${window.getOpenmrsSpaBase()}home/billing/invoice/${result.admission.insurancePolicy.insuranceCardNo}` });
+    navigate({
+      to: `${window.getOpenmrsSpaBase()}home/billing/invoice/${result.admission.insurancePolicy.insuranceCardNo}`,
+    });
   };
 
   const renderResultsTable = () => {
@@ -72,7 +74,7 @@ const GlobalBillSearch: React.FC = () => {
       return null;
     }
 
-    if (!searchResult || searchResult.length === 0 || searchResult.every(item => item === null)) {
+    if (!searchResult || searchResult.length === 0 || searchResult.every((item) => item === null)) {
       return (
         <div className={styles.filterEmptyState}>
           <Layer>
@@ -151,11 +153,7 @@ const GlobalBillSearch: React.FC = () => {
               onChange={(e) => setGlobalBillIdentifier(e.target.value)}
               size="lg"
             />
-            <Button
-              onClick={handleGlobalBillSearch}
-              disabled={isLoading}
-              kind="primary"
-            >
+            <Button onClick={handleGlobalBillSearch} disabled={isLoading} kind="primary">
               {isLoading ? t('searching', 'Searching...') : t('search', 'Search')}
             </Button>
           </div>
