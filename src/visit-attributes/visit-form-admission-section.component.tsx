@@ -235,6 +235,12 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
             defaultPolicy = validPolicies.find((policy) => policy.openGlobalBill) || validPolicies[0];
           } else {
             defaultPolicy = enhancedPolicies[0];
+            const expiredDate = formatExpirationDate(defaultPolicy.expirationDate);
+            setExpiredPolicyAttempt(
+              `All policies expired - latest: ${defaultPolicy.insurance?.name || 'Unknown'} (expired ${expiredDate})`,
+            );
+
+            // Show snackbar notification for all expired policies
             showSnackbar({
               title: t('allPoliciesExpired', 'All Insurance Policies Expired'),
               subtitle: t(
@@ -286,7 +292,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
     };
 
     loadPatientPolicies();
-  }, [patientUuid, setValue, t, extractInsurancePolicyId, isPolicyExpired]);
+  }, [patientUuid, setValue, t, extractInsurancePolicyId, isPolicyExpired, formatExpirationDate]);
 
   const verifyInsuranceCard = useCallback(
     async (cardNumber: string) => {
@@ -386,21 +392,11 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
 
       if (isPolicyExpired(selectedPolicy)) {
         const expiredDate = formatExpirationDate(selectedPolicy.expirationDate);
-        setExpiredPolicyAttempt(selectedPolicy.insurance?.name || 'Unknown');
-
-        showSnackbar({
-          title: t('expiredInsurancePolicy', 'Expired Insurance Policy'),
-          subtitle: t(
-            'expiredInsurancePolicyMessage',
-            `The selected insurance policy (${selectedPolicy.insurance?.name}) expired on ${expiredDate}. Please select a valid insurance policy.`,
-          ),
-          kind: 'error',
-        });
-
-        setTimeout(() => setExpiredPolicyAttempt(null), 5000);
+        setExpiredPolicyAttempt(`${selectedPolicy.insurance?.name || 'Unknown'} (expired ${expiredDate})`);
         return;
       }
 
+      // Clear any previous expired policy attempt when valid policy is selected
       setExpiredPolicyAttempt(null);
 
       setSelectedInsurancePolicy(selectedPolicy);
@@ -719,21 +715,26 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
                     className={styles.sectionField}
                     placeholder={t('chooseInsurancePolicy', 'Choose insurance policy to use')}
                   />
-                  {/* Display warning for expired policy attempt */}
-                  {expiredPolicyAttempt && (
-                    <div style={{ marginTop: '8px' }}>
-                      <InlineNotification
-                        kind="error"
-                        title={t('expiredPolicy', 'Expired Policy')}
-                        subtitle={t(
-                          'expiredPolicyWarning',
-                          `${expiredPolicyAttempt} policy has expired and cannot be selected.`,
-                        )}
-                        lowContrast
-                        hideCloseButton
-                      />
-                    </div>
-                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Display warning for expired policy attempt */}
+            {expiredPolicyAttempt && (
+              <div className={styles.formRow}>
+                <div className={styles.formColumn}>
+                  <div style={{ marginTop: '8px' }}>
+                    <InlineNotification
+                      kind="error"
+                      title={t('expiredPolicy', 'Expired Insurance Policy')}
+                      subtitle={t(
+                        'expiredPolicyWarning',
+                        `${expiredPolicyAttempt} cannot be selected. Please choose a valid insurance policy.`,
+                      )}
+                      lowContrast
+                      hideCloseButton
+                    />
+                  </div>
                 </div>
               </div>
             )}
