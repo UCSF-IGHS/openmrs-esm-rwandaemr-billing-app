@@ -16,6 +16,7 @@ import {
   fetchGlobalBillsByPatient,
   getInsurancePolicyByCardNumber,
   getInsuranceById,
+  getInsurancePoliciesByPatient,
 } from '../api/billing';
 import {
   InlineNotification,
@@ -30,7 +31,11 @@ import {
 } from '@carbon/react';
 import { z } from 'zod';
 import styles from './visit-form-admission-section.scss';
-import { createAdmissionWithGlobalBill, useDiseaseType } from '../api/patient-admission.resource';
+import {
+  createAdmissionWithGlobalBill,
+  useDiseaseType,
+  checkOpenGlobalBillForInsurancePolicy,
+} from '../api/patient-admission.resource';
 
 const ADMISSION_TYPES = [
   { id: '1', text: 'Ordinary Admission' },
@@ -93,6 +98,9 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
   const [insurancePolicyId, setInsurancePolicyId] = useState<number | null>(null);
   const [existingGlobalBill, setExistingGlobalBill] = useState<any>(null);
   const [includeAdmission, setIncludeAdmission] = useState(false);
+  const [patientInsurancePolicies, setPatientInsurancePolicies] = useState<Array<any>>([]);
+  const [selectedInsurancePolicy, setSelectedInsurancePolicy] = useState<any>(null);
+  const [expiredPolicyAttempt, setExpiredPolicyAttempt] = useState<string | null>(null);
   const { diseaseType: diseaseTypes, isLoading: isLoadingDiseaseTypes, error: diseaseTypeError } = useDiseaseType();
 
   const methods = useForm<AdmissionFormValues>({
@@ -117,7 +125,44 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
 
   const insuranceCardNumber = watch('insuranceCardNumber');
 
-  const extractInsurancePolicyId = (policyResponse: any): number | null => {
+  const isPolicyExpired = useCallback((policy: any): boolean => {
+    if (!policy?.expirationDate) return false;
+
+    try {
+      const expirationDate = new Date(policy.expirationDate);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      return expirationDate < today;
+    } catch (error) {
+      console.error('Error parsing expiration date:', error);
+      return false;
+    }
+  }, []);
+
+  const formatExpirationDate = useCallback((dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString();
+    } catch (error) {
+      return dateString;
+    }
+  }, []);
+
+  const getPolicyDisplayText = useCallback(
+    (policy: any): string => {
+      if (!policy) return '';
+
+      const isExpired = isPolicyExpired(policy);
+      const hasOpenBill = policy.openGlobalBill ? ' (Has Open Bill)' : '';
+      const expiredText = isExpired ? ' (EXPIRED)' : '';
+
+      return `${policy.insurance?.name || 'Unknown'} - ${policy.insuranceCardNo}${hasOpenBill}${expiredText}`;
+    },
+    [isPolicyExpired],
+  );
+
+  const extractInsurancePolicyId = useCallback((policyResponse: any): number | null => {
     try {
       if (policyResponse?.results && policyResponse.results.length > 0) {
         const policy = policyResponse.results[0];
@@ -141,7 +186,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
       console.error('Error extracting insurance policy ID:', error);
       return null;
     }
-  };
+  }, []);
 
   useEffect(() => {
     const loadPatientPolicies = async () => {
@@ -150,76 +195,83 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
       setIsLoadingData(true);
       try {
         const policyData = await fetchGlobalBillsByPatient(patientUuid);
-        let patientPolicyInfo = null;
+        const openGlobalBills = policyData?.results?.filter((bill) => bill.closed === false) || [];
 
-        if (policyData && policyData.results && policyData.results.length > 0) {
-          const openGlobalBill = policyData.results.find((bill) => bill.closed === false);
+        const allPatientPolicies = await getInsurancePoliciesByPatient(patientUuid);
 
-          if (openGlobalBill) {
-            setExistingGlobalBill(openGlobalBill);
+        const enhancedPolicies = await Promise.all(
+          allPatientPolicies.map(async (policy) => {
+            let enhancedPolicy = { ...policy };
 
+            if (policy.insurance?.insuranceId) {
+              const insuranceDetails = await getInsuranceById(policy.insurance.insuranceId);
+              if (insuranceDetails) {
+                enhancedPolicy.insurance = insuranceDetails;
+              }
+            }
+
+            const associatedOpenBill = openGlobalBills.find(
+              (bill) =>
+                bill.admission?.insurancePolicy?.insurancePolicyId === policy.insurancePolicyId ||
+                bill.admission?.insurancePolicy?.insuranceCardNo === policy.insuranceCardNo,
+            );
+
+            if (associatedOpenBill) {
+              enhancedPolicy.openGlobalBill = associatedOpenBill;
+            }
+
+            return enhancedPolicy;
+          }),
+        );
+
+        setPatientInsurancePolicies(enhancedPolicies);
+
+        let defaultPolicy = null;
+
+        if (enhancedPolicies.length > 0) {
+          const validPolicies = enhancedPolicies.filter((policy) => !isPolicyExpired(policy));
+
+          if (validPolicies.length > 0) {
+            defaultPolicy = validPolicies.find((policy) => policy.openGlobalBill) || validPolicies[0];
+          } else {
+            defaultPolicy = enhancedPolicies[0];
             showSnackbar({
-              title: t('existingGlobalBill', 'Existing Global Bill'),
+              title: t('allPoliciesExpired', 'All Insurance Policies Expired'),
               subtitle: t(
-                'existingGlobalBillMessage',
-                `Patient already has an open global bill (ID: ${openGlobalBill.billIdentifier})`,
+                'allPoliciesExpiredMessage',
+                'All insurance policies for this patient have expired. Please add a new valid insurance policy.',
               ),
-              kind: 'warning',
+              kind: 'error',
             });
-
-            if (openGlobalBill.admission?.insurancePolicy) {
-              patientPolicyInfo = openGlobalBill.admission.insurancePolicy;
-
-              if (openGlobalBill.insurance) {
-                patientPolicyInfo.insurance = openGlobalBill.insurance;
-              }
-            }
-          } else if (policyData.results.length > 0) {
-            const latestBill = policyData.results[0];
-            if (latestBill.admission?.insurancePolicy) {
-              patientPolicyInfo = latestBill.admission.insurancePolicy;
-
-              if (latestBill.insurance) {
-                patientPolicyInfo.insurance = latestBill.insurance;
-              }
-            }
           }
-        }
 
-        if (!patientPolicyInfo) {
-          try {
-            const patientResponse = await openmrsFetch(`${BASE_API_URL}/insurancePolicy?patient=${patientUuid}&v=full`);
+          setSelectedInsurancePolicy(defaultPolicy);
+          setInsurancePolicy(defaultPolicy);
 
-            if (patientResponse.data?.results && patientResponse.data.results.length > 0) {
-              patientPolicyInfo = patientResponse.data.results[0];
-
-              if (patientPolicyInfo.insurance?.insuranceId) {
-                const insuranceDetails = await getInsuranceById(patientPolicyInfo.insurance.insuranceId);
-                if (insuranceDetails) {
-                  patientPolicyInfo.insurance = insuranceDetails;
-                }
-              }
-            }
-          } catch (err) {
-            console.error('Error fetching patient policies directly:', err);
-          }
-        }
-
-        if (patientPolicyInfo) {
-          setInsurancePolicy(patientPolicyInfo);
-
-          const policyId = extractInsurancePolicyId({ results: [patientPolicyInfo] });
+          const policyId = extractInsurancePolicyId({ results: [defaultPolicy] });
           if (policyId) {
             setInsurancePolicyId(policyId);
           }
 
-          if (patientPolicyInfo.insuranceCardNo) {
-            setValue('insuranceCardNumber', patientPolicyInfo.insuranceCardNo);
+          if (defaultPolicy.insuranceCardNo) {
+            setValue('insuranceCardNumber', defaultPolicy.insuranceCardNo);
           }
 
-          if (patientPolicyInfo.insurance?.name) {
-            setSelectedInsurance(patientPolicyInfo.insurance);
-            setValue('insuranceName', patientPolicyInfo.insurance.name);
+          if (defaultPolicy.insurance?.name) {
+            setSelectedInsurance(defaultPolicy.insurance);
+            setValue('insuranceName', defaultPolicy.insurance.name);
+          }
+
+          if (defaultPolicy.openGlobalBill) {
+            setExistingGlobalBill(defaultPolicy.openGlobalBill);
+            showSnackbar({
+              title: t('existingGlobalBill', 'Existing Global Bill'),
+              subtitle: t(
+                'existingGlobalBillMessage',
+                `Patient has an open global bill (ID: ${defaultPolicy.openGlobalBill.billIdentifier}) with insurance policy ${defaultPolicy.insurance?.name || 'None'}. This visit will be associated with the existing bill.`,
+              ),
+              kind: 'warning',
+            });
           }
         }
 
@@ -234,7 +286,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
     };
 
     loadPatientPolicies();
-  }, [patientUuid, setValue, t]);
+  }, [patientUuid, setValue, t, extractInsurancePolicyId, isPolicyExpired]);
 
   const verifyInsuranceCard = useCallback(
     async (cardNumber: string) => {
@@ -319,7 +371,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
         setIsLoading(false);
       }
     },
-    [setValue, existingGlobalBill, t],
+    [setValue, existingGlobalBill, t, extractInsurancePolicyId],
   );
 
   React.useEffect(() => {
@@ -327,6 +379,90 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
       verifyInsuranceCard(insuranceCardNumber);
     }
   }, [insuranceCardNumber, verifyInsuranceCard, isLoadingData]);
+
+  const handleInsurancePolicySelection = useCallback(
+    async (selectedPolicy: any) => {
+      if (!selectedPolicy) return;
+
+      if (isPolicyExpired(selectedPolicy)) {
+        const expiredDate = formatExpirationDate(selectedPolicy.expirationDate);
+        setExpiredPolicyAttempt(selectedPolicy.insurance?.name || 'Unknown');
+
+        showSnackbar({
+          title: t('expiredInsurancePolicy', 'Expired Insurance Policy'),
+          subtitle: t(
+            'expiredInsurancePolicyMessage',
+            `The selected insurance policy (${selectedPolicy.insurance?.name}) expired on ${expiredDate}. Please select a valid insurance policy.`,
+          ),
+          kind: 'error',
+        });
+
+        setTimeout(() => setExpiredPolicyAttempt(null), 5000);
+        return;
+      }
+
+      setExpiredPolicyAttempt(null);
+
+      setSelectedInsurancePolicy(selectedPolicy);
+      setInsurancePolicy(selectedPolicy);
+
+      const policyId = extractInsurancePolicyId({ results: [selectedPolicy] });
+      if (policyId) {
+        setInsurancePolicyId(policyId);
+      }
+
+      if (selectedPolicy.insuranceCardNo) {
+        setValue('insuranceCardNumber', selectedPolicy.insuranceCardNo);
+      }
+
+      if (selectedPolicy.insurance?.name) {
+        setSelectedInsurance(selectedPolicy.insurance);
+        setValue('insuranceName', selectedPolicy.insurance.name);
+      }
+
+      try {
+        if (policyId && patientUuid) {
+          const openBillForPolicy = await checkOpenGlobalBillForInsurancePolicy(patientUuid, policyId);
+
+          if (openBillForPolicy) {
+            setExistingGlobalBill(openBillForPolicy);
+            showSnackbar({
+              title: t('existingGlobalBill', 'Existing Global Bill'),
+              subtitle: t(
+                'existingGlobalBillMessage',
+                `Patient has an open global bill (ID: ${openBillForPolicy.billIdentifier}) with insurance policy ${selectedPolicy.insurance?.name || 'None'}. This visit will be associated with the existing bill.`,
+              ),
+              kind: 'warning',
+            });
+          } else {
+            setExistingGlobalBill(null);
+          }
+        } else {
+          if (selectedPolicy.openGlobalBill) {
+            setExistingGlobalBill(selectedPolicy.openGlobalBill);
+            showSnackbar({
+              title: t('existingGlobalBill', 'Existing Global Bill'),
+              subtitle: t(
+                'existingGlobalBillMessage',
+                `Patient has an open global bill (ID: ${selectedPolicy.openGlobalBill.billIdentifier}) with insurance policy ${selectedPolicy.insurance?.name || 'None'}. This visit will be associated with the existing bill.`,
+              ),
+              kind: 'warning',
+            });
+          } else {
+            setExistingGlobalBill(null);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for open global bill:', error);
+        if (selectedPolicy.openGlobalBill) {
+          setExistingGlobalBill(selectedPolicy.openGlobalBill);
+        } else {
+          setExistingGlobalBill(null);
+        }
+      }
+    },
+    [setValue, t, extractInsurancePolicyId, patientUuid, isPolicyExpired, formatExpirationDate],
+  );
 
   const handleFormSubmission = useCallback(
     async (data: AdmissionFormValues) => {
@@ -336,6 +472,13 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
       try {
         if (!insurancePolicyId) {
           throw new Error('Insurance policy ID is required. Please verify the insurance card first.');
+        }
+
+        if (selectedInsurancePolicy && isPolicyExpired(selectedInsurancePolicy)) {
+          const expiredDate = formatExpirationDate(selectedInsurancePolicy.expirationDate);
+          throw new Error(
+            `The selected insurance policy expired on ${expiredDate}. Please select a valid insurance policy.`,
+          );
         }
 
         if (existingGlobalBill) {
@@ -350,6 +493,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
         }
 
         const admissionTypeNumber = parseInt(data.admissionType) || 1;
+
         const result = await createAdmissionWithGlobalBill({
           patientUuid: patientUuid,
           isAdmitted: data.isAdmitted,
@@ -358,12 +502,34 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
           admissionType: admissionTypeNumber,
           insuranceCardNumber: data.insuranceCardNumber,
           insurancePolicyId: insurancePolicyId,
-          insuranceId: selectedInsurance?.insuranceId || 1,
+          insuranceId: selectedInsurancePolicy?.insurance?.insuranceId || selectedInsurance?.insuranceId || 1,
         });
+
+        const isNewBill = !existingGlobalBill;
+        const billAction = isNewBill ? 'created' : 'associated with existing bill';
+
+        if (isNewBill) {
+          setTimeout(() => {
+            window.dispatchEvent(
+              new CustomEvent('globalBillCreated', {
+                detail: {
+                  globalBillId: result.globalBill?.globalBillId,
+                  billIdentifier: result.globalBill?.billIdentifier,
+                  patientUuid,
+                  insuranceCardNumber: data.insuranceCardNumber,
+                },
+              }),
+            );
+          }, 500);
+
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
 
         showSnackbar({
           title: 'Global Bill',
-          subtitle: 'Global bill has been created successfully',
+          subtitle: `Global bill has been ${billAction} successfully (ID: ${result.globalBill?.billIdentifier || result.globalBill?.globalBillId})`,
           kind: 'success',
         });
 
@@ -372,7 +538,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
             ...data,
             globalBillId: result.globalBill.globalBillId,
             billIdentifier: result.globalBill.billIdentifier,
-            insuranceDetails: selectedInsurance,
+            insuranceDetails: selectedInsurancePolicy?.insurance || selectedInsurance,
             insurancePolicyId: insurancePolicyId,
             patientUuid: patientUuid,
           },
@@ -382,7 +548,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
                 ...data,
                 globalBillId: result.globalBill.globalBillId,
                 billIdentifier: result.globalBill.billIdentifier,
-                insuranceDetails: selectedInsurance,
+                insuranceDetails: selectedInsurancePolicy?.insurance || selectedInsurance,
                 insurancePolicyId: insurancePolicyId,
               });
             }
@@ -401,7 +567,18 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
         setIsLoading(false);
       }
     },
-    [insurancePolicyId, existingGlobalBill, t, selectedInsurance, setExtraVisitInfo, patientUuid, onAdmissionCreated],
+    [
+      insurancePolicyId,
+      existingGlobalBill,
+      t,
+      selectedInsurance,
+      selectedInsurancePolicy,
+      setExtraVisitInfo,
+      patientUuid,
+      onAdmissionCreated,
+      isPolicyExpired,
+      formatExpirationDate,
+    ],
   );
 
   const onSubmit = useCallback(
@@ -482,7 +659,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
     );
   }
 
-  if (!insurancePolicy) {
+  if (patientInsurancePolicies.length === 0) {
     return (
       <div className={styles.errorContainer}>
         <InlineNotification
@@ -525,6 +702,39 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
                   )}
                   className={styles.error}
                 />
+              </div>
+            )}
+
+            {/* Insurance Policy Selection - Show ComboBox when multiple policies exist */}
+            {patientInsurancePolicies.length > 1 && (
+              <div className={styles.formRow}>
+                <div className={styles.formColumn}>
+                  <ComboBox
+                    titleText={t('selectInsurancePolicy', 'Select Insurance Policy')}
+                    id="insurance-policy-selector"
+                    items={patientInsurancePolicies}
+                    itemToString={(item) => getPolicyDisplayText(item)}
+                    selectedItem={selectedInsurancePolicy}
+                    onChange={({ selectedItem }) => handleInsurancePolicySelection(selectedItem)}
+                    className={styles.sectionField}
+                    placeholder={t('chooseInsurancePolicy', 'Choose insurance policy to use')}
+                  />
+                  {/* Display warning for expired policy attempt */}
+                  {expiredPolicyAttempt && (
+                    <div style={{ marginTop: '8px' }}>
+                      <InlineNotification
+                        kind="error"
+                        title={t('expiredPolicy', 'Expired Policy')}
+                        subtitle={t(
+                          'expiredPolicyWarning',
+                          `${expiredPolicyAttempt} policy has expired and cannot be selected.`,
+                        )}
+                        lowContrast
+                        hideCloseButton
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -656,7 +866,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
             )}
 
             {/* Status information about insurance verification */}
-            {insurancePolicy && (
+            {selectedInsurancePolicy && (
               <div className={styles.errorContainer}>
                 <InlineNotification
                   kind="info"
@@ -666,7 +876,7 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
                     insurancePolicyId
                       ? t(
                           'insurancePolicyFound',
-                          `Insurance policy ID #${insurancePolicyId} found and will be used for global bill creation`,
+                          `Insurance policy ID #${insurancePolicyId} (${selectedInsurancePolicy.insurance?.name}) will be used for global bill creation`,
                         )
                       : t('insuranceVerifiedNoPolicy', 'Insurance verified but policy ID not found')
                   }

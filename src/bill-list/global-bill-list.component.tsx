@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { 
-  SkeletonText, 
-  InlineLoading, 
-  Tile 
-} from '@carbon/react';
+import { SkeletonText, InlineLoading, Tile } from '@carbon/react';
 import { usePatient, showSnackbar } from '@openmrs/esm-framework';
 import Card from './card.component';
 import styles from './global-bill-list.scss';
@@ -15,12 +11,15 @@ interface GlobalBillHeaderProps {
   insuranceCardNo?: string;
 }
 
-const GlobalBillHeader: React.FC<GlobalBillHeaderProps> = ({ patientUuid: propPatientUuid, insuranceCardNo: propInsuranceCardNo }) => {
+const GlobalBillHeader: React.FC<GlobalBillHeaderProps> = ({
+  patientUuid: propPatientUuid,
+  insuranceCardNo: propInsuranceCardNo,
+}) => {
   const { t } = useTranslation();
-  
+
   const { patient } = usePatient();
   const contextPatientUuid = patient?.id;
-  
+
   const insuranceCardNo = propInsuranceCardNo;
   const patientUuid = propPatientUuid || contextPatientUuid;
 
@@ -29,12 +28,33 @@ const GlobalBillHeader: React.FC<GlobalBillHeaderProps> = ({ patientUuid: propPa
   const [hadDataBefore, setHadDataBefore] = useState(false);
 
   useEffect(() => {
+    const handleGlobalBillCreated = (event: CustomEvent) => {
+      // Check if this event is relevant to this component
+      if (
+        (patientUuid && event.detail?.patientUuid === patientUuid) ||
+        (insuranceCardNo && event.detail?.insuranceCardNumber === insuranceCardNo)
+      ) {
+        setLoading(true);
+        setTimeout(() => {
+          setInsuranceData(null);
+        }, 500);
+      }
+    };
+
+    window.addEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+
+    return () => {
+      window.removeEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+    };
+  }, [patientUuid, insuranceCardNo]);
+
+  useEffect(() => {
     async function fetchInsuranceData() {
       if (!insuranceCardNo && !patientUuid) {
         setLoading(false);
         return;
       }
-      
+
       setLoading(true);
 
       try {
@@ -42,19 +62,18 @@ const GlobalBillHeader: React.FC<GlobalBillHeaderProps> = ({ patientUuid: propPa
 
         if (insuranceCardNo) {
           const response = await fetchGlobalBillsByInsuranceCard(insuranceCardNo);
-          
+
           if (response.results?.length > 0) {
             policyData = response.results[0];
           }
-        } 
-        else if (patientUuid) {
+        } else if (patientUuid) {
           const response = await fetchGlobalBillsByPatient(patientUuid);
-          
+
           if (response.results?.length > 0) {
             const globalBill = response.results[0];
             if (globalBill.admission?.insurancePolicy) {
               policyData = globalBill.admission.insurancePolicy;
-              
+
               if (globalBill.insurance) {
                 policyData.insurance = globalBill.insurance;
               }
@@ -97,47 +116,47 @@ const GlobalBillHeader: React.FC<GlobalBillHeaderProps> = ({ patientUuid: propPa
 
   const insuranceInfo = React.useMemo(() => {
     if (!insuranceData) return null;
-    
+
     const formatRate = (rate) => {
       if (rate === null || rate === undefined) {
         return '0.0%';
       }
       return `${rate}%`;
     };
-    
+
     const formatValidityDates = (startDate, endDate) => {
       if (!startDate && !endDate) {
         return 'N/A';
       }
-      
+
       let formattedStart = startDate ? new Date(startDate).toLocaleDateString() : 'Unknown';
       let formattedEnd = endDate ? new Date(endDate).toLocaleDateString() : 'Active';
-      
+
       return `${formattedStart} – ${formattedEnd}`;
     };
-    
+
     return {
       title: t('insuranceCompany', 'Insurance Company'),
       details: [
-        { 
-          label: t('insurance', 'Insurance'), 
-          value: insuranceData.insurance?.name || 'None' 
+        {
+          label: t('insurance', 'Insurance'),
+          value: insuranceData.insurance?.name || 'None',
         },
-        { 
-          label: t('rate', 'Rate'), 
-          value: formatRate(insuranceData.insurance?.rate) 
+        {
+          label: t('rate', 'Rate'),
+          value: formatRate(insuranceData.insurance?.rate),
         },
-        { 
-          label: t('flatFee', 'Flat Fee'), 
-          value: 'RWF' 
+        {
+          label: t('flatFee', 'Flat Fee'),
+          value: 'RWF',
         },
-        { 
-          label: t('policyNumber', 'Policy Number'), 
-          value: insuranceData.insuranceCardNo || 'N/A' 
+        {
+          label: t('policyNumber', 'Policy Number'),
+          value: insuranceData.insuranceCardNo || 'N/A',
         },
         {
           label: t('validity', 'Validity'),
-          value: formatValidityDates(insuranceData.coverageStartDate, insuranceData.expirationDate)
+          value: formatValidityDates(insuranceData.coverageStartDate, insuranceData.expirationDate),
         },
       ],
     };
@@ -167,11 +186,7 @@ const GlobalBillHeader: React.FC<GlobalBillHeaderProps> = ({ patientUuid: propPa
       <Tile light className={styles.contentWrapper}>
         <div className={styles.container}>
           {insuranceInfo && (
-            <Card 
-              key={insuranceInfo.title} 
-              title={insuranceInfo.title} 
-              details={insuranceInfo.details} 
-            />
+            <Card key={insuranceInfo.title} title={insuranceInfo.title} details={insuranceInfo.details} />
           )}
         </div>
       </Tile>

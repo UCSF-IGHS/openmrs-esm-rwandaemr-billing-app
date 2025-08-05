@@ -69,6 +69,24 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   const patientBillResponse = usePatientBill(patientUuid || '');
   const insuranceBillResponse = useInsuranceCardBill(insuranceCardNo || '');
 
+  React.useEffect(() => {
+    const handleGlobalBillCreated = (event: CustomEvent) => {
+      if (patientUuid && event.detail?.patientUuid === patientUuid) {
+        patientBillResponse.mutate();
+      }
+
+      if (insuranceCardNo && event.detail?.insuranceCardNumber === insuranceCardNo) {
+        insuranceBillResponse.mutate();
+      }
+    };
+
+    window.addEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+
+    return () => {
+      window.removeEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+    };
+  }, [patientUuid, insuranceCardNo, patientBillResponse, insuranceBillResponse]);
+
   const usePatientData = Boolean(patientUuid);
   const useInsuranceData = Boolean(insuranceCardNo) && !usePatientData;
 

@@ -232,6 +232,37 @@ export const checkOpenGlobalBills = async (patientUuid: string): Promise<any> =>
 };
 
 /**
+ * Checks if a patient has an open global bill for a specific insurance policy
+ * @param patientUuid - The patient's UUID
+ * @param insurancePolicyId - The insurance policy ID to check for
+ * @returns Promise with open global bill for the specific insurance policy or null if none exists
+ */
+export const checkOpenGlobalBillForInsurancePolicy = async (
+  patientUuid: string,
+  insurancePolicyId: number,
+): Promise<any> => {
+  try {
+    const response = await openmrsFetch(`${BASE_API_URL}/globalBill?patient=${patientUuid}&v=full`);
+
+    if (response.data?.results && response.data.results.length > 0) {
+      const openGlobalBillForPolicy = response.data.results.find(
+        (bill) =>
+          bill.closed === false &&
+          (bill.admission?.insurancePolicy?.insurancePolicyId === insurancePolicyId ||
+            bill.admission?.insurancePolicy?.insurancePolicyId?.toString() === insurancePolicyId?.toString()),
+      );
+
+      return openGlobalBillForPolicy || null;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error checking open global bills for insurance policy:', error);
+    return null;
+  }
+};
+
+/**
  * Creates a global bill directly using the exact payload format required by the API:
  * {
  *   "admission": {
@@ -246,13 +277,6 @@ export const checkOpenGlobalBills = async (patientUuid: string): Promise<any> =>
  */
 export const createDirectGlobalBill = async (data: any): Promise<any> => {
   try {
-    if (data.patientUuid) {
-      const openGlobalBill = await checkOpenGlobalBills(data.patientUuid);
-      if (openGlobalBill) {
-        return openGlobalBill;
-      }
-    }
-
     const payload = {
       admission: {
         admissionDate: data.admissionDate?.toISOString(),
@@ -299,10 +323,11 @@ export const createAdmissionWithGlobalBill = async (data: any): Promise<any> => 
       throw new Error('Insurance policy ID is required for global bill creation');
     }
 
+    // Check for open global bill specific to the selected insurance policy
     if (data.patientUuid) {
-      const openGlobalBill = await checkOpenGlobalBills(data.patientUuid);
-      if (openGlobalBill) {
-        return { globalBill: openGlobalBill };
+      const openGlobalBillForPolicy = await checkOpenGlobalBillForInsurancePolicy(data.patientUuid, insurancePolicyId);
+      if (openGlobalBillForPolicy) {
+        return { globalBill: openGlobalBillForPolicy };
       }
     }
 
@@ -313,9 +338,20 @@ export const createAdmissionWithGlobalBill = async (data: any): Promise<any> => 
       admissionType: data.admissionType,
     });
 
-    // Return the global bill
-    const swrKey = `${BASE_API_URL}/insurancePolicy?patient=${data.patientUuid}&v=full`;
-    mutate(swrKey);
+    const insurancePolicyKey = `${BASE_API_URL}/insurancePolicy?patient=${data.patientUuid}&v=full`;
+    const globalBillPatientKey = `/ws/rest/v1/mohbilling/globalBill?patient=${data.patientUuid}&v=full`;
+
+    const cacheKeysToInvalidate = [insurancePolicyKey, globalBillPatientKey];
+
+    if (data.insuranceCardNumber) {
+      const globalBillCardKey = `/ws/rest/v1/mohbilling/globalBill?ipCardNumber=${data.insuranceCardNumber}&v=full`;
+      cacheKeysToInvalidate.push(globalBillCardKey);
+    }
+
+    cacheKeysToInvalidate.forEach((key) => {
+      mutate(key);
+    });
+
     return {
       globalBill,
     };
