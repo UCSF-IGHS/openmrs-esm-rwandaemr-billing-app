@@ -136,7 +136,10 @@ export async function getConsommationItems(consommationId: string): Promise<Cons
  * @param consommationId - The consommation ID
  * @returns Promise with rates object containing insurance and patient percentages
  */
-export const getConsommationRates = async (consommationId: string): Promise<ConsommationRates> => {
+export const getConsommationRates = async (
+  consommationId: string,
+  globalBillId?: string,
+): Promise<ConsommationRates> => {
   try {
     // Get consommation details
     const consommation = await getConsommationById(consommationId);
@@ -153,6 +156,37 @@ export const getConsommationRates = async (consommationId: string): Promise<Cons
     const insuranceCardNo = consommation.patientBill.policyIdNumber;
     const insuranceName = consommation.patientBill.insuranceName || '';
 
+    // First, try to get the global bill's insurance policy instead of the consommation's
+    try {
+      // Use provided globalBillId
+      if (globalBillId) {
+        // Fetch the global bill to get its insurance policy
+        const { getGlobalBillById } = await import('./global-bills');
+        const globalBillData = await getGlobalBillById(globalBillId);
+
+        if (globalBillData?.admission?.insurancePolicy?.insurance?.insuranceId) {
+          const globalBillInsuranceId = globalBillData.admission.insurancePolicy.insurance.insuranceId;
+
+          // Get the insurance details from the global bill's insurance
+          const insuranceData = await getInsuranceById(globalBillInsuranceId);
+
+          if (insuranceData) {
+            const currentRate =
+              insuranceData.rate !== null && insuranceData.rate !== undefined ? Number(insuranceData.rate) : 0;
+
+            return {
+              insuranceRate: currentRate,
+              patientRate: 100 - currentRate,
+              insuranceName: insuranceData.name,
+            };
+          }
+        }
+      }
+    } catch (globalBillError) {
+      console.warn(`Failed to get global bill insurance, falling back to consommation policy:`, globalBillError);
+    }
+
+    // Fallback to the original method using consommation's policy
     try {
       const policyResponse = await openmrsFetch(`${BASE_API_URL}/insurancePolicy?insuranceCardNo=${insuranceCardNo}`);
 

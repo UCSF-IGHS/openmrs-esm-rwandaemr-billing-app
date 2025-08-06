@@ -92,6 +92,7 @@ export const InsurancePolicyTable: React.FC = () => {
       insuranceCardNo: policy.insuranceCardNo,
       coverageStartDate: dayjs(policy.coverageStartDate).format('YYYY-MM-DD'),
       expirationDate: dayjs(policy.expirationDate).format('YYYY-MM-DD'),
+      insuranceName: policy.insurance,
     });
     setShowEditModal(true);
   };

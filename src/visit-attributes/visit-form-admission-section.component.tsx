@@ -517,10 +517,6 @@ const VisitFormAdmissionSection: React.FC<VisitFormAdmissionSectionProps> = ({
               }),
             );
           }, 500);
-
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
         }
 
         showSnackbar({

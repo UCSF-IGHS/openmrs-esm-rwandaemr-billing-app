@@ -33,6 +33,7 @@ import styles from './embedded-consommations-list.scss';
 import PaymentForm from '../payment-form/payment-form.component';
 import { printReceipt } from '../payment-receipt/print-receipt';
 import { Add, Printer } from '@carbon/react/icons';
+import GlobalBillInsuranceInfo from '../invoice/global-bill-insurance-info.component';
 
 interface EmbeddedConsommationsListProps {
   globalBillId: string;
@@ -223,6 +224,24 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
           setConsommationsWithItems(consommationsWithItemsData);
 
+          // Load insurance rates for all consommations immediately
+          consommationData.results.forEach(async (consommation) => {
+            if (consommation.consommationId) {
+              try {
+                const rates = await fetchInsuranceRates(consommation.consommationId.toString());
+                setConsommationsWithItems((prev) =>
+                  prev.map((c) =>
+                    c.consommationId?.toString() === consommation.consommationId?.toString()
+                      ? { ...c, insuranceRates: rates }
+                      : c,
+                  ),
+                );
+              } catch (error) {
+                console.error(`Failed to load initial rates for consommation ${consommation.consommationId}:`, error);
+              }
+            }
+          });
+
           loadConsommationStatuses(consommationData.results);
         }
       } catch (error) {
@@ -311,14 +330,24 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       }
     }, [globalBillId, fetchConsommations, t]);
 
-    const fetchInsuranceRates = useCallback(async (consommationId: string) => {
-      try {
-        return await getConsommationRates(consommationId);
-      } catch (error) {
-        console.error('Error fetching insurance rates:', error);
-        return { insuranceRate: 0, patientRate: 100 };
-      }
-    }, []);
+    const fetchInsuranceRates = useCallback(
+      async (consommationId: string) => {
+        try {
+          const rates = await getConsommationRates(consommationId, globalBillId);
+
+          // Validate that rates make sense
+          if (rates.insuranceRate + rates.patientRate !== 100) {
+            console.warn(`Rate validation failed for consommation ${consommationId}:`, rates);
+          }
+
+          return rates;
+        } catch (error) {
+          console.error('Error fetching insurance rates:', error);
+          return { insuranceRate: 0, patientRate: 100 };
+        }
+      },
+      [globalBillId],
+    );
 
     const fetchConsommationItems = useCallback(
       async (consommationId: string) => {
@@ -432,6 +461,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           updateConsommationStatusImmediately(consommationId);
         } catch (error) {
           console.error(`Error loading items for consommation ${consommationId}:`, error);
+          // Don't set default rates when there's an error, leave existing rates intact
           setConsommationsWithItems((prev) =>
             prev.map((c) =>
               c.consommationId?.toString() === consommationId
@@ -440,11 +470,28 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                     items: [],
                     isLoadingItems: false,
                     itemsLoaded: true,
-                    insuranceRates: { insuranceRate: 0, patientRate: 100 },
+                    // Keep existing insurance rates or try to fetch them
                   }
                 : c,
             ),
           );
+
+          // Try to fetch rates even if item loading failed
+          try {
+            const rates = await fetchInsuranceRates(consommationId);
+            setConsommationsWithItems((prev) =>
+              prev.map((c) =>
+                c.consommationId?.toString() === consommationId
+                  ? {
+                      ...c,
+                      insuranceRates: rates,
+                    }
+                  : c,
+              ),
+            );
+          } catch (error) {
+            console.error('Failed to fetch insurance rates:', error);
+          }
         }
       },
       [
@@ -478,6 +525,40 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
       fetchConsommations();
     }, [fetchConsommations, cleanupOldPaymentData]);
+
+    // Refresh insurance rates for all consommations when global bill changes
+    const refreshAllInsuranceRates = useCallback(async () => {
+      if (consommationsWithItems.length === 0) return;
+
+      const ratePromises = consommationsWithItems.map(async (consommation) => {
+        if (consommation.consommationId) {
+          try {
+            const rates = await fetchInsuranceRates(consommation.consommationId.toString());
+            return { consommationId: consommation.consommationId, rates };
+          } catch (error) {
+            console.error(`Failed to refresh rates for consommation ${consommation.consommationId}:`, error);
+            return null;
+          }
+        }
+        return null;
+      });
+
+      const results = await Promise.all(ratePromises);
+
+      setConsommationsWithItems((prev) =>
+        prev.map((c) => {
+          const result = results.find((r) => r && r.consommationId === c.consommationId);
+          return result ? { ...c, insuranceRates: result.rates } : c;
+        }),
+      );
+    }, [consommationsWithItems, fetchInsuranceRates]);
+
+    // Refresh rates when global bill changes
+    useEffect(() => {
+      if (consommationsWithItems.length > 0) {
+        refreshAllInsuranceRates();
+      }
+    }, [globalBillId]); // Only when globalBillId changes
 
     const handleAddNewInvoice = () => {
       if (onAddNewInvoice && globalBillId) {
@@ -786,6 +867,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
     useImperativeHandle(ref, () => ({
       mutate: fetchConsommations,
+      refreshRates: refreshAllInsuranceRates,
     }));
 
     // Loading state
@@ -819,6 +901,11 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* Insurance details section */}
+        <div className={styles.insuranceDetailsSection}>
+          <GlobalBillInsuranceInfo globalBillId={globalBillId} />
         </div>
 
         {consommationsWithItems && consommationsWithItems.length > 0 ? (
@@ -876,6 +963,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                                   <th>{t('itemTotal', 'Total')}</th>
                                   <th>{t('insuranceAmount', `Ins.(${consommation.insuranceRates.insuranceRate}%)`)}</th>
                                   <th>{t('patientAmount', `Pat.(${consommation.insuranceRates.patientRate}%)`)}</th>
+
                                   <th>{t('paidAmt', 'Paid')}</th>
                                   <th>{t('status', 'Status')}</th>
                                 </tr>
@@ -1023,6 +1111,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                 selectedItems={selectedItems.filter((item) => !isActuallyPaid(item.item))}
                 onItemToggle={handleItemSelection}
                 patientUuid={patientUuid}
+                globalBillId={globalBillId}
               />
             )}
           </>

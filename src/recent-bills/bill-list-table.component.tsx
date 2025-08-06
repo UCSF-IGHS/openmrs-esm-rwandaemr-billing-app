@@ -40,34 +40,50 @@ const BillListTable: React.FC = () => {
   const endDate = new Date().toISOString().split('T')[0];
   const startDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
+  const fetchBills = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await getPatientBills(startDate, endDate, 0, 100);
+
+      const billsWithDefaults = response.results.map((bill) => ({
+        ...bill,
+        beneficiaryName: bill.beneficiaryName || '--',
+        policyIdNumber: bill.policyIdNumber || '--',
+        insuranceName: bill.insuranceName || '--',
+        creator: bill.creator || '--',
+        departmentName: bill.departmentName || '--',
+        // Use the service name directly from the response with TypeScript type assertion
+        serviceName: (bill as any).serviceName || bill.departmentName || '--',
+      }));
+
+      setBills(billsWithDefaults);
+      setTotalItems(response.results?.length || 0);
+      setIsLoading(false);
+    } catch (err) {
+      setError(err);
+      setIsLoading(false);
+    }
+  }, [startDate, endDate]);
+
   useEffect(() => {
-    const fetchBills = async () => {
-      try {
-        setIsLoading(true);
-        const response = await getPatientBills(startDate, endDate, 0, 100);
+    fetchBills();
+  }, [fetchBills]);
 
-        const billsWithDefaults = response.results.map((bill) => ({
-          ...bill,
-          beneficiaryName: bill.beneficiaryName || '--',
-          policyIdNumber: bill.policyIdNumber || '--',
-          insuranceName: bill.insuranceName || '--',
-          creator: bill.creator || '--',
-          departmentName: bill.departmentName || '--',
-          // Use the service name directly from the response with TypeScript type assertion
-          serviceName: (bill as any).serviceName || bill.departmentName || '--',
-        }));
-
-        setBills(billsWithDefaults);
-        setTotalItems(response.results?.length || 0);
-        setIsLoading(false);
-      } catch (err) {
-        setError(err);
-        setIsLoading(false);
-      }
+  // Listen for global bill created events to refresh the bills list
+  useEffect(() => {
+    const handleGlobalBillCreated = (event: CustomEvent) => {
+      // Refresh bills when a new global bill is created
+      setTimeout(() => {
+        fetchBills();
+      }, 1000); // Small delay to ensure the bill is fully processed
     };
 
-    fetchBills();
-  }, [startDate, endDate]);
+    window.addEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+
+    return () => {
+      window.removeEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+    };
+  }, [fetchBills]);
 
   const getBillStatus = (bill: any) => {
     if (bill.payments && bill.payments.length > 0) {

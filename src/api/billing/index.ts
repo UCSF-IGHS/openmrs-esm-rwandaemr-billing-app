@@ -64,6 +64,7 @@ export { getPatientBills, submitBillPayment, type PatientBillResponse } from './
 // Global Bill operations
 export {
   getGlobalBillByIdentifier,
+  getGlobalBillById,
   fetchGlobalBillsByPatient,
   getGlobalBillSummary,
   createDirectGlobalBill,

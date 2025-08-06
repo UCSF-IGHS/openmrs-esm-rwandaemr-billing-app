@@ -211,6 +211,7 @@ export interface InsurancePolicyRecord {
   insuranceCardNo: string;
   coverageStartDate: string;
   expirationDate: string;
+  insuranceName?: string;
 }
 
 export interface ExtendedConsommationItem extends ConsommationItem {

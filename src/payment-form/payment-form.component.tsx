@@ -67,6 +67,7 @@ interface PaymentFormProps {
   selectedItems: SelectedItemInfo[];
   onItemToggle: (consommationId: string, itemIndex: number) => void;
   patientUuid?: string;
+  globalBillId?: string;
 }
 
 interface PaymentData {
@@ -97,6 +98,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   selectedItems,
   onItemToggle,
   patientUuid,
+  globalBillId,
 }) => {
   const { t } = useTranslation();
   const session = useSession();
@@ -124,7 +126,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           const firstItem = localSelectedItems[0];
           const consommationId = firstItem.consommationId;
 
-          const rates = await getConsommationRates(consommationId);
+          const rates = await getConsommationRates(consommationId, globalBillId);
 
           if (rates?.insuranceRate !== undefined) {
             setInsuranceRate(rates.insuranceRate);
@@ -422,9 +424,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
       // Additional validation checks
       if (paymentMethod === 'cash' && (!data.receivedCash || parseFloat(data.receivedCash) < enteredAmount)) {
-        throw new Error(
-          t('insufficientCash', 'Received cash amount must be equal to the payment amount'),
-        );
+        throw new Error(t('insufficientCash', 'Received cash amount must be equal to the payment amount'));
       }
 
       if (paymentMethod === 'deposit') {
