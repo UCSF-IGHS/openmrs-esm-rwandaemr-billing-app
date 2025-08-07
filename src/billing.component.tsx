@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './billing.scss';
 import PaymentsDeskIcon from './images/payments-desk-icon.svg';
@@ -29,25 +29,43 @@ const Billing: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchMetrics = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getGlobalBillSummary();
+      setMetrics({
+        cumulativeBills: data.total,
+        pendingBills: data.open,
+        paidBills: data.closed,
+      });
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch bill summary:', err);
+      setError('Failed to load bill summary');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        const data = await getGlobalBillSummary();
-        setMetrics({
-          cumulativeBills: data.total,
-          pendingBills: data.open,
-          paidBills: data.closed,
-        });
-      } catch (err) {
-        console.error('Failed to fetch bill summary:', err);
-        setError('Failed to load bill summary');
-      } finally {
-        setLoading(false);
-      }
+    fetchMetrics();
+  }, [fetchMetrics]);
+
+  // Listen for global bill created events to refresh metrics
+  useEffect(() => {
+    const handleGlobalBillCreated = (event: CustomEvent) => {
+      // Refresh metrics when a new global bill is created
+      setTimeout(() => {
+        fetchMetrics();
+      }, 1000); // Small delay to ensure the bill is fully processed
     };
 
-    fetchMetrics();
-  }, []);
+    window.addEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+
+    return () => {
+      window.removeEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+    };
+  }, [fetchMetrics]);
 
   const formatCurrency = (value: number): string => {
     return `RWF ${value.toFixed(2)}`;

@@ -75,6 +75,12 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
       onRequestSubmit={handleSubmit}
       passiveModal={false}
     >
+      {record?.insuranceName && (
+        <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: '#f4f4f4', borderRadius: '4px' }}>
+          <strong>{t('insuranceName', 'Insurance')}: </strong>
+          <span>{record.insuranceName}</span>
+        </div>
+      )}
       <TextInput
         id="cardNumber"
         labelText={t('membershipNumber', 'Membership Number')}

@@ -63,6 +63,7 @@ const Insurance = ({ patientUuid }) => {
       insuranceCardNo: record.cardNumber,
       coverageStartDate: dayjs(record.startDate).format('YYYY-MM-DD'),
       expirationDate: dayjs(record.endDate).format('YYYY-MM-DD'),
+      insuranceName: record.insuranceName,
     });
     setShowEditModal(true);
   };
@@ -108,6 +109,7 @@ const Insurance = ({ patientUuid }) => {
             hasThirdParty: policy.thirdPartyProvider ? t('yes', 'Yes') : t('no', 'No'),
             thirdPartyProvider: policy.thirdPartyProvider?.name ?? t('notAvailable', 'N/A'),
             insurancePolicyNo: policy.insurancePolicyId,
+            insuranceName: policy.insurance?.name ?? t('notAvailable', 'N/A'),
             status: (
               <Tag type={new Date(policy.expirationDate) < new Date() ? 'red' : 'green'}>
                 {new Date(policy.expirationDate) < new Date() ? 'Expired' : 'Valid'}
@@ -188,7 +190,7 @@ const Insurance = ({ patientUuid }) => {
                   className={styles.searchbox}
                   isExpanded
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    setSearchTerm(e.target.value), setPage(1);
+                    (setSearchTerm(e.target.value), setPage(1));
                   }}
                   placeholder={t('searchPlaceholder', 'Search insurance...')}
                   size={'md'}

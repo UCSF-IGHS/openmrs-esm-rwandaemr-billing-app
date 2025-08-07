@@ -73,10 +73,18 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     const handleGlobalBillCreated = (event: CustomEvent) => {
       if (patientUuid && event.detail?.patientUuid === patientUuid) {
         patientBillResponse.mutate();
+        // Set the newly created global bill as selected
+        if (event.detail?.globalBillId) {
+          setSelectedGlobalBillId(event.detail.globalBillId.toString());
+        }
       }
 
       if (insuranceCardNo && event.detail?.insuranceCardNumber === insuranceCardNo) {
         insuranceBillResponse.mutate();
+        // Set the newly created global bill as selected
+        if (event.detail?.globalBillId) {
+          setSelectedGlobalBillId(event.detail.globalBillId.toString());
+        }
       }
     };
 
@@ -137,7 +145,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
 
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [currentGlobalBillId, setCurrentGlobalBillId] = useState<string | null>(null);
+  const [selectedGlobalBillId, setSelectedGlobalBillId] = useState<string | null>(null);
 
   const [calculatorItems, setCalculatorItems] = useState([]);
 
@@ -155,6 +163,13 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   const debouncedSearchTerm = useDebounce(searchTerm);
 
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+
+  // Set the latest global bill as selected initially
+  React.useEffect(() => {
+    if (lineItems && lineItems.length > 0 && !selectedGlobalBillId) {
+      setSelectedGlobalBillId(lineItems[0].globalBillId?.toString() || null);
+    }
+  }, [lineItems, selectedGlobalBillId]);
 
   const [errorMessage, setErrorMessage] = useState('');
   const [showError, setShowError] = useState(false);
@@ -226,7 +241,20 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   );
 
   const handleRowExpand = (row) => {
-    setExpandedRowId(expandedRowId === row.id ? null : row.id);
+    const isExpanding = expandedRowId !== row.id;
+    setExpandedRowId(isExpanding ? row.id : null);
+
+    // Update selected global bill ID when expanding a row
+    if (isExpanding) {
+      setSelectedGlobalBillId(row.id);
+
+      // Refresh insurance rates in the consommations list when global bill changes
+      setTimeout(() => {
+        if (consommationListRef.current?.refreshRates) {
+          consommationListRef.current.refreshRates();
+        }
+      }, 500); // Small delay to ensure the component has updated
+    }
   };
 
   const createNewInvoice = useCallback(
@@ -243,7 +271,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         return;
       }
 
-      setCurrentGlobalBillId(globalBillId.toString());
+      setSelectedGlobalBillId(globalBillId.toString());
       setIsCalculatorOpen(true);
       setCalculatorItems([]);
     },
@@ -253,7 +281,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
   const handleCalculatorClose = useCallback(() => {
     setIsCalculatorOpen(false);
     setIsSaving(false);
-    setCurrentGlobalBillId(null);
+    // Keep selectedGlobalBillId unchanged when closing calculator
   }, []);
 
   const consommationListRef = React.useRef(null);
@@ -268,7 +296,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     setShowError(false);
 
     try {
-      const globalBillId = currentGlobalBillId;
+      const globalBillId = selectedGlobalBillId;
 
       if (!globalBillId) {
         throw new Error('No global bill ID found. Please create a global bill first.');
@@ -404,7 +432,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
         // Refresh data and close modal
         mutate();
         setIsCalculatorOpen(false);
-        setCurrentGlobalBillId(null);
+        // Keep selectedGlobalBillId unchanged after save
 
         // Mutate the embedded consommations list if it exists
         if (consommationListRef.current?.mutate) {
@@ -424,7 +452,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
     } finally {
       setIsSaving(false);
     }
-  }, [calculatorItems, currentGlobalBillId, patientUuid, insuranceCardNo, mutate, t]);
+  }, [calculatorItems, selectedGlobalBillId, patientUuid, insuranceCardNo, mutate, t]);
 
   const handleCalculatorUpdate = useCallback((items) => {
     setCalculatorItems(items);
@@ -504,15 +532,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       <CardHeader title={t('globalBillList', 'Global Bill List')}>
         <span>{isValidating ? <InlineLoading /> : null}</span>
       </CardHeader>
-
-      {(patientUuid || insuranceCardNo) && (
-        <div className={styles.insuranceInfoContainer}>
-          <GlobalBillHeader
-            patientUuid={patientUuid || undefined}
-            insuranceCardNo={getPolicyIdFromFirstBill() || undefined}
-          />
-        </div>
-      )}
 
       <div className={styles.tableContainer}>
         <DataTable headers={tableHeaders} isSortable rows={tableRows} size={isTablet ? 'lg' : 'sm'} useZebraStyles>
@@ -616,7 +635,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = (props) => {
       </div>
 
       {/* Calculator Modal */}
-      {isCalculatorOpen && currentGlobalBillId && (
+      {isCalculatorOpen && selectedGlobalBillId && (
         <Modal
           open={isCalculatorOpen}
           modalHeading={t('addNewInvoice', 'Patient Bill Calculations')}

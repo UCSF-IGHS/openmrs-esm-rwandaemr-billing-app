@@ -21,6 +21,22 @@ export const getGlobalBillByIdentifier = async (billIdentifier: string): Promise
 };
 
 /**
+ * Fetches global bill by ID
+ * @param globalBillId - The global bill ID
+ * @returns Promise with global bill data
+ */
+export const getGlobalBillById = async (globalBillId: string | number) => {
+  return errorHandler.wrapAsync(
+    async () => {
+      const response = await openmrsFetch(`${BASE_API_URL}/globalBill/${globalBillId}?v=full`);
+      return response.data;
+    },
+    { component: 'billing-api', action: 'getGlobalBillById', metadata: { globalBillId } },
+    commonErrorMessages.fetchError,
+  );
+};
+
+/**
  * Fetches global bills by patient UUID
  *
  * @param patientUuid - The patient UUID
@@ -82,7 +98,7 @@ export const createDirectGlobalBill = async (globalBillData: {
     errorHandler.handleError(
       error,
       { component: 'billing-api', action: 'createDirectGlobalBill', metadata: { globalBillData } },
-      { title: 'Error creating global bill', kind: 'error' }
+      { title: 'Error creating global bill', kind: 'error' },
     );
     throw error;
   }
