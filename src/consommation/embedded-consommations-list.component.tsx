@@ -197,6 +197,24 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       }
     }, []);
 
+    const fetchInsuranceRates = useCallback(
+      async (consommationId: string) => {
+        try {
+          const rates = await getConsommationRates(consommationId, globalBillId);
+
+          if (rates.insuranceRate + rates.patientRate !== 100) {
+            console.warn(`Rate validation failed for consommation ${consommationId}:`, rates);
+          }
+
+          return rates;
+        } catch (error) {
+          console.error('Error fetching insurance rates:', error);
+          return { insuranceRate: 0, patientRate: 100 };
+        }
+      },
+      [globalBillId],
+    );
+
     const fetchConsommations = useCallback(async () => {
       if (!globalBillId) return;
 
@@ -253,7 +271,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       } finally {
         setIsLoading(false);
       }
-    }, [globalBillId, t, loadConsommationStatuses]);
+    }, [globalBillId, t, loadConsommationStatuses, fetchInsuranceRates]);
 
     const isActuallyPaid = useCallback(
       (item: ConsommationItem): boolean => {
@@ -329,25 +347,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
         });
       }
     }, [globalBillId, fetchConsommations, t]);
-
-    const fetchInsuranceRates = useCallback(
-      async (consommationId: string) => {
-        try {
-          const rates = await getConsommationRates(consommationId, globalBillId);
-
-          // Validate that rates make sense
-          if (rates.insuranceRate + rates.patientRate !== 100) {
-            console.warn(`Rate validation failed for consommation ${consommationId}:`, rates);
-          }
-
-          return rates;
-        } catch (error) {
-          console.error('Error fetching insurance rates:', error);
-          return { insuranceRate: 0, patientRate: 100 };
-        }
-      },
-      [globalBillId],
-    );
 
     const fetchConsommationItems = useCallback(
       async (consommationId: string) => {
@@ -558,7 +557,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       if (consommationsWithItems.length > 0) {
         refreshAllInsuranceRates();
       }
-    }, [globalBillId]); // Only when globalBillId changes
+    }, [globalBillId, consommationsWithItems.length, refreshAllInsuranceRates]);
 
     const handleAddNewInvoice = () => {
       if (onAddNewInvoice && globalBillId) {
