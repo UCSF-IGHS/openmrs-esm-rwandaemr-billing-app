@@ -102,7 +102,7 @@ const Billing: React.FC = () => {
         {/* Metrics Cards */}
         <div className={styles.metricsContainer}>
           {loading ? (
-            <CodeSnippetSkeleton />
+            <CodeSnippetSkeleton className={styles.loadingSkeleton} />
           ) : error ? (
             <p style={{ color: 'red' }}>{error}</p>
           ) : (

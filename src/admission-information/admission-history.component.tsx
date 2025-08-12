@@ -19,8 +19,8 @@ import {
   Tag,
 } from '@carbon/react';
 import { Add } from '@carbon/react/icons';
-import { useConfig, useDebounce, useLayoutType, usePagination } from '@openmrs/esm-framework';
-import { CardHeader, EmptyState, launchPatientWorkspace, usePaginationInfo } from '@openmrs/esm-patient-common-lib';
+import { launchWorkspace, useConfig, useDebounce, useLayoutType, usePagination } from '@openmrs/esm-framework';
+import { CardHeader, EmptyState, usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import styles from './admission-history.scss';
 import { usePatientAdmissions } from '../api/patient-admission.resource';
 
@@ -109,7 +109,7 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
 
   // Function to handle adding a bill to an admission
   const handleAddBill = (globalBillId: string) => {
-    launchPatientWorkspace('billing-form-workspace', {
+    launchWorkspace('billing-form-workspace', {
       patientUuid,
       globalBillId,
     });
@@ -151,7 +151,7 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
       <EmptyState
         displayText={t('admissionsInLowerCase', 'admissions')}
         headerTitle={t('admissionsHistory', 'Admissions History')}
-        launchForm={() => launchPatientWorkspace('patient-admission-workspace', { patientUuid })}
+        launchForm={() => launchWorkspace('patient-admission-workspace', { patientUuid })}
       />
     );
   }
@@ -163,7 +163,7 @@ const AdmissionHistory: React.FC<AdmissionHistoryProps> = ({ patientUuid }) => {
         <div className={styles.headerActions}>
           <Button
             renderIcon={Add}
-            onClick={() => launchPatientWorkspace('patient-admission-workspace', { patientUuid })}
+            onClick={() => launchWorkspace('patient-admission-workspace', { patientUuid })}
             kind="ghost"
           >
             {t('createNewAdmission', 'Create new admission')}
