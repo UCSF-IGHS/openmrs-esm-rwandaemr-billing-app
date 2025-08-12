@@ -9,7 +9,6 @@ import {
   TableBody,
   TableCell,
   TableContainer,
-  TextInput,
   OverflowMenu,
   OverflowMenuItem,
   Pagination,
@@ -19,11 +18,11 @@ import { Add } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { CardHeader, EmptyState } from '@openmrs/esm-patient-common-lib';
 import styles from './insurance.scss';
-import { launchPatientWorkspace } from '@openmrs/esm-patient-common-lib';
 import { fetchInsuranceFirms, loadInsurancePolicies } from './insurance-resource';
 import dayjs from 'dayjs';
 import EditInsuranceModal from './edit-insurance.workspace';
 import { TableToolbarSearch } from '@carbon/react';
+import { launchWorkspace } from '@openmrs/esm-framework';
 
 const Insurance = ({ patientUuid }) => {
   const { t } = useTranslation();
@@ -145,7 +144,7 @@ const Insurance = ({ patientUuid }) => {
         <div className={styles.headerActions}>
           <Button
             renderIcon={Add}
-            onClick={() => launchPatientWorkspace('insurance-form-workspace', { patientUuid })}
+            onClick={() => launchWorkspace('insurance-form-workspace', { patientUuid })}
             kind="ghost"
           >
             {t('addNewPolicy', 'Add new policy')}
@@ -157,7 +156,7 @@ const Insurance = ({ patientUuid }) => {
         <EmptyState
           displayText={t('insurance', 'insurance')}
           headerTitle={t('insurance', 'Insurance')}
-          launchForm={() => launchPatientWorkspace('insurance-form-workspace', { patientUuid })}
+          launchForm={() => launchWorkspace('insurance-form-workspace', { patientUuid })}
         />
       ) : (
         <>

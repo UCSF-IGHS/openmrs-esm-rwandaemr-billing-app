@@ -104,11 +104,11 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
         if (hopServiceResults && hopServiceResults.length > 0) {
           setHopServices(hopServiceResults);
 
-                      // Create the mapping between HopServices and Departments
-            if (departmentResults && departmentResults.length > 0) {
-              const mapping = createHopServiceToDepartmentMapping(hopServiceResults, departmentResults);
-              setHopServiceToDepartmentMap(mapping);
-            }
+          // Create the mapping between HopServices and Departments
+          if (departmentResults && departmentResults.length > 0) {
+            const mapping = createHopServiceToDepartmentMapping(hopServiceResults, departmentResults);
+            setHopServiceToDepartmentMap(mapping);
+          }
         } else {
           errorHandler.handleWarning('No hop services found in response', null, {
             component: 'service-calculator',
@@ -278,7 +278,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
           return;
         }
 
-          let correspondingHopService = hopServices.find(
+        let correspondingHopService = hopServices.find(
           (hs) => mapHopServiceToDepartmentEnhanced(hs, departments)?.departmentId === department.departmentId,
         );
 
@@ -315,7 +315,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
           hopServiceId: correspondingHopService?.serviceId || department.departmentId,
         };
 
-                updatedItems = [...calculatorItems, newItem];
+        updatedItems = [...calculatorItems, newItem];
       }
 
       setCalculatorItems(updatedItems);
@@ -366,7 +366,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
                     setDepartmentUuid(selectedItem);
                     setServiceCategoryId('');
                     setServiceId('');
-                    setDrugFrequency(''); 
+                    setDrugFrequency('');
                   }}
                   selectedItem={departmentUuid}
                   size="sm"
@@ -396,7 +396,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
                   onChange={({ selectedItem }) => {
                     setServiceCategoryId(selectedItem);
                     setServiceId('');
-                    setDrugFrequency(''); 
+                    setDrugFrequency('');
                   }}
                   selectedItem={serviceCategoryId}
                   size="sm"
@@ -444,7 +444,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
                   label={t('quantity', 'Quantity')}
                   min={1}
                   value={quantity}
-                  onChange={(event) => setQuantity(event.target.value ? parseInt(event.target.value, 10) : 1)}
+                  onChange={(event) => setQuantity(event.target['value'] ? parseInt(event.target['value'], 10) : 1)}
                   invalid={!!errors.quantity}
                   invalidText={errors.quantity}
                   size="sm"

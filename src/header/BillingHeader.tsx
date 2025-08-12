@@ -71,7 +71,6 @@ const BillingHeader: React.FC<BillingHeaderProps> = ({
                 <DatePicker datePickerType="single" dateFormat="d-M-Y" value={selectedDate} onChange={handleDateChange}>
                   <DatePickerInput
                     id="billing-date-picker"
-                    pattern="\d{1,2}\/\d{1,2}\/\d{4}"
                     placeholder="DD-MMM-YYYY"
                     labelText=""
                     size="md"
@@ -89,7 +88,7 @@ const BillingHeader: React.FC<BillingHeaderProps> = ({
         </div>
 
         <div className={styles.navigationContainer}>
-          <Tabs selected={isAdminView ? -1 : activeTab} onChange={handleTabClick} type="contained">
+          <Tabs defaultSelectedIndex={isAdminView ? -1 : activeTab} onChange={handleTabClick}>
             <TabList aria-label="Billing Navigation" contained>
               <Tab renderIcon={Receipt} disabled={isAdminView}>
                 {t('bill', 'Bill')}
@@ -104,11 +103,7 @@ const BillingHeader: React.FC<BillingHeaderProps> = ({
           {!isAdminView && showSubNavigation && (
             <div className={styles.subTabsContainer}>
               {activeTab === 0 && (
-                <Tabs
-                  selected={activeSubTab}
-                  onChange={(evt) => handleSubTabClick(0, evt.selectedIndex)}
-                  type="contained"
-                >
+                <Tabs defaultSelectedIndex={activeSubTab} onChange={(evt) => handleSubTabClick(0, evt.selectedIndex)}>
                   <TabList aria-label="Bill Sub-navigation" contained>
                     <Tab>{t('billConfirmation', 'Bill Confirmation')}</Tab>
                     <Tab>{t('searchInsurancePolicy', 'Search Insurance Policy')}</Tab>
@@ -116,11 +111,7 @@ const BillingHeader: React.FC<BillingHeaderProps> = ({
                 </Tabs>
               )}
               {activeTab === 1 && (
-                <Tabs
-                  selected={activeSubTab}
-                  onChange={(evt) => handleSubTabClick(1, evt.selectedIndex)}
-                  type="contained"
-                >
+                <Tabs defaultSelectedIndex={activeSubTab} onChange={(evt) => handleSubTabClick(1, evt.selectedIndex)}>
                   <TabList aria-label="Manage Payments Sub-navigation" contained>
                     <Tab>{t('searchGlobalBill', 'Search Global Bill')}</Tab>
                     <Tab>{t('searchConsommations', 'Search Consommations')}</Tab>
