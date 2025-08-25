@@ -86,33 +86,45 @@ function extractPatientServiceBillId(item: any, index: number): number {
 export async function getConsommationItems(consommationId: string): Promise<ConsommationItem[]> {
   try {
     const consommationData = await getConsommationById(consommationId);
-
+    const parentPaid = consommationData?.patientBill?.isPaid === true;
     const departmentName = consommationData.department?.name || 'Unknown Department';
 
     const items = consommationData.billItems.map((item: any, index: number) => {
-      const itemName = extractServiceName(item, departmentName);
+      const itemName =
+        (item?.service?.facilityServicePrice?.name) ||
+        item?.serviceOtherDescription ||
+        item?.serviceOther ||
+        `${departmentName} Service Item`;
 
-      const itemTotal = item.quantity * item.unitPrice;
-      const paidAmount = item.paidQuantity ? item.paidQuantity * item.unitPrice : item.paid ? itemTotal : 0;
+      const qty = Number(item.quantity ?? 0);
+      const unit = Number(item.unitPrice ?? 0);
+      const itemTotal = qty * unit;
+
+      const paidAmountFromBackend = Number(item.paidAmount ?? 0);
+      const paidAmountFromQty = Number(item.paidQuantity ?? 0) * unit;
+
+      const paidAmount = parentPaid
+        ? itemTotal
+        : Math.max(paidAmountFromBackend, paidAmountFromQty, item.paid ? itemTotal : 0);
+
       const remainingAmount = Math.max(0, itemTotal - paidAmount);
-
-      const isFullyPaid = item.paid || remainingAmount <= 0;
+      const isFullyPaid = parentPaid || remainingAmount <= 0 || item.paid === true;
       const isPartiallyPaid = !isFullyPaid && paidAmount > 0;
 
       return {
         itemId: index + 1,
         itemCode: `ITEM-${index + 1}`,
-        itemName: itemName,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
+        itemName,
+        quantity: qty,
+        unitPrice: unit,
         total: itemTotal,
-        paidAmount: paidAmount,
-        remainingAmount: remainingAmount,
+        paidAmount,
+        remainingAmount,
         serviceDate: item.serviceDate,
         itemType: item.itemType,
         paid: isFullyPaid,
         partiallyPaid: isPartiallyPaid,
-        paidQuantity: item.paidQuantity || 0,
+        paidQuantity: parentPaid ? qty : (item.paidQuantity || 0),
         drugFrequency: item.drugFrequency,
         patientServiceBillId: extractPatientServiceBillId(item, index),
         serviceId: item.service?.serviceId,

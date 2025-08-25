@@ -11,12 +11,11 @@ import {
   Button,
   Accordion,
   AccordionItem,
-  InlineLoading,
 } from '@carbon/react';
 import { Printer, CheckmarkFilled } from '@carbon/react/icons';
 import { showToast, useSession } from '@openmrs/esm-framework';
 import { submitBillPayment, getConsommationById } from '../api/billing';
-import { isItemPaid, isItemPartiallyPaid, calculateChange, computePaymentStatus } from '../utils/billing-calculations';
+import { isItemPaid, calculateChange, computePaymentStatus } from '../utils/billing-calculations';
 import { printReceipt } from '../payment-receipt/print-receipt';
 import { type ConsommationItem } from '../types';
 import { usePatientInsurancePolicies } from '../patient-insurance-tag/patient-insurance-tag.resource';
@@ -52,7 +51,6 @@ const paymentFormSchema = z.object({
       message: 'Amount must be greater than zero',
     }),
 });
-
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
 interface SelectedItemInfo {
@@ -64,7 +62,7 @@ interface SelectedItemInfo {
 interface PaymentFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: () => void; // parent will re-fetch consommations + items
   selectedItems: SelectedItemInfo[];
   onItemToggle: (consommationId: string, itemIndex: number) => void;
   patientUuid?: string;
@@ -105,10 +103,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const session = useSession();
   const collectorUuid = session?.user?.uuid;
 
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'deposit'>('cash');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentError, setPaymentError] = useState('');
-  const [depositBalance, setDepositBalance] = useState('1100.00');
+  const [depositBalance, setDepositBalance] = useState('1100.00'); // TODO: wire to real deposit balance if you have it
   const [localSelectedItems, setLocalSelectedItems] = useState<SelectedItemInfo[]>([]);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
@@ -117,7 +115,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [thirdPartyAmount, setThirdPartyAmount] = useState('0.00');
   const [patientBalance, setPatientBalance] = useState(0);
 
-  // Form state management - using refs to prevent unnecessary resets
+  // form refs/state to avoid jitter on open
   const [isFormReady, setIsFormReady] = useState(false);
   const userModifiedFormRef = useRef(false);
   const formInitializedRef = useRef(false);
@@ -159,21 +157,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const receivedCash = watch('receivedCash');
   const deductedAmount = watch('deductedAmount');
 
-  // Define isActuallyPaid as a useCallback to prevent dependency changes
-  const isActuallyPaid = useCallback((item: ConsommationItem & { selected?: boolean }): boolean => {
-    try {
-      const paymentKey = `payment_${item.patientServiceBillId}`;
-      const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
-      if (storedPayment.paid) {
-        return true;
-      }
-    } catch (e) {
-      // Ignore errors
-    }
-    return isItemPaid(item);
-  }, []);
+  const isActuallyPaid = useCallback(
+    (item: ConsommationItem & { selected?: boolean }): boolean => isItemPaid(item),
+    [],
+  );
 
-  // Calculate selected items total
+  // Calculate selected items total (remaining to be paid)
   const calculateSelectedItemsTotal = useCallback(() => {
     return localSelectedItems.reduce((total, selectedItemInfo) => {
       const item = selectedItemInfo.item;
@@ -186,37 +175,34 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     }, 0);
   }, [localSelectedItems]);
 
-  const countSelectedItems = useCallback(() => {
-    return localSelectedItems.filter((item) => item.item.selected === true && !isActuallyPaid(item.item)).length;
-  }, [localSelectedItems, isActuallyPaid]);
+  const countSelectedItems = useCallback(
+    () => localSelectedItems.filter((i) => i.item.selected === true && !isActuallyPaid(i.item)).length,
+    [localSelectedItems, isActuallyPaid],
+  );
 
-  // Fetch insurance rates
+  // Fetch insurance rates based on global bill
   useEffect(() => {
     const fetchInsuranceRates = async () => {
       if (!globalBillId || !isOpen) return;
 
-      setInsuranceInfo(prev => ({ ...prev, isLoading: true }));
-
+      setInsuranceInfo((prev) => ({ ...prev, isLoading: true }));
       try {
         const { getGlobalBillById, getInsuranceById } = await import('../api/billing');
-        
-        const globalBillData = await getGlobalBillById(globalBillId);
+
+        const gb = await getGlobalBillById(globalBillId);
         let insuranceRate = 0;
         let insuranceName = '';
 
-        if (globalBillData?.admission?.insurancePolicy?.insurance?.insuranceId) {
-          const insuranceDetails = await getInsuranceById(
-            globalBillData.admission.insurancePolicy.insurance.insuranceId,
-          );
-          
-          if (insuranceDetails && insuranceDetails.rate !== null && insuranceDetails.rate !== undefined) {
-            insuranceRate = Number(insuranceDetails.rate);
-            insuranceName = insuranceDetails.name || '';
+        if (gb?.admission?.insurancePolicy?.insurance?.insuranceId) {
+          const ins = await getInsuranceById(gb.admission.insurancePolicy.insurance.insuranceId);
+          if (ins && ins.rate !== null && ins.rate !== undefined) {
+            insuranceRate = Number(ins.rate);
+            insuranceName = ins.name || '';
           }
-        } else if (globalBillData?.insurance) {
-          if (globalBillData.insurance.rate !== null && globalBillData.insurance.rate !== undefined) {
-            insuranceRate = Number(globalBillData.insurance.rate);
-            insuranceName = globalBillData.insurance.name || '';
+        } else if (gb?.insurance) {
+          if (gb.insurance.rate !== null && gb.insurance.rate !== undefined) {
+            insuranceRate = Number(gb.insurance.rate);
+            insuranceName = gb.insurance.name || '';
           }
         }
 
@@ -226,60 +212,41 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           name: insuranceName,
           isLoading: false,
         });
-
       } catch (error) {
         console.error('Error fetching global bill insurance rates:', error);
-        setInsuranceInfo({
-          rate: 0,
-          patientRate: 100,
-          name: '',
-          isLoading: false,
-        });
+        setInsuranceInfo({ rate: 0, patientRate: 100, name: '', isLoading: false });
       }
     };
 
-    if (isOpen) {
-      fetchInsuranceRates();
-    }
+    if (isOpen) fetchInsuranceRates();
   }, [globalBillId, isOpen]);
 
+  // Initialize modal state when opened
   useEffect(() => {
     if (isOpen && !paymentSuccess && !modalOpenedRef.current) {
       modalOpenedRef.current = true;
       formInitializedRef.current = false;
       userModifiedFormRef.current = false;
-      
+
       setPaymentMethod('cash');
       setPaymentError('');
       setIsFormReady(false);
-      
-      const currentSelectedItems = selectedItems;
-      const unpaidItemsWithSelectedState = currentSelectedItems
-        .filter((item) => !isActuallyPaid(item.item))
-        .map((item) => ({
-          ...item,
-          item: {
-            ...item.item,
-            selected: true,
-          },
-        }));
+
+      const unpaidItemsWithSelectedState = selectedItems
+        .filter((s) => !isActuallyPaid(s.item))
+        .map((s) => ({ ...s, item: { ...s.item, selected: true } }));
 
       setLocalSelectedItems(unpaidItemsWithSelectedState);
-      
+
       if (unpaidItemsWithSelectedState.length > 0) {
-        const total = unpaidItemsWithSelectedState.reduce((sum, selectedItemInfo) => {
-          const item = selectedItemInfo.item;
+        const total = unpaidItemsWithSelectedState.reduce((sum, s) => {
+          const item = s.item;
           const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
           const paidAmount = item.paidAmount || 0;
           return sum + Math.max(0, itemTotal - paidAmount);
         }, 0);
 
-        reset({
-          paymentAmount: total.toFixed(2),
-          receivedCash: '',
-          deductedAmount: '',
-        });
-
+        reset({ paymentAmount: total.toFixed(2), receivedCash: '', deductedAmount: '' });
         setIsFormReady(true);
         formInitializedRef.current = true;
       }
@@ -292,32 +259,26 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, paymentSuccess, reset, isActuallyPaid]);
 
+  // Keep totals & patient portion in sync with insurance rate
   useEffect(() => {
     if (isFormReady && formInitializedRef.current) {
-      const unpaidItemsWithSelectedState = selectedItems
-        .filter((item) => !isActuallyPaid(item.item))
-        .map((item) => ({
-          ...item,
-          item: {
-            ...item.item,
-            selected: true,
-          },
-        }));
+      const unpaid = selectedItems
+        .filter((s) => !isActuallyPaid(s.item))
+        .map((s) => ({ ...s, item: { ...s.item, selected: true } }));
 
-      setLocalSelectedItems(unpaidItemsWithSelectedState);
-      
-      if (!userModifiedFormRef.current && unpaidItemsWithSelectedState.length > 0) {
-        const total = unpaidItemsWithSelectedState.reduce((sum, selectedItemInfo) => {
-          const item = selectedItemInfo.item;
-          const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-          const paidAmount = item.paidAmount || 0;
+      setLocalSelectedItems(unpaid);
+
+      if (!userModifiedFormRef.current && unpaid.length > 0) {
+        const total = unpaid.reduce((sum, s) => {
+          const it = s.item;
+          const itemTotal = (it.quantity || 1) * (it.unitPrice || 0);
+          const paidAmount = it.paidAmount || 0;
           return sum + Math.max(0, itemTotal - paidAmount);
         }, 0);
 
         if (insuranceInfo.rate > 0) {
           const insurancePays = Math.round(((total * insuranceInfo.rate) / 100) * 100) / 100;
           const patientPays = Math.round((total - insurancePays) * 100) / 100;
-
           setThirdPartyAmount(insurancePays.toFixed(2));
           setPatientBalance(patientPays);
           setValue('paymentAmount', patientPays.toFixed(2), { shouldValidate: false });
@@ -331,16 +292,20 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   }, [selectedItems, isFormReady, insuranceInfo, setValue, isActuallyPaid]);
 
   useEffect(() => {
-    if (isFormReady && !insuranceInfo.isLoading && !paymentSuccess && formInitializedRef.current && !userModifiedFormRef.current) {
+    if (
+      isFormReady &&
+      !insuranceInfo.isLoading &&
+      !paymentSuccess &&
+      formInitializedRef.current &&
+      !userModifiedFormRef.current
+    ) {
       const total = calculateSelectedItemsTotal();
 
       if (insuranceInfo.rate > 0) {
         const insurancePays = Math.round(((total * insuranceInfo.rate) / 100) * 100) / 100;
         const patientPays = Math.round((total - insurancePays) * 100) / 100;
-
         setThirdPartyAmount(insurancePays.toFixed(2));
         setPatientBalance(patientPays);
-
         setValue('paymentAmount', patientPays.toFixed(2), { shouldValidate: false });
       } else {
         setThirdPartyAmount('0.00');
@@ -350,23 +315,24 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     }
   }, [isFormReady, insuranceInfo.isLoading, insuranceInfo.rate, calculateSelectedItemsTotal, setValue, paymentSuccess]);
 
-  const handleUserInput = useCallback((fieldName: string) => {
-    if (isFormReady && formInitializedRef.current) {
-      userModifiedFormRef.current = true;
-    }
-  }, [isFormReady]);
+  const handleUserInput = useCallback(
+    (_: string) => {
+      if (isFormReady && formInitializedRef.current) userModifiedFormRef.current = true;
+    },
+    [isFormReady],
+  );
 
+  // Inline validation for payment method specifics
   useEffect(() => {
     if (!paymentSuccess && isFormReady && !insuranceInfo.isLoading) {
       if (paymentMethod === 'cash' && receivedCash && paymentAmount) {
         const cashAmount = parseFloat(receivedCash);
         const amountToPay = parseFloat(paymentAmount);
-
-        if (!isNaN(cashAmount) && !isNaN(amountToPay) && cashAmount < amountToPay) {
-          setPaymentError(t('insufficientCash', 'Received cash must be equal to or greater than the payment amount'));
-        } else {
-          setPaymentError('');
-        }
+        setPaymentError(
+          !isNaN(cashAmount) && !isNaN(amountToPay) && cashAmount < amountToPay
+            ? t('insufficientCash', 'Received cash must be equal to or greater than the payment amount')
+            : '',
+        );
       } else if (paymentMethod === 'deposit' && deductedAmount && paymentAmount) {
         const deductAmount = parseFloat(deductedAmount);
         const amountToPay = parseFloat(paymentAmount);
@@ -379,59 +345,35 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         } else {
           setPaymentError('');
         }
+      } else {
+        setPaymentError('');
       }
     }
   }, [paymentMethod, receivedCash, deductedAmount, paymentAmount, depositBalance, t, paymentSuccess, isFormReady, insuranceInfo.isLoading]);
 
   const groupedAllItems = localSelectedItems.reduce(
-    (groups, selectedItemInfo) => {
-      const { consommationId, consommationService } = selectedItemInfo;
+    (groups, s) => {
+      const { consommationId, consommationService } = s;
       if (!groups[consommationId]) {
-        groups[consommationId] = {
-          consommationId,
-          consommationService,
-          items: [],
-        };
+        groups[consommationId] = { consommationId, consommationService, items: [] as (ConsommationItem & { selected?: boolean })[] };
       }
-      groups[consommationId].items.push(selectedItemInfo.item);
+      groups[consommationId].items.push(s.item);
       return groups;
     },
-    {} as Record<
-      string,
-      { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }
-    >,
+    {} as Record<string, { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }>,
   );
 
-  const computeItemPaymentStatus = (item: ConsommationItem & { selected?: boolean }): string => {
-    try {
-      const paymentKey = `payment_${item.patientServiceBillId}`;
-      const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
-      if (storedPayment.paid) {
-        return 'PAID';
-      } else if (storedPayment.paidAmount > 0) {
-        return 'PARTIAL';
-      }
-    } catch (e) {
-      // Ignore session storage errors
-    }
-    return computePaymentStatus(item);
-  };
+  const computeItemPaymentStatusLocal = (item: ConsommationItem & { selected?: boolean }): string =>
+    computePaymentStatus(item);
 
-  const handleLocalItemToggle = (consommationId: string, itemId: number) => {
-    setLocalSelectedItems((prev) => {
-      return prev.map((item) => {
-        if (item.consommationId === consommationId && item.item.patientServiceBillId === itemId) {
-          return {
-            ...item,
-            item: {
-              ...item.item,
-              selected: item.item.selected === false ? true : false,
-            },
-          };
-        }
-        return item;
-      });
-    });
+  const handleLocalItemToggle = (consommationId: string, patientServiceBillId: number) => {
+    setLocalSelectedItems((prev) =>
+      prev.map((entry) =>
+        entry.consommationId === consommationId && entry.item.patientServiceBillId === patientServiceBillId
+          ? { ...entry, item: { ...entry.item, selected: entry.item.selected === false ? true : false } }
+          : entry,
+      ),
+    );
   };
 
   const handlePrintReceipt = async () => {
@@ -447,9 +389,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
       const itemsWithConsommationInfo = paidItems.map((item) => ({
         ...item,
-        consommationId: localSelectedItems.find(
-          (selectedItem) => selectedItem.item.patientServiceBillId === item.patientServiceBillId,
-        )?.consommationId,
+        consommationId: localSelectedItems.find((s) => s.item.patientServiceBillId === item.patientServiceBillId)?.consommationId,
       }));
 
       printReceipt(paymentData, groupedConsommationData, itemsWithConsommationInfo);
@@ -465,14 +405,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
   const handleCloseModal = () => {
     if (paymentSuccess) {
-      onSuccess();
+      onSuccess(); // safety: ensure parent refreshed even if user closes first
     }
     onClose();
   };
 
   const isFormValid = () => {
     if (!isValid || paymentError || paymentSuccess || insuranceInfo.isLoading || !isFormReady) return false;
-    const hasSelectedItems = localSelectedItems.some((selectedItemInfo) => selectedItemInfo.item.selected === true);
+    const hasSelectedItems = localSelectedItems.some((s) => s.item.selected === true);
     return hasSelectedItems && !isSubmitting;
   };
 
@@ -505,155 +445,133 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         }
       }
 
-      const maxAllowedAmount = insuranceInfo.rate > 0 ? patientBalance : selectedItemsTotal;
-      if (enteredAmount > maxAllowedAmount) {
-        const coverageInfo = insuranceInfo.rate > 0 ? `${insuranceInfo.rate}% insurance coverage` : 'no insurance coverage';
-        const errorMessage = insuranceInfo.rate > 0
-          ? t('amountExceedsPatientBalance', `Payment amount cannot exceed patient balance (${maxAllowedAmount.toFixed(2)}) with ${coverageInfo}`)
-          : t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items');
-        throw new Error(errorMessage);
-      }
-
       if (!collectorUuid) {
         throw new Error(t('noCollectorUuid', 'Unable to retrieve collector UUID. Please ensure you are logged in.'));
       }
 
-      const paymentPromises = [];
-      let remainingPayment = enteredAmount;
-      const allPaidItems: ConsommationItem[] = [];
+      // Do not let patients overpay the patient portion when insurance applies
+      const maxAllowedAmount = insuranceInfo.rate > 0 ? patientBalance : selectedItemsTotal;
+      if (enteredAmount > maxAllowedAmount) {
+        const coverageInfo = insuranceInfo.rate > 0 ? `${insuranceInfo.rate}% insurance coverage` : 'no insurance coverage';
+        const errorMessage =
+          insuranceInfo.rate > 0
+            ? t(
+                'amountExceedsPatientBalance',
+                `Payment amount cannot exceed patient balance (${maxAllowedAmount.toFixed(2)}) with ${coverageInfo}`,
+              )
+            : t('amountExceedsTotal', 'Payment amount cannot exceed the total of selected items');
+        throw new Error(errorMessage);
+      }
 
-      const actuallySelectedItems = localSelectedItems.filter((item) => item.item.selected === true);
+      const actuallySelected = localSelectedItems.filter((s) => s.item.selected === true);
 
-      // Group by consommation
-      const selectedByConsommation = actuallySelectedItems.reduce(
-        (groups, item) => {
-          if (!groups[item.consommationId]) {
-            groups[item.consommationId] = {
-              consommationId: item.consommationId,
-              consommationService: item.consommationService,
-              items: [],
-            };
+      // Group selected by consommation
+      const groups = actuallySelected.reduce(
+        (acc, s) => {
+          if (!acc[s.consommationId]) {
+            acc[s.consommationId] = { consommationId: s.consommationId, consommationService: s.consommationService, items: [] as ConsommationItem[] };
           }
-          groups[item.consommationId].items.push(item.item);
-          return groups;
+          acc[s.consommationId].items.push(s.item);
+          return acc;
         },
-        {} as Record<
-          string,
-          { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }
-        >,
+        {} as Record<string, { consommationId: string; consommationService: string; items: ConsommationItem[] }>,
       );
 
-      for (const consommationGroup of Object.values(selectedByConsommation)) {
+      let remainingPayment = enteredAmount;
+      const paymentPromises: Array<{
+        payload: any;
+        consommationId: string;
+        consommationData: any;
+      }> = [];
+      const allPaidItems: ConsommationItem[] = [];
+
+      for (const consommationGroup of Object.values(groups)) {
         if (remainingPayment <= 0) break;
 
-        const consommationItems = consommationGroup.items;
-        if (consommationItems.length === 0) continue;
-
-        const fullConsommationData = await getConsommationById(consommationGroup.consommationId);
-
-        if (!fullConsommationData?.patientBill?.patientBillId) {
-          console.warn(`Could not retrieve patient bill ID for consommation ${consommationGroup.consommationId}`);
+        const full = await getConsommationById(consommationGroup.consommationId);
+        if (!full?.patientBill?.patientBillId) {
+          console.warn(`No patientBillId for consommation ${consommationGroup.consommationId}`);
           continue;
         }
 
-        const consommationTotalDue = consommationItems.reduce((total, item) => {
+        const consommationTotalDue = consommationGroup.items.reduce((total, item) => {
           const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
           const paidAmount = item.paidAmount || 0;
           return total + Math.max(0, itemTotal - paidAmount);
         }, 0);
 
-        const paymentForThisConsommation = Math.min(remainingPayment, consommationTotalDue);
-        remainingPayment -= paymentForThisConsommation;
+        const payThisCons = Math.min(remainingPayment, consommationTotalDue);
+        remainingPayment -= payThisCons;
 
-        let consommationRemainingPayment = paymentForThisConsommation;
-        const paidItems = [];
+        let remain = payThisCons;
+        const paidItemsForPayload: Array<{ billItem: { patientServiceBillId: number }; paidQty: number }> = [];
 
-        const sortedItems = [...consommationItems].sort((a, b) => {
+        const sorted = [...consommationGroup.items].sort((a, b) => {
           const aCost = Math.max(0, (a.quantity || 1) * (a.unitPrice || 0) - (a.paidAmount || 0));
           const bCost = Math.max(0, (b.quantity || 1) * (b.unitPrice || 0) - (b.paidAmount || 0));
           return aCost - bCost;
         });
 
-        for (const item of sortedItems) {
-          if (consommationRemainingPayment <= 0) break;
+        for (const item of sorted) {
+          if (remain <= 0) break;
 
           const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
           const paidAmount = item.paidAmount || 0;
           const itemCost = Math.max(0, itemTotal - paidAmount);
 
-          if (consommationRemainingPayment >= itemCost) {
-            paidItems.push({
+          if (remain >= itemCost) {
+            paidItemsForPayload.push({
               billItem: { patientServiceBillId: item.patientServiceBillId },
               paidQty: item.quantity || 1,
             });
             allPaidItems.push({ ...item, paidAmount: itemTotal });
-            consommationRemainingPayment -= itemCost;
+            remain -= itemCost;
           } else {
-            const itemQuantity = item.quantity || 1;
-            const itemUnitPrice = item.unitPrice || 0;
+            // attempt partial by quantity if possible
+            const itemQty = item.quantity || 1;
+            const unit = item.unitPrice || 0;
 
-            if (itemQuantity > 1 && itemUnitPrice > 0) {
-              const wholePaidQty = Math.floor(consommationRemainingPayment / itemUnitPrice);
+            if (itemQty > 1 && unit > 0) {
+              const wholePaidQty = Math.floor(remain / unit);
               if (wholePaidQty >= 1) {
-                paidItems.push({
+                paidItemsForPayload.push({
                   billItem: { patientServiceBillId: item.patientServiceBillId },
                   paidQty: wholePaidQty,
                 });
-                allPaidItems.push({ ...item, paidAmount: (paidAmount || 0) + wholePaidQty * itemUnitPrice });
-                consommationRemainingPayment -= wholePaidQty * itemUnitPrice;
+                allPaidItems.push({ ...item, paidAmount: (paidAmount || 0) + wholePaidQty * unit });
+                remain -= wholePaidQty * unit;
               }
             } else {
-              paidItems.push({
+              // pay one unit
+              paidItemsForPayload.push({
                 billItem: { patientServiceBillId: item.patientServiceBillId },
                 paidQty: 1,
               });
               allPaidItems.push({ ...item, paidAmount: itemTotal });
-              consommationRemainingPayment = 0;
+              remain = 0;
             }
           }
         }
 
-        if (paidItems.length > 0) {
-          const paymentPayload = {
-            amountPaid: parseFloat(paymentForThisConsommation.toFixed(2)),
+        if (paidItemsForPayload.length > 0) {
+          const payload = {
+            amountPaid: parseFloat(payThisCons.toFixed(2)),
             patientBill: {
-              patientBillId: fullConsommationData.patientBill.patientBillId,
+              patientBillId: full.patientBill.patientBillId,
               creator: collectorUuid,
             },
             dateReceived: new Date().toISOString(),
             collector: { uuid: collectorUuid },
-            paidItems: paidItems,
+            paidItems: paidItemsForPayload,
           };
-
-          paymentPromises.push({
-            payload: paymentPayload,
-            consommationId: consommationGroup.consommationId,
-            paidItems: paidItems,
-            consommationData: fullConsommationData,
-          });
+          paymentPromises.push({ payload, consommationId: consommationGroup.consommationId, consommationData: full });
         }
       }
 
-      const paymentResults = await Promise.all(
-        paymentPromises.map(async ({ payload, consommationId, paidItems, consommationData }) => {
+      const results = await Promise.all(
+        paymentPromises.map(async ({ payload, consommationId, consommationData }) => {
           try {
             const response = await submitBillPayment(payload);
-
-            paidItems.forEach((paidItem) => {
-              const paymentKey = `payment_${paidItem.billItem.patientServiceBillId}`;
-              try {
-                const existingPaymentData = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
-                const updatedPaymentData = {
-                  ...existingPaymentData,
-                  paid: true,
-                  timestamp: new Date().toISOString(),
-                };
-                sessionStorage.setItem(paymentKey, JSON.stringify(updatedPaymentData));
-              } catch (e) {
-                console.warn('Failed to save payment to sessionStorage:', e);
-              }
-            });
-
             return { success: true, consommationId, response, consommationData };
           } catch (error) {
             console.error(`Payment failed for consommation ${consommationId}:`, error);
@@ -662,67 +580,62 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         }),
       );
 
-      const successfulPayments = paymentResults.filter((result) => result.success);
-      const failedPayments = paymentResults.filter((result) => !result.success);
+      const successful = results.filter((r) => r.success);
+      const failed = results.filter((r) => !r.success);
 
-      if (successfulPayments.length > 0) {
-        const firstSuccessfulPayment = successfulPayments[0];
-        const consommationDetails = firstSuccessfulPayment.consommationData;
+      if (successful.length > 0) {
+        const first = successful[0];
+        const details = first.consommationData;
 
-        const activeInsurancePolicy = insurancePolicies?.find((policy) => {
-          const isNotExpired = new Date(policy.expirationDate) > new Date();
-          return isNotExpired;
-        });
-
-        let insuranceProviderName = '';
-        if (activeInsurancePolicy?.insurance?.name) {
-          insuranceProviderName = activeInsurancePolicy.insurance.name;
-        }
+        const activeInsurancePolicy = insurancePolicies?.find((policy) => new Date(policy.expirationDate) > new Date());
+        const insuranceProviderName = activeInsurancePolicy?.insurance?.name || '';
 
         const receiptPaymentData: PaymentData = {
           amountPaid: enteredAmount.toFixed(2),
           receivedCash: data.receivedCash || '',
           change: calculateChange(data.receivedCash, data.paymentAmount),
-          paymentMethod: paymentMethod,
+          paymentMethod,
           deductedAmount: paymentMethod === 'deposit' ? data.deductedAmount : '',
           dateReceived: new Date().toISOString().split('T')[0],
           collectorName: session?.user?.display || 'Unknown',
-          patientName: consommationDetails?.patientBill?.beneficiaryName || 'Unknown',
-          policyNumber: consommationDetails?.patientBill?.policyIdNumber || '',
+          patientName: details?.patientBill?.beneficiaryName || 'Unknown',
+          policyNumber: details?.patientBill?.policyIdNumber || '',
           thirdPartyAmount: thirdPartyAmount,
           thirdPartyProvider: insuranceProviderName,
           totalAmount: selectedItemsTotal.toFixed(2),
           insuranceRate: insuranceInfo.rate,
         };
 
-        // Prepare grouped consommation data for receipt
-        const receiptGroupedConsommationData: Record<string, ConsommationInfo> = {};
-        Object.values(selectedByConsommation).forEach((consommationGroup) => {
-          receiptGroupedConsommationData[consommationGroup.consommationId] = {
-            service: consommationGroup.consommationService,
-            date: new Date().toLocaleDateString(),
-          };
+        const receiptGrouped: Record<string, ConsommationInfo> = {};
+        Object.values(groups).forEach((g) => {
+          receiptGrouped[g.consommationId] = { service: g.consommationService, date: new Date().toLocaleDateString() };
         });
 
         setPaymentData(receiptPaymentData);
-        setGroupedConsommationData(receiptGroupedConsommationData);
+        setGroupedConsommationData(receiptGrouped);
         setPaidItems(allPaidItems);
         setPaymentSuccess(true);
+
+        try {
+          onSuccess();
+        } catch {
+          /* no-op */
+        }
 
         showToast({
           title: t('paymentSuccess', 'Payment Successful'),
           description:
-            failedPayments.length > 0
+            failed.length > 0
               ? t('partialPaymentSuccess', 'Some payments were processed successfully')
               : t('paymentProcessed', 'Payment has been processed successfully'),
-          kind: failedPayments.length > 0 ? 'warning' : 'success',
+          kind: failed.length > 0 ? 'warning' : 'success',
         });
       } else {
         throw new Error(t('allPaymentsFailed', 'All payment attempts failed. Please try again.'));
       }
     } catch (error: any) {
       console.error('Payment error:', error);
-      setPaymentError(error.message);
+      setPaymentError(error.message ?? String(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -773,7 +686,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       onRequestClose={handleCloseModal}
       onRequestSubmit={paymentSuccess ? handleCloseModal : handleSubmit(onSubmit)}
       onSecondarySubmit={paymentSuccess ? undefined : onClose}
-      primaryButtonDisabled={paymentSuccess ? false : (isSubmitting || !isFormValid())}
+      primaryButtonDisabled={paymentSuccess ? false : isSubmitting || !isFormValid()}
       size="lg"
     >
       <div className={styles.modalContent}>
@@ -822,6 +735,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                         labelText={t('receivedDate', 'Received Date')}
                         type="date"
                         value={new Date().toISOString().split('T')[0]}
+                        readOnly
                       />
                     </div>
                   </div>
@@ -915,12 +829,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                       <div className={styles.formRow}>
                         <div className={styles.formLabel}>{t('balance', 'Balance')}</div>
                         <div className={styles.formInput}>
-                          <TextInput
-                            id="deposit-balance"
-                            labelText={t('balance', 'Balance')}
-                            value={depositBalance}
-                            readOnly
-                          />
+                          <TextInput id="deposit-balance" labelText={t('balance', 'Balance')} value={depositBalance} readOnly />
                         </div>
                       </div>
                     </>
@@ -1020,19 +929,18 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
               {Object.keys(groupedAllItems).length > 0 ? (
                 <Accordion align="start">
-                  {Object.values(groupedAllItems).map((consommationGroup) => {
-                    const selectedItemsCount = consommationGroup.items.filter((item) => item.selected === true).length;
+                  {Object.values(groupedAllItems).map((group) => {
+                    const selectedCount = group.items.filter((i) => i.selected === true).length;
 
                     return (
                       <AccordionItem
-                        key={consommationGroup.consommationId}
+                        key={group.consommationId}
                         title={
                           <div className={styles.consommationGroupTitle}>
-                            <span className={styles.consommationId}>#{consommationGroup.consommationId}</span>
-                            <span className={styles.consommationService}>{consommationGroup.consommationService}</span>
+                            <span className={styles.consommationId}>#{group.consommationId}</span>
+                            <span className={styles.consommationService}>{group.consommationService}</span>
                             <span className={styles.itemCount}>
-                              ({selectedItemsCount} of {consommationGroup.items.length}{' '}
-                              {t('itemsSelected', 'items selected')})
+                              ({selectedCount} of {group.items.length} {t('itemsSelected', 'items selected')})
                             </span>
                           </div>
                         }
@@ -1044,9 +952,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                               <tr>
                                 <th></th>
                                 <th>{t('itemName', 'Item Name')}</th>
-                                {consommationGroup.items.some((item) => item.drugFrequency) && (
-                                  <th>{t('frequency', 'Frequency')}</th>
-                                )}
+                                {group.items.some((it) => it.drugFrequency) && <th>{t('frequency', 'Frequency')}</th>}
                                 <th>{t('quantity', 'Qty')}</th>
                                 <th>{t('unitPrice', 'Unit Price')}</th>
                                 <th>{t('itemTotal', 'Total')}</th>
@@ -1055,30 +961,23 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                               </tr>
                             </thead>
                             <tbody>
-                              {consommationGroup.items.map((item, index) => {
+                              {group.items.map((item) => {
                                 const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
                                 const paidAmt = item.paidAmount || 0;
                                 const remainingAmount = Math.max(0, itemTotal - paidAmt);
 
                                 return (
-                                  <tr key={index} className={item.selected ? styles.selectedItem : ''}>
+                                  <tr key={item.patientServiceBillId} className={item.selected ? styles.selectedItem : ''}>
                                     <td>
                                       <Checkbox
-                                        id={`payment-item-${consommationGroup.consommationId}-${item.patientServiceBillId}`}
+                                        id={`payment-item-${group.consommationId}-${item.patientServiceBillId}`}
                                         checked={item.selected || false}
-                                        onChange={() =>
-                                          handleLocalItemToggle(
-                                            consommationGroup.consommationId,
-                                            item.patientServiceBillId || 0,
-                                          )
-                                        }
+                                        onChange={() => handleLocalItemToggle(group.consommationId, item.patientServiceBillId || 0)}
                                         labelText=""
                                       />
                                     </td>
                                     <td title={item.itemName || '-'}>{item.itemName || '-'}</td>
-                                    {consommationGroup.items.some((item) => item.drugFrequency) && (
-                                      <td>{item.drugFrequency || '-'}</td>
-                                    )}
+                                    {group.items.some((i) => i.drugFrequency) && <td>{item.drugFrequency || '-'}</td>}
                                     <td>{item.quantity || '1'}</td>
                                     <td>{Number(item.unitPrice || 0).toFixed(2)}</td>
                                     <td>{Number(itemTotal).toFixed(2)}</td>
@@ -1090,18 +989,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                             </tbody>
                             <tfoot>
                               <tr>
-                                <td colSpan={consommationGroup.items.some((item) => item.drugFrequency) ? 8 : 7}>
+                                <td colSpan={group.items.some((i) => i.drugFrequency) ? 8 : 7}>
                                   <strong>{t('consommationTotal', 'Consommation Selected Total')}</strong>
                                 </td>
                                 <td colSpan={1}>
                                   <strong>
-                                    {consommationGroup.items
-                                      .filter((item) => item.selected)
-                                      .reduce((total, item) => {
-                                        const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-                                        const paidAmt = item.paidAmount || 0;
-                                        const remainingAmount = Math.max(0, itemTotal - paidAmt);
-                                        return total + remainingAmount;
+                                    {group.items
+                                      .filter((i) => i.selected)
+                                      .reduce((total, it) => {
+                                        const itTotal = (it.quantity || 1) * (it.unitPrice || 0);
+                                        const paidAmt = it.paidAmount || 0;
+                                        return total + Math.max(0, itTotal - paidAmt);
                                       }, 0)
                                       .toFixed(2)}
                                   </strong>

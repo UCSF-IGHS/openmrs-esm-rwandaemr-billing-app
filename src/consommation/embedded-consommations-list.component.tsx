@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTableSkeleton,
@@ -9,8 +9,6 @@ import {
   Accordion,
   AccordionItem,
   InlineLoading,
-  Modal,
-  TextInput,
 } from '@carbon/react';
 import { isDesktop, showToast, useLayoutType, useSession, usePagination } from '@openmrs/esm-framework';
 import {
@@ -27,7 +25,6 @@ import {
   type ConsommationListResponse,
   type ConsommationListItem,
   type ConsommationItem,
-  type RowData,
 } from '../types';
 import styles from './embedded-consommations-list.scss';
 import PaymentForm from '../payment-form/payment-form.component';
@@ -80,7 +77,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     const [isLoading, setIsLoading] = useState(true);
     const [consommations, setConsommations] = useState<ConsommationListResponse | null>(null);
     const [consommationsWithItems, setConsommationsWithItems] = useState<ConsommationWithItems[]>([]);
-    const [departments, setDepartments] = useState([]);
+    const [departments, setDepartments] = useState<any[]>([]);
     const [selectedItems, setSelectedItems] = useState<SelectedItemInfo[]>([]);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [consommationStatuses, setConsommationStatuses] = useState<Record<string, string>>({});
@@ -98,7 +95,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     } = usePagination(consommationsWithItems || [], pageSize);
 
     const getDepartmentName = useCallback(
-      (consommationItem) => {
+      (consommationItem: any) => {
         if (consommationItem?.department?.name) {
           return consommationItem.department.name;
         }
@@ -125,28 +122,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       },
       [departments, t],
     );
-
-    const persistPaymentStatus = useCallback((key: string, data: any) => {
-      try {
-        localStorage.setItem(key, JSON.stringify(data));
-        sessionStorage.setItem(key, JSON.stringify(data));
-      } catch (error) {
-        console.warn('Error persisting payment status:', error);
-      }
-    }, []);
-
-    const getPersistedPaymentStatus = useCallback((key: string) => {
-      try {
-        let stored = localStorage.getItem(key);
-        if (!stored) {
-          stored = sessionStorage.getItem(key);
-        }
-        return stored ? JSON.parse(stored) : {};
-      } catch (error) {
-        console.warn('Error retrieving payment status:', error);
-        return {};
-      }
-    }, []);
 
     const updateConsommationStatus = useCallback(async (consommationId: string): Promise<string> => {
       try {
@@ -228,7 +203,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
         setConsommations(consommationData);
         setDepartments(departmentData);
 
-        if (consommationData && consommationData.results && consommationData.results.length > 0) {
+        if (consommationData?.results?.length > 0) {
           const consommationsWithItemsData: ConsommationWithItems[] = consommationData.results.map((consommation) => ({
             ...consommation,
             items: [],
@@ -262,10 +237,10 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
           loadConsommationStatuses(consommationData.results);
         }
-      } catch (error) {
+      } catch (error: any) {
         showToast({
           title: t('error', 'Error'),
-          description: error.message,
+          description: error?.message || String(error),
           kind: 'error',
         });
       } finally {
@@ -273,59 +248,10 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       }
     }, [globalBillId, t, loadConsommationStatuses, fetchInsuranceRates]);
 
-    const isActuallyPaid = useCallback(
-      (item: ConsommationItem): boolean => {
-        const paymentKey = `payment_${item.patientServiceBillId}`;
-        const storedPayment = getPersistedPaymentStatus(paymentKey);
-        if (storedPayment.paid) {
-          return true;
-        }
+    // Paid strictly from backend-derived fields
+    const isActuallyPaid = useCallback((item: ConsommationItem): boolean => isItemPaid(item), []);
 
-        return isItemPaid(item);
-      },
-      [getPersistedPaymentStatus],
-    );
-
-    const cleanupOldPaymentData = useCallback(() => {
-      try {
-        const currentTime = new Date().getTime();
-        const maxAge = 7 * 24 * 60 * 60 * 1000;
-
-        Object.keys(localStorage).forEach((key) => {
-          if (key.startsWith('payment_') || key.startsWith('consommation_status_')) {
-            try {
-              const data = JSON.parse(localStorage.getItem(key) || '{}');
-              if (data.timestamp) {
-                const dataTime = new Date(data.timestamp).getTime();
-                if (currentTime - dataTime > maxAge) {
-                  localStorage.removeItem(key);
-                }
-              }
-            } catch (e) {
-              localStorage.removeItem(key);
-            }
-          }
-        });
-
-        Object.keys(sessionStorage).forEach((key) => {
-          if (key.startsWith('payment_') || key.startsWith('consommation_status_')) {
-            try {
-              const data = JSON.parse(sessionStorage.getItem(key) || '{}');
-              if (data.timestamp) {
-                const dataTime = new Date(data.timestamp).getTime();
-                if (currentTime - dataTime > maxAge) {
-                  sessionStorage.removeItem(key);
-                }
-              }
-            } catch (e) {
-              sessionStorage.removeItem(key);
-            }
-          }
-        });
-      } catch (error) {
-        console.warn('Error cleaning up old payment data:', error);
-      }
-    }, []);
+    const cleanupOldPaymentData = useCallback(() => {}, []);
 
     const syncWithServer = useCallback(async () => {
       try {
@@ -348,35 +274,13 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       }
     }, [globalBillId, fetchConsommations, t]);
 
-    const fetchConsommationItems = useCallback(
+    const fetchConsommationItemsCb = useCallback(
       async (consommationId: string) => {
         try {
           const items = await getConsommationItems(consommationId);
 
-          const enhancedItems = items.map((item) => {
-            const paymentKey = `payment_${item.patientServiceBillId}`;
-            const storedPayment = getPersistedPaymentStatus(paymentKey);
-
-            if (storedPayment.paid || storedPayment.paidAmount > 0) {
-              const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-              const paidAmount = Math.max(storedPayment.paidAmount || 0, item.paidAmount || 0);
-              const remainingAmount = Math.max(0, itemTotal - paidAmount);
-
-              return {
-                ...item,
-                paid: storedPayment.paid || paidAmount >= itemTotal,
-                partiallyPaid: !storedPayment.paid && paidAmount > 0,
-                paidAmount: paidAmount,
-                remainingAmount: remainingAmount,
-                selected: false,
-              };
-            }
-
-            return {
-              ...item,
-              selected: false,
-            };
-          });
+          // Trust backend-calculated fields; do not override locally
+          const enhancedItems = items.map((item) => ({ ...item, selected: false }));
 
           return enhancedItems;
         } catch (error) {
@@ -384,7 +288,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           return [];
         }
       },
-      [getPersistedPaymentStatus],
+      [],
     );
 
     const updateConsommationStatusImmediately = useCallback(
@@ -414,16 +318,24 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
         try {
           const [items, rates] = await Promise.all([
-            fetchConsommationItems(consommationId),
+            fetchConsommationItemsCb(consommationId),
             fetchInsuranceRates(consommationId),
           ]);
 
+          const parentPaid = (consommationStatuses[consommationId] || '').toUpperCase() === 'PAID';
+
           const paidItems = items.map((item) => {
-            const isPaid = isActuallyPaid(item);
+            const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+            const effectivePaidAmt = parentPaid ? itemTotal : item.paidAmount || 0;
+            const isPaid = parentPaid || isActuallyPaid(item);
+
             return {
               ...item,
+              paid: isPaid,
+              paidAmount: effectivePaidAmt,
+              remainingAmount: Math.max(0, itemTotal - effectivePaidAmt),
               selected: isPaid,
-            };
+            } as ConsommationItem & { selected?: boolean };
           });
 
           setConsommationsWithItems((prev) =>
@@ -460,7 +372,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           updateConsommationStatusImmediately(consommationId);
         } catch (error) {
           console.error(`Error loading items for consommation ${consommationId}:`, error);
-          // Don't set default rates when there's an error, leave existing rates intact
           setConsommationsWithItems((prev) =>
             prev.map((c) =>
               c.consommationId?.toString() === consommationId
@@ -469,13 +380,11 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                     items: [],
                     isLoadingItems: false,
                     itemsLoaded: true,
-                    // Keep existing insurance rates or try to fetch them
                   }
                 : c,
             ),
           );
 
-          // Try to fetch rates even if item loading failed
           try {
             const rates = await fetchInsuranceRates(consommationId);
             setConsommationsWithItems((prev) =>
@@ -495,11 +404,12 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       },
       [
         consommationsWithItems,
-        fetchConsommationItems,
+        fetchConsommationItemsCb,
         fetchInsuranceRates,
         isActuallyPaid,
         updateConsommationStatusImmediately,
         getDepartmentName,
+        consommationStatuses,
       ],
     );
 
@@ -521,7 +431,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
     useEffect(() => {
       cleanupOldPaymentData();
-
       fetchConsommations();
     }, [fetchConsommations, cleanupOldPaymentData]);
 
@@ -552,7 +461,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       );
     }, [consommationsWithItems, fetchInsuranceRates]);
 
-    // Refresh rates when global bill changes
     useEffect(() => {
       if (consommationsWithItems.length > 0) {
         refreshAllInsuranceRates();
@@ -571,35 +479,35 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
         if (!consommation) return;
 
-        const item = consommation.items[itemIndex];
-
-        const updatedConsommations = consommationsWithItems.map((consommation) => {
-          if (consommation.consommationId?.toString() === consommationId) {
-            const updatedItems = consommation.items.map((item, index) => {
+        const updatedConsommations = consommationsWithItems.map((c) => {
+          if (c.consommationId?.toString() === consommationId) {
+            const updatedItems = c.items.map((item, index) => {
               if (index === itemIndex) {
-                const isCurrentlySelected = item.selected || false;
-                const newSelectedState = !isCurrentlySelected;
+                const newSelected = !Boolean(item.selected);
+                const serviceName = getDepartmentName(c);
 
-                if (newSelectedState) {
-                  const selectedItemInfo: SelectedItemInfo = {
-                    item: { ...item, selected: true },
-                    consommationId: consommationId,
-                    consommationService: getDepartmentName(consommation),
-                  };
-                  setSelectedItems((prev) => [...prev, selectedItemInfo]);
+                if (newSelected) {
+                  setSelectedItems((prev) => [
+                    ...prev,
+                    {
+                      item: { ...item, selected: true },
+                      consommationId,
+                      consommationService: serviceName,
+                    },
+                  ]);
                 } else {
                   setSelectedItems((prev) =>
                     prev.filter(
-                      (selectedItem) =>
+                      (si) =>
                         !(
-                          selectedItem.consommationId === consommationId &&
-                          selectedItem.item.patientServiceBillId === item.patientServiceBillId
+                          si.consommationId === consommationId &&
+                          si.item.patientServiceBillId === item.patientServiceBillId
                         ),
                     ),
                   );
                 }
 
-                return { ...item, selected: newSelectedState };
+                return { ...item, selected: newSelected };
               }
               return item;
             });
@@ -608,9 +516,9 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
               await updateConsommationStatusImmediately(consommationId);
             }, 0);
 
-            return { ...consommation, items: updatedItems };
+            return { ...c, items: updatedItems };
           }
-          return consommation;
+          return c;
         });
 
         setConsommationsWithItems(updatedConsommations);
@@ -619,16 +527,8 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     );
 
     const computeItemPaymentStatus = useCallback(
-      (item: ConsommationItem): string => {
-        const paymentKey = `payment_${item.patientServiceBillId}`;
-        const storedPayment = getPersistedPaymentStatus(paymentKey);
-        if (storedPayment.paid) {
-          return 'PAID';
-        }
-
-        return isItemPaid(item) ? 'PAID' : 'UNPAID';
-      },
-      [getPersistedPaymentStatus],
+      (item: ConsommationItem): string => (isItemPaid(item) ? 'PAID' : 'UNPAID'),
+      [],
     );
 
     const calculateSelectedUnpaidItemsTotal = () => {
@@ -717,15 +617,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
         const itemsForReceipt = paidSelectedItems.map((selectedItem) => {
           const item = selectedItem.item;
           const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-          let actualPaidAmount = item.paidAmount || 0;
-
-          const paymentKey = `payment_${item.patientServiceBillId}`;
-          const storedPayment = getPersistedPaymentStatus(paymentKey);
-          if (storedPayment.paid) {
-            actualPaidAmount = itemTotal;
-          } else if (storedPayment.paidAmount > 0) {
-            actualPaidAmount = Math.max(storedPayment.paidAmount, actualPaidAmount);
-          }
+          const actualPaidAmount = Math.min(itemTotal, item.paidAmount || itemTotal); // display safeguard
 
           return {
             ...item,
@@ -756,112 +648,38 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     };
 
     const handlePaymentSuccess = async () => {
-      const unpaidSelectedItems = selectedItems.filter((item) => !isActuallyPaid(item.item));
-      const affectedConsommations = new Set(unpaidSelectedItems.map((item) => item.consommationId));
+      // After backend confirms payment, always re-sync from server so UI mirrors persisted state
+      try {
+        await fetchConsommations();
 
-      unpaidSelectedItems.forEach((selectedItem) => {
-        const item = selectedItem.item;
-        const paymentKey = `payment_${item.patientServiceBillId}`;
-        const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-        persistPaymentStatus(paymentKey, {
-          paid: true,
-          paidAmount: itemTotal,
-          timestamp: new Date().toISOString(),
-          consommationId: selectedItem.consommationId,
-          globalBillId: globalBillId,
-        });
-      });
-
-      // Update consommationsWithItems to reflect paid items
-      const updatedConsommationsWithItems = consommationsWithItems.map((consommation) => {
-        const consommationId = consommation.consommationId?.toString() || '';
-        if (affectedConsommations.has(consommationId)) {
-          const updatedItems = consommation.items.map((item) => {
-            const wasSelected = unpaidSelectedItems.some(
-              (selectedItem) =>
-                selectedItem.consommationId === consommationId &&
-                selectedItem.item.patientServiceBillId === item.patientServiceBillId,
-            );
-            if (wasSelected) {
-              const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-              return {
-                ...item,
-                paid: true,
-                partiallyPaid: false,
-                paidAmount: itemTotal,
-                remainingAmount: 0,
-                selected: true,
-              };
-            }
-            return item;
-          });
-          return {
-            ...consommation,
-            items: updatedItems,
-          };
+        // For any expanded panels, reload their items to pull fresh item-level statuses
+        if (expandedConsommations.size > 0) {
+          await Promise.all(Array.from(expandedConsommations).map((id) => loadConsommationItems(id)));
         }
-        return consommation;
-      });
 
-      setConsommationsWithItems(updatedConsommationsWithItems);
+        // Refresh badges
+        const ids =
+          (consommationsWithItems || [])
+            .map((c) => c.consommationId?.toString())
+            .filter((id): id is string => Boolean(id)) || [];
 
-      const consommationIds = updatedConsommationsWithItems
-        .map((consommation) => consommation.consommationId?.toString())
-        .filter((id): id is string => Boolean(id));
-
-      if (consommationIds.length > 0) {
-        getMultipleConsommationStatuses(consommationIds)
-          .then((statusMap) => {
+        if (ids.length > 0) {
+          try {
+            const statusMap = await getMultipleConsommationStatuses(ids);
             const updatedStatusMap: Record<string, string> = {};
             Object.entries(statusMap).forEach(([consommationId, isPaid]) => {
               updatedStatusMap[consommationId] = isPaid ? 'PAID' : 'UNPAID';
             });
             setConsommationStatuses((prev) => ({ ...prev, ...updatedStatusMap }));
-          })
-          .catch((error) => {
-            console.error('Error updating consommation statuses after payment:', error);
-          });
+          } catch (e) {
+            console.error('Error updating consommation statuses after payment:', e);
+          }
+        }
+
+        setSelectedItems((prev) => prev.map((si) => ({ ...si, item: { ...si.item, selected: true } })));
+      } catch (e) {
+        console.error('Post-payment refresh failed', e);
       }
-
-      setSelectedItems((prev) => {
-        const itemsToKeep = prev.filter(
-          (item) =>
-            !unpaidSelectedItems.some(
-              (unpaidItem) =>
-                unpaidItem.consommationId === item.consommationId &&
-                unpaidItem.item.patientServiceBillId === item.item.patientServiceBillId,
-            ),
-        );
-        const newlyPaidItems = unpaidSelectedItems.map((item) => {
-          const itemTotal = (item.item.quantity || 1) * (item.item.unitPrice || 0);
-          return {
-            ...item,
-            item: {
-              ...item.item,
-              paid: true,
-              partiallyPaid: false,
-              paidAmount: itemTotal,
-              remainingAmount: 0,
-              selected: true,
-            },
-          };
-        });
-        return [...itemsToKeep, ...newlyPaidItems];
-      });
-
-      setTimeout(() => {
-        affectedConsommations.forEach((consommationId) => {
-          getConsommationById(consommationId)
-            .then((consommationData) => {
-              // if (consommationData) {
-              //   console.log(`Verified consommation ${consommationId} data with server`);
-              // }
-            })
-            .catch((err) => {
-              console.error(`Error verifying consommation ${consommationId}:`, err);
-            });
-        });
-      }, 1000);
     };
 
     useImperativeHandle(ref, () => ({
@@ -869,7 +687,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       refreshRates: refreshAllInsuranceRates,
     }));
 
-    // Loading state
     if (isLoading) {
       return (
         <div className={styles.container}>
@@ -902,7 +719,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           </div>
         </div>
 
-        {/* Insurance details section */}
+        {/* Insurance details */}
         <div className={styles.insuranceDetailsSection}>
           <GlobalBillInsuranceInfo globalBillId={globalBillId} />
         </div>
@@ -911,7 +728,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           <>
             <div className={styles.accordionContainer}>
               <Accordion align="start">
-                {paginatedConsommations.map((consommation, index) => {
+                {paginatedConsommations.map((consommation) => {
                   const consommationId = consommation.consommationId?.toString() || '';
                   const statusText = consommationStatuses[consommationId] || 'UNPAID';
                   const isExpanded = expandedConsommations.has(consommationId);
@@ -962,20 +779,21 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                                   <th>{t('itemTotal', 'Total')}</th>
                                   <th>{t('insuranceAmount', `Ins.(${consommation.insuranceRates.insuranceRate}%)`)}</th>
                                   <th>{t('patientAmount', `Pat.(${consommation.insuranceRates.patientRate}%)`)}</th>
-
                                   <th>{t('paidAmt', 'Paid')}</th>
                                   <th>{t('status', 'Status')}</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {consommation.items.map((item, itemIndex) => {
+                                  const parentPaidForRow =
+                                    (consommationStatuses[consommationId] || '').toUpperCase() === 'PAID';
                                   const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-                                  const paidAmt = item.paidAmount || 0;
-                                  const isPaid = isActuallyPaid(item);
-                                  const isPartiallyPaid = isItemPartiallyPaid(item);
-
+                                  const paidAmt = parentPaidForRow ? itemTotal : item.paidAmount || 0;
                                   const insuranceAmount = (itemTotal * consommation.insuranceRates.insuranceRate) / 100;
                                   const patientAmount = (itemTotal * consommation.insuranceRates.patientRate) / 100;
+                                  const isPaidEffective =
+                                    parentPaidForRow ||
+                                    isItemPaid({ ...item, paidAmount: paidAmt, paid: parentPaidForRow || item.paid });
 
                                   return (
                                     <tr key={itemIndex} className={item.selected ? styles.selectedItemRow : ''}>
@@ -993,7 +811,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                                       <td title={item.itemName || '-'} className={styles.itemNameCell}>
                                         {item.itemName || '-'}
                                       </td>
-                                      {consommation.items.some((item) => item.drugFrequency) && (
+                                      {consommation.items.some((i) => i.drugFrequency) && (
                                         <td>{item.drugFrequency || '-'}</td>
                                       )}
                                       <td>{item.quantity || '1'}</td>
@@ -1004,14 +822,10 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                                       <td>{Number(paidAmt).toFixed(2)}</td>
                                       <td>
                                         <Tag
-                                          type={computeItemPaymentStatus(item) === 'PAID' ? 'green' : 'red'}
-                                          className={
-                                            computeItemPaymentStatus(item) === 'PAID'
-                                              ? styles.paidStatus
-                                              : styles.unpaidStatus
-                                          }
+                                          type={isPaidEffective ? 'green' : 'red'}
+                                          className={isPaidEffective ? styles.paidStatus : styles.unpaidStatus}
                                         >
-                                          {computeItemPaymentStatus(item)}
+                                          {isPaidEffective ? 'PAID' : 'UNPAID'}
                                         </Tag>
                                       </td>
                                     </tr>
@@ -1101,7 +915,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
               </div>
             </div>
 
-            {/* Pass only unpaid items to the payment form */}
             {isPaymentModalOpen && (
               <PaymentForm
                 isOpen={isPaymentModalOpen}
