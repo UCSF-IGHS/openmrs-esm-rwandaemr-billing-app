@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTableSkeleton,
@@ -9,6 +9,7 @@ import {
   Accordion,
   AccordionItem,
   InlineLoading,
+  Modal,
 } from '@carbon/react';
 import { isDesktop, showToast, useLayoutType, useSession, usePagination } from '@openmrs/esm-framework';
 import {
@@ -19,17 +20,15 @@ import {
   getMultipleConsommationStatuses,
   isConsommationPaid,
   getDepartments,
+  closeGlobalBill,
+  getGlobalBillById,
 } from '../api/billing';
 import { isItemPaid, isItemPartiallyPaid } from '../utils/billing-calculations';
-import {
-  type ConsommationListResponse,
-  type ConsommationListItem,
-  type ConsommationItem,
-} from '../types';
+import { type ConsommationListResponse, type ConsommationListItem, type ConsommationItem } from '../types';
 import styles from './embedded-consommations-list.scss';
 import PaymentForm from '../payment-form/payment-form.component';
 import { printReceipt } from '../payment-receipt/print-receipt';
-import { Add, Printer } from '@carbon/react/icons';
+import { Add, Printer, Close } from '@carbon/react/icons';
 import GlobalBillInsuranceInfo from '../invoice/global-bill-insurance-info.component';
 
 interface EmbeddedConsommationsListProps {
@@ -82,6 +81,27 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [consommationStatuses, setConsommationStatuses] = useState<Record<string, string>>({});
     const [expandedConsommations, setExpandedConsommations] = useState<Set<string>>(new Set());
+    const [isClosing, setIsClosing] = useState(false);
+    const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+    const [isClosedLocal, setIsClosedLocal] = useState<boolean>(Boolean(isGlobalBillClosed));
+    useEffect(() => {
+      setIsClosedLocal(Boolean(isGlobalBillClosed));
+    }, [isGlobalBillClosed]);
+
+    const allPaid = useMemo(
+      () => {
+        const values = Object.values(consommationStatuses);
+        if (values.length === 0) return true;
+        return values.every((s) => s === 'PAID');
+      },
+      [consommationStatuses],
+    );
+
+    const globalBillDisplayStatus = useMemo(() => {
+      if (allPaid) return 'PAID';
+      if (isClosedLocal) return 'CLOSED';
+      return '';
+    }, [allPaid, isClosedLocal]);
 
     const layout = useLayoutType();
     const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
@@ -274,22 +294,18 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       }
     }, [globalBillId, fetchConsommations, t]);
 
-    const fetchConsommationItemsCb = useCallback(
-      async (consommationId: string) => {
-        try {
-          const items = await getConsommationItems(consommationId);
+    const fetchConsommationItemsCb = useCallback(async (consommationId: string) => {
+      try {
+        const items = await getConsommationItems(consommationId);
 
-          // Trust backend-calculated fields; do not override locally
-          const enhancedItems = items.map((item) => ({ ...item, selected: false }));
+        const enhancedItems = items.map((item) => ({ ...item, selected: false }));
 
-          return enhancedItems;
-        } catch (error) {
-          console.error('Failed to fetch consommation items:', error);
-          return [];
-        }
-      },
-      [],
-    );
+        return enhancedItems;
+      } catch (error) {
+        console.error('Failed to fetch consommation items:', error);
+        return [];
+      }
+    }, []);
 
     const updateConsommationStatusImmediately = useCallback(
       async (consommationId: string) => {
@@ -467,11 +483,69 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       }
     }, [globalBillId, consommationsWithItems.length, refreshAllInsuranceRates]);
 
-    const handleAddNewInvoice = () => {
-      if (onAddNewInvoice && globalBillId) {
-        onAddNewInvoice(globalBillId.toString());
+    const handleAddNewInvoice = useCallback(() => {
+      if (onAddNewInvoice) {
+        onAddNewInvoice(globalBillId);
       }
-    };
+    }, [onAddNewInvoice, globalBillId]);
+
+    // Polling constants for global bill close verification
+    const POLL_ATTEMPTS = 3;
+    const POLL_DELAY_MS = 500;
+
+    const handleCloseGlobalBill = useCallback(async () => {
+      setIsClosing(true);
+      try {
+        showToast({
+          title: t('closingBill', 'Closing bill'),
+          description: t('closingBillInProgress', 'Please wait while bill is closing…'),
+          kind: 'info',
+        });
+
+        const result = await closeGlobalBill(
+          globalBillId,
+          allPaid ? 'Bill paid and closed by user' : 'Bill closed by user',
+          allPaid ? 'FULLY PAID' : 'PARTIALLY PAID',
+        );
+
+        setIsClosedLocal(true);
+        setShowCloseConfirm(false);
+
+        onBillClosed && onBillClosed();
+
+        const serverSaysClosed = Boolean(result?.closed === true);
+
+        if (!serverSaysClosed) {
+          try {
+            let attempts = 0;
+            while (attempts < POLL_ATTEMPTS) {
+              const latest = await getGlobalBillById(globalBillId);
+              if (latest?.closed === true) break;
+              await new Promise((res) => setTimeout(res, POLL_DELAY_MS));
+              attempts += 1;
+            }
+          } catch { /* non-fatal */ }
+        }
+
+        showToast({
+          title: t('success', 'Success'),
+          description: t('billClosedSuccessfully', 'Global bill closed successfully'),
+          kind: 'success',
+        });
+      } catch (error: any) {
+        showToast({
+          title: t('error', 'Error'),
+          description: error?.message || t('failedToCloseBill', 'Failed to close global bill'),
+          kind: 'error',
+        });
+      } finally {
+        setIsClosing(false);
+      }
+    }, [globalBillId, onBillClosed, t, allPaid]);
+
+    const handlePaymentModalClose = useCallback(() => {
+      setIsPaymentModalOpen(false);
+    }, []);
 
     const handleItemSelection = useCallback(
       (consommationId: string, itemIndex: number) => {
@@ -695,8 +769,22 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       );
     }
 
+
     return (
       <div className={styles.container}>
+        <Modal
+          open={showCloseConfirm}
+          modalHeading={t('confirmCloseBill', 'Close this global bill?')}
+          primaryButtonText={isClosing ? t('closing', 'Closing…') : t('confirm', 'Confirm')}
+          secondaryButtonText={t('cancel', 'Cancel')}
+          danger
+          onRequestClose={() => setShowCloseConfirm(false)}
+          onSecondarySubmit={() => setShowCloseConfirm(false)}
+          onRequestSubmit={isClosing ? undefined : handleCloseGlobalBill}
+          primaryButtonDisabled={isClosing}
+        >
+          <p>{t('closeBillWarning', 'This will mark the global bill as closed and prevent further additions.')}</p>
+        </Modal>
         <div className={styles.tableHeader}>
           <div className={styles.headerTitleContainer}>
             <div className={styles.headerTitleInfo}>
@@ -704,16 +792,51 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                 {t('consommationsList', 'Consommations List for Global Bill')} #{globalBillId}
               </h4>
             </div>
-            <div className={styles.headerActions}>
+            <div
+              className={styles.headerActions}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              {globalBillDisplayStatus && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: 12 }}>
+                  <Tag
+                    type={globalBillDisplayStatus === 'PAID' ? 'green' : 'cool-gray'}
+                    className={globalBillDisplayStatus === 'PAID' ? styles.paidStatus : ''}
+                  >
+                    {globalBillDisplayStatus}
+                  </Tag>
+                </span>
+              )}
               <Button
                 kind="ghost"
                 renderIcon={(props) => <Add size={16} {...props} />}
                 iconDescription={t('addInvoice', 'Add invoice')}
                 onClick={handleAddNewInvoice}
-                disabled={isGlobalBillClosed}
-                title={isGlobalBillClosed ? t('closedBillNoAdd', 'Cannot add items to a closed bill') : ''}
+                disabled={isClosedLocal}
+                title={isClosedLocal ? t('closedBillNoAdd', 'Cannot add items to a closed bill') : ''}
               >
                 {t('add', 'Add Item')}
+              </Button>
+              <Button
+                kind="ghost"
+                renderIcon={(props) => <Close size={16} {...props} />}
+                iconDescription={t('closeBill', 'Close bill')}
+                onClick={() => setShowCloseConfirm(true)}
+                disabled={isClosedLocal || isClosing || !allPaid}
+                title={
+                  isClosedLocal
+                    ? t('closedBillNoClose', 'Cannot close a closed bill')
+                    : !allPaid
+                      ? t('cannotCloseWithUnpaid', 'All consommations must be paid before closing this bill')
+                      : ''
+                }
+              >
+                {isClosing ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <InlineLoading description={t('closing', 'Closing…')} />
+                  </span>
+                ) : (
+                  t('closeBill', 'Close Bill')
+                )}
               </Button>
             </div>
           </div>
@@ -898,15 +1021,17 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                   </Button>
                   <Button
                     kind="primary"
-                    disabled={!hasUnpaidSelectedItems()}
+                    disabled={isClosedLocal || !hasUnpaidSelectedItems()}
                     onClick={openPaymentModal}
                     title={
-                      selectedItems.length > 0 && !hasUnpaidSelectedItems()
-                        ? t(
-                            'onlyPaidItemsSelected',
-                            'Only paid items are selected. Select unpaid items to make payment.',
-                          )
-                        : ''
+                      isClosedLocal
+                        ? t('closedBillNoPay', 'Cannot pay on a closed bill')
+                        : selectedItems.length > 0 && !hasUnpaidSelectedItems()
+                          ? t(
+                              'onlyPaidItemsSelected',
+                              'Only paid items are selected. Select unpaid items to make payment.',
+                            )
+                          : ''
                     }
                   >
                     {t('paySelected', 'Pay Selected')}
@@ -918,7 +1043,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
             {isPaymentModalOpen && (
               <PaymentForm
                 isOpen={isPaymentModalOpen}
-                onClose={closePaymentModal}
+                onClose={handlePaymentModalClose}
                 onSuccess={handlePaymentSuccess}
                 selectedItems={selectedItems.filter((item) => !isActuallyPaid(item.item))}
                 onItemToggle={handleItemSelection}
@@ -934,8 +1059,8 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
               kind="primary"
               renderIcon={(props) => <Add size={16} {...props} />}
               onClick={handleAddNewInvoice}
-              disabled={isGlobalBillClosed}
-              title={isGlobalBillClosed ? t('closedBillNoAdd', 'Cannot add items to a closed bill') : ''}
+              disabled={isClosedLocal}
+              title={isClosedLocal ? t('closedBillNoAdd', 'Cannot add items to a closed bill') : ''}
             >
               {t('createFirstConsommation', 'Create First Consommation')}
             </Button>

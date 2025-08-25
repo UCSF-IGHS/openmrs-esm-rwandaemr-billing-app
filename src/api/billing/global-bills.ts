@@ -103,3 +103,54 @@ export const createDirectGlobalBill = async (globalBillData: {
     throw error;
   }
 };
+
+/**
+ * Closes a global bill
+ * @param globalBillId - The global bill ID to close
+ * @param closingReason - The reason for closing the bill
+ * @param paymentStatus - Optionally specify payment status ('FULLY PAID', 'PARTIALLY PAID', 'UNPAID')
+ * @returns Promise with the updated global bill data
+ */
+export const closeGlobalBill = async (
+  globalBillId: string | number,
+  closingReason: string = 'Bill closed by user',
+  paymentStatus?: 'FULLY PAID' | 'PARTIALLY PAID' | 'UNPAID',
+) => {
+  return errorHandler.wrapAsync(
+    async () => {
+      const makePayload = (includePaymentStatus: boolean) => ({
+        closed: true,
+        closingReason: closingReason,
+        closingDate: new Date().toISOString(),
+        ...(includePaymentStatus && paymentStatus ? { paymentStatus } : {}),
+      });
+
+      const postOnce = async (includePaymentStatus: boolean) => {
+        const payload: any = makePayload(includePaymentStatus);
+        const res = await openmrsFetch(`${BASE_API_URL}/globalBill/${globalBillId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        // If openmrsFetch exposes ok/status, prefer that; otherwise rely on thrown errors
+        // Some implementations still return data on non-2xx – guard here
+        // @ts-ignore
+        if (typeof res.ok !== 'undefined' && !res.ok) {
+          // @ts-ignore
+          const msg = (res?.data && (res.data.error?.message || res.data.message)) || `HTTP ${res.status}`;
+          throw new Error(msg);
+        }
+        return res.data;
+      };
+
+      return postOnce(true).catch((e: any) => {
+        if (paymentStatus) {
+          return postOnce(false);
+        }
+        throw e;
+      });
+    },
+    { component: 'billing-api', action: 'closeGlobalBill', metadata: { globalBillId, closingReason, paymentStatus } },
+    commonErrorMessages.saveError,
+  );
+};
