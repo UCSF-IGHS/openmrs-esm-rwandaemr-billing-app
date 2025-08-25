@@ -251,7 +251,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     // Paid strictly from backend-derived fields
     const isActuallyPaid = useCallback((item: ConsommationItem): boolean => isItemPaid(item), []);
 
-    // No local/session storage cleanup—no longer used
     const cleanupOldPaymentData = useCallback(() => {}, []);
 
     const syncWithServer = useCallback(async () => {
@@ -323,7 +322,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
             fetchInsuranceRates(consommationId),
           ]);
 
-          // If the parent consommation is paid, show all its items as fully paid
           const parentPaid = (consommationStatuses[consommationId] || '').toUpperCase() === 'PAID';
 
           const paidItems = items.map((item) => {
@@ -678,7 +676,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           }
         }
 
-        // Keep selection, mark paid ones as selected (purely UI)
         setSelectedItems((prev) => prev.map((si) => ({ ...si, item: { ...si.item, selected: true } })));
       } catch (e) {
         console.error('Post-payment refresh failed', e);

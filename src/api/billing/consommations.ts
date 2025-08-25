@@ -100,11 +100,9 @@ export async function getConsommationItems(consommationId: string): Promise<Cons
       const unit = Number(item.unitPrice ?? 0);
       const itemTotal = qty * unit;
 
-      // Prefer explicit backend sums if present; else fallbacks
       const paidAmountFromBackend = Number(item.paidAmount ?? 0);
       const paidAmountFromQty = Number(item.paidQuantity ?? 0) * unit;
 
-      // If parent consommation is paid, treat items as fully paid (server truth)
       const paidAmount = parentPaid
         ? itemTotal
         : Math.max(paidAmountFromBackend, paidAmountFromQty, item.paid ? itemTotal : 0);

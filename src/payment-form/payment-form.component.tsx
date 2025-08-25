@@ -157,7 +157,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const receivedCash = watch('receivedCash');
   const deductedAmount = watch('deductedAmount');
 
-  // ✅ Paid derives only from backend fields
   const isActuallyPaid = useCallback(
     (item: ConsommationItem & { selected?: boolean }): boolean => isItemPaid(item),
     [],
@@ -364,7 +363,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     {} as Record<string, { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }>,
   );
 
-  // ✅ No sessionStorage: status derived from backend data only
   const computeItemPaymentStatusLocal = (item: ConsommationItem & { selected?: boolean }): string =>
     computePaymentStatus(item);
 
@@ -618,7 +616,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setPaidItems(allPaidItems);
         setPaymentSuccess(true);
 
-        // ✅ Immediately refresh the parent so item statuses come from backend
         try {
           onSuccess();
         } catch {
