@@ -659,7 +659,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         <div className={styles.paymentSummary}>
           <h4>{t('paymentSummary', 'Payment Summary')}</h4>
           <div className={styles.summaryRow}>
-            <span>{t('amountPaid', 'Amount Paid')}:</span>
+            <span>{t('amountPaid', 'Amount To Be Paid')}:</span>
             <span className={styles.amount}>{paymentData.amountPaid}</span>
           </div>
           <div className={styles.summaryRow}>
@@ -707,7 +707,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               <InlineNotification
                 kind="info"
                 title={t('loadingInsurance', 'Loading Insurance Information')}
-                subtitle={t('loadingInsuranceMessage', 'Please wait while we calculate insurance rates...')}
+                subtitle={t('loadingInsuranceMessage', 'Please wait while the insurance rates calculate...')}
                 className={styles.infoNotification}
               />
             )}
