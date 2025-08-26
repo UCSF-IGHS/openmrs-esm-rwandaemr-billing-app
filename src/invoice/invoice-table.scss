@@ -2,24 +2,19 @@
 @use '@carbon/type';
 @use '~@openmrs/esm-styleguide/src/vars';
 
-/* Ensure variables have fallback values */
 $ui-01: #ffffff !default;
 $ui-02: #f4f4f4 !default;
 $ui-03: #dcdcdc !default;
-$text-02: #eb4848 !default;
+$text-02: #525252 !default;
 
-/* Main widget card to fill width */
 .widgetCard {
   background: $ui-01;
   width: 100%;
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  height: auto;
-  min-height: 500px;
 }
 
-/* Ensure table container takes full width */
 .tableContainer {
   width: 100%;
   max-width: 100%;
@@ -27,111 +22,121 @@ $text-02: #eb4848 !default;
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow-x: auto !important;
+  overflow: hidden;
+}
+
+.tableBodyScroll {
+  margin: 0 !important;
+  overflow: hidden !important;
+  width: 100% !important;
 }
 
 .invoiceTable {
   width: 100% !important;
-  table-layout: fixed !important;
-  min-width: auto !important;
+  min-width: 100% !important;
 }
 
-/* Table header */
-.tableHeader {
-  font-weight: 600;
-  padding: 0 8px;
-  margin: 0.25rem;
-}
-
-/* Error container */
-.errorContainer {
-  margin: 16px;
-  width: calc(100% - 32px);
-}
-
-/* Empty state styling */
-.filterEmptyState {
-  width: 100%;
-  padding: 16px;
-}
-
-.filterEmptyStateTile {
-  width: 100%;
-  text-align: center;
-  padding: 32px !important;
-}
-
-.filterEmptyStateContent {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 8px;
-}
-
-.filterEmptyStateHelper {
-  font-size: 14px;
-  color: $text-02;
-}
-
-/* Expandable content */
-.expandedContent {
-  width: 100% !important;
-  max-width: 100% !important;
-  padding: 8px !important; 
-  overflow-x: auto !important;
-}
-
-/* Scope to this invoice table only using the invoiceTable class */
 .invoiceTable :global(.cds--data-table-container),
-.invoiceTable :global(.cds--table-container) {
+.invoiceTable :global(.cds--table-container),
+.invoiceTable :global(.cds--data-table),
+.invoiceTable :global(.cds--data-table-content) {
   width: 100% !important;
   min-width: 100% !important;
-  overflow-x: auto !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
 }
 
-/* Make the expand button column narrow */
+.invoiceTable :global(.cds--data-table) {
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.invoiceTable :global(.cds--data-table th),
+.invoiceTable :global(.cds--data-table td) {
+  box-sizing: border-box !important;
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  padding: 0.75rem 0.5rem !important;
+  line-height: 1.3 !important;
+}
+
+.invoiceTable :global(.cds--table-header-row) {
+  height: auto !important;
+  background: $ui-02 !important;
+}
+
+.invoiceTable :global(.cds--table-header) {
+  background: $ui-02 !important;
+  border-bottom: 1px solid $ui-03 !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.invoiceTable :global(.cds--table-header-label) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: normal !important;          
+  word-break: break-word !important;       
+  overflow-wrap: break-word !important;    
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-weight: 700 !important;             
+  font-size: 0.875rem !important;          
+  line-height: 1.2 !important;
+  padding: 0.5rem 0.25rem !important;
+  min-height: 40px !important;
+  flex-wrap: wrap !important;
+}
+
 .invoiceTable :global(.cds--table-expand) {
   width: 40px !important;
   min-width: 40px !important;
+  max-width: 40px !important;
 }
 
-/* Amount columns - needs right alignment */
 .invoiceTable :global(.cds--data-table td:nth-last-child(2)),
 .invoiceTable :global(.cds--data-table td:nth-last-child(3)) {
   text-align: right !important;
 }
 
-/* Add these styles to be applied with custom classes */
-.colGlobalBillId {
-  min-width: 80px !important;
+.colGlobalBillId { min-width: 80px !important; max-width: 100px !important; width: 90px !important; }
+.colDate         { min-width: 90px !important; max-width: 110px !important; width: 100px !important; }
+.colCreatedBy    { min-width: 70px !important; max-width: 90px !important; width: 80px !important; }
+.colAdmissionDate{ min-width: 90px !important; max-width: 110px !important; width: 100px !important; }
+.colDischargeDate{ min-width: 90px !important; max-width: 110px !important; width: 100px !important; }
+.colBillId       { min-width: 120px !important; max-width: 140px !important; width: 130px !important; word-break: break-word !important; }
+.colAmount       { min-width: 70px !important; max-width: 90px !important; width: 80px !important; text-align: right !important; }
+.colPaid         { min-width: 60px !important; max-width: 80px !important; width: 70px !important; text-align: right !important; }
+.colStatus       { min-width: 60px !important; max-width: 80px !important; width: 70px !important; }
+
+.expandedContent {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 8px !important;
+  overflow: hidden !important;
 }
 
-.colDate {
-  min-width: 110px !important;
+.expandedContent :global(.cds--data-table-container),
+.expandedContent :global(.cds--table-container),
+.expandedContent :global(.cds--data-table) {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
 }
 
-.colBillId {
-  min-width: 300px !important;
-  word-break: break-all !important; /* Critical for long IDs */
-}
-
-.colAmount {
-  min-width: 100px !important;
-  text-align: right !important;
-}
-
-.colStatus {
-  min-width: 80px !important;
-}
-
-/* Expanded table content */
-.expandedContent table td, 
+.expandedContent table td,
 .expandedContent table th {
   white-space: normal !important;
   overflow: visible !important;
   text-overflow: clip !important;
 }
 
-/* Make sure expanded rows don't cause horizontal scrolling */
 .invoiceTable :global(.cds--table-expand__content) {
   width: 100% !important;
   max-width: 100% !important;
@@ -139,31 +144,34 @@ $text-02: #eb4848 !default;
   padding: 0 !important;
 }
 
-/* For mobile responsiveness */
-@media (max-width: 768px) {
-  .tableContainer {
-    overflow-x: auto !important;
+.searchbox { width: 100% !important; max-width: 100% !important; margin: 8px 16px !important; }
+.errorContainer { margin: 16px; width: calc(100% - 32px); }
+.filterEmptyState { width: 100%; padding: 16px; }
+.filterEmptyStateTile { width: 100%; text-align: center; padding: 32px !important; }
+.filterEmptyStateContent { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+.filterEmptyStateHelper { font-size: 14px; color: $text-02; }
+.insuranceInfoContainer { position: relative; display: flex; justify-content: flex-end; width: 100%; margin-bottom: 1rem; }
+
+.unpaidStatus { background-color: #fff1f1; color: #da1e28; }
+.paidStatus   { background-color: #defbe6; color: #0e6027; }
+
+@media (max-width: 992px) {
+  .tableContainer { overflow-x: hidden !important; }
+  .colGlobalBillId, .colDate, .colCreatedBy, .colAdmissionDate, .colDischargeDate,
+  .colBillId, .colAmount, .colPaid, .colStatus {
+    min-width: 60px !important; max-width: none !important;
   }
 }
 
-.insuranceInfoContainer {
-  position: relative;
-  display: flex;
-  justify-content: flex-end;
-  width: 100%;
-  margin-bottom: 1rem;
-}
-
-.unpaidStatus {
-  background-color: #fff1f1;
-  color: #da1e28;
-}
-
-.paidStatus {
-  background-color: #defbe6;
-  color: #0e6027;
-}
-
-:global(.omrs-breakpoint-gt-small-desktop .-esm-patient-chart__patient-chart__widthContained___Ow0JH) {
-  max-width: 150rem;
+@media (max-width: 768px) {
+  .tableContainer { overflow: hidden !important; }
+  .invoiceTable :global(.cds--table-header-label) {
+    font-size: 0.75rem !important;
+    min-height: 35px !important;
+    padding: 0.25rem 0.125rem !important;
+  }
+  .invoiceTable :global(.cds--data-table td) {
+    padding: 8px 6px !important;
+    font-size: 0.875rem !important;
+  }
 }
