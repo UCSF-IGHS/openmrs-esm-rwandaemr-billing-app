@@ -85,8 +85,8 @@ const ConsommationReport: React.FC = () => {
   const recordMap = useMemo(() => {
     const map = new Map<string, ReportRecord[]>();
     results.forEach((row, idx) => {
-      const id = `${(page - 1) * pageSize + idx + 1}`;
-      map.set(id, row.record);
+      const rowKey = `${(page - 1) * pageSize + idx + 1}`;
+      map.set(rowKey, row.record);
     });
     return map;
   }, [results, page, pageSize]);
@@ -96,7 +96,6 @@ const ConsommationReport: React.FC = () => {
     'patientdue',
     'insurancedue',
     'paid_amount',
-    'bill_status',
     'admission_type',
     'global_bill_status',
     'collectorname',
@@ -190,7 +189,6 @@ const ConsommationReport: React.FC = () => {
       'patientdue',
       'insurancedue',
       'paid_amount',
-      'bill_status',
       'admission_type',
       'global_bill_status',
       'collectorname',
@@ -228,11 +226,15 @@ const ConsommationReport: React.FC = () => {
 
           <DataTable
             rows={results.map((row, index) => {
-              const id = `${(page - 1) * pageSize + index + 1}`;
-              const rowData = {
-                id,
-                ...Object.fromEntries(columns.map((col) => [col, getValue(row.record, col)])),
-                no: parseInt(id),
+              const rowKey = `${(page - 1) * pageSize + index + 1}`;
+              const values = Object.fromEntries(
+                columns.map((col) => [col === 'id' ? 'db_id' : col, getValue(row.record, col)])
+              );
+
+              const rowData: any = {
+                id: rowKey,
+                ...values,
+                no: parseInt(rowKey, 10),
               };
 
               return rowData;
@@ -242,8 +244,8 @@ const ConsommationReport: React.FC = () => {
               ...columns
                 .filter((col) => !hiddenColumns.includes(col))
                 .map((col) => ({
-                  key: col,
-                  header: headerDisplayMap[col] || col,
+                  key: col === 'id' ? 'db_id' : col,
+                  header: headerDisplayMap[col] || (col === 'id' ? 'id' : col),
                 })),
             ]}
             size="lg"
@@ -283,7 +285,66 @@ const ConsommationReport: React.FC = () => {
                               {recordMap.has(row.id) && (
                                 <table className={styles.billingExpandedDetailsTable}>
                                   <tbody>
-                                    {/* First row: Financial details */}
+                                    {/* Identifiers section */}
+                                    <tr>
+                                      <td className={styles.billingExpandedDetailLabel}>{t('id', 'ID')}</td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap
+                                            .get(row.id)!
+                                            .find((item) => item.column === 'id')?.value,
+                                        )}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('globalBillId', 'Global Bill ID')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'global_bill_id')
+                                            ?.value,
+                                        )}
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('consommationId', 'Consommation ID')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'consommation_id')
+                                            ?.value,
+                                        )}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('policyIdNumber', 'Policy ID Number')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'policy_id_number')
+                                            ?.value,
+                                        )}
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('insuranceName', 'Insurance Name')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'insurancename')?.value,
+                                        )}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailLabel}>
+                                        {t('collectorName', 'Collector Name')}
+                                      </td>
+                                      <td className={styles.billingExpandedDetailValue}>
+                                        {formatValue(
+                                          recordMap.get(row.id)!.find((item) => item.column === 'collectorname')?.value,
+                                        )}
+                                      </td>
+                                    </tr>
+
+                                    {/* Financial details */}
                                     <tr>
                                       <td className={styles.billingExpandedDetailLabel}>
                                         {t('globalAmount', 'Global Amount')}
@@ -302,7 +363,6 @@ const ConsommationReport: React.FC = () => {
                                         )}
                                       </td>
                                     </tr>
-                                    {/* Second row: Insurance and payment details */}
                                     <tr>
                                       <td className={styles.billingExpandedDetailLabel}>
                                         {t('insuranceDue', 'Insurance Due')}
@@ -321,16 +381,9 @@ const ConsommationReport: React.FC = () => {
                                         )}
                                       </td>
                                     </tr>
-                                    {/* Third row: Status and type details */}
+
+                                    {/* Admission details (bill_status is now shown in the primary table) */}
                                     <tr>
-                                      <td className={styles.billingExpandedDetailLabel}>
-                                        {t('billStatus', 'Bill Status')}
-                                      </td>
-                                      <td className={styles.billingExpandedDetailValue}>
-                                        {formatValue(
-                                          recordMap.get(row.id)!.find((item) => item.column === 'bill_status')?.value,
-                                        ) || 'N/A'}
-                                      </td>
                                       <td className={styles.billingExpandedDetailLabel}>
                                         {t('admissionType', 'Admission Type')}
                                       </td>
@@ -340,9 +393,6 @@ const ConsommationReport: React.FC = () => {
                                             ?.value,
                                         )}
                                       </td>
-                                    </tr>
-                                    {/* Fourth row: Global bill status and collector */}
-                                    <tr>
                                       <td className={styles.billingExpandedDetailLabel}>
                                         {t('globalBillStatus', 'Global Bill Status')}
                                       </td>
@@ -350,14 +400,6 @@ const ConsommationReport: React.FC = () => {
                                         {formatValue(
                                           recordMap.get(row.id)!.find((item) => item.column === 'global_bill_status')
                                             ?.value,
-                                        )}
-                                      </td>
-                                      <td className={styles.billingExpandedDetailLabel}>
-                                        {t('collectorName', 'Collector Name')}
-                                      </td>
-                                      <td className={styles.billingExpandedDetailValue}>
-                                        {formatValue(
-                                          recordMap.get(row.id)!.find((item) => item.column === 'collectorname')?.value,
                                         )}
                                       </td>
                                     </tr>
