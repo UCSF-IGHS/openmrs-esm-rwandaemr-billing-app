@@ -228,7 +228,22 @@ const ConsommationReport: React.FC = () => {
             rows={results.map((row, index) => {
               const rowKey = `${(page - 1) * pageSize + index + 1}`;
               const values = Object.fromEntries(
-                columns.map((col) => [col === 'id' ? 'db_id' : col, getValue(row.record, col)])
+                columns.map((col) => {
+                  const key = col === 'id' ? 'db_id' : col;
+                  let val = getValue(row.record, col);
+
+                  if (
+                    col === 'bill_status' &&
+                    (val === undefined ||
+                      val === null ||
+                      val === '' ||
+                      (typeof val === 'string' && val.toLowerCase() === 'null'))
+                  ) {
+                    val = '--';
+                  }
+
+                  return [key, val];
+                }),
               );
 
               const rowData: any = {
