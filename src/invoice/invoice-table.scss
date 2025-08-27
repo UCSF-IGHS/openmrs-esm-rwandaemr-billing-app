@@ -16,10 +16,10 @@ $text-02: #eb4848 !default;
   display: flex;
   flex-direction: column;
   height: auto;
-  min-height: 500px;
+  min-height: auto;
 }
 
-/* Ensure table container takes full width */
+/* Ensure table container takes full width without horizontal scroll */
 .tableContainer {
   width: 100%;
   max-width: 100%;
@@ -27,20 +27,39 @@ $text-02: #eb4848 !default;
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow-x: auto !important;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 .invoiceTable {
   width: 100% !important;
-  table-layout: fixed !important;
+  table-layout: auto !important;
   min-width: auto !important;
+}
+
+/* Table body scroll container - prevent horizontal overflow */
+.tableBodyScroll {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+/* Search box */
+.searchbox {
+  margin-bottom: 1rem;
+  max-width: 100%;
+  width: 100%;
 }
 
 /* Table header */
 .tableHeader {
   font-weight: 600;
-  padding: 0 8px;
-  margin: 0.25rem;
+  padding: 0.5rem 0.25rem; 
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Error container */
@@ -76,8 +95,8 @@ $text-02: #eb4848 !default;
 .expandedContent {
   width: 100% !important;
   max-width: 100% !important;
-  padding: 8px !important; 
-  overflow-x: auto !important;
+  padding: 0.5rem !important; 
+  overflow-x: hidden !important; 
 }
 
 /* Scope to this invoice table only using the invoiceTable class */
@@ -85,13 +104,38 @@ $text-02: #eb4848 !default;
 .invoiceTable :global(.cds--table-container) {
   width: 100% !important;
   min-width: 100% !important;
-  overflow-x: auto !important;
+  overflow-x: hidden !important; 
 }
 
-/* Make the expand button column narrow */
+/* Make the expand button column wider to show the icon */
 .invoiceTable :global(.cds--table-expand) {
-  width: 40px !important;
-  min-width: 40px !important;
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+}
+
+/* Ensure the expand button itself is visible */
+.invoiceTable :global(.cds--table-expand__button) {
+  width: 100% !important;
+  height: auto !important;
+  padding: 0.5rem !important;
+}
+
+/* Make sure the expand icon is visible */
+.invoiceTable :global(.cds--table-expand__svg) {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Table cells - prevent overflow on desktop */
+.invoiceTable :global(.cds--data-table td) {
+  padding: 0.5rem 0.5rem !important; 
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0; 
+  word-break: break-word;
+  vertical-align: middle !important;
 }
 
 /* Amount columns - needs right alignment */
@@ -100,27 +144,59 @@ $text-02: #eb4848 !default;
   text-align: right !important;
 }
 
-/* Add these styles to be applied with custom classes */
+/* Responsive column sizing - adjust for wider expand column */
 .colGlobalBillId {
-  min-width: 80px !important;
+  width: 7% !important;
+  min-width: 60px !important;
+  max-width: 80px !important;
 }
 
 .colDate {
-  min-width: 110px !important;
+  width: 11% !important;
+  min-width: 90px !important;
+  max-width: 110px !important;
+}
+
+.colCreatedBy {
+  width: 9% !important;
+  min-width: 70px !important;
+  max-width: 90px !important;
 }
 
 .colBillId {
-  min-width: 300px !important;
-  word-break: break-all !important; /* Critical for long IDs */
+  width: 19% !important; 
+  min-width: 120px !important;
+  max-width: 200px !important;
+  word-break: break-all !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.colAdmissionDate,
+.colDischargeDate {
+  width: 10% !important;
+  min-width: 80px !important;
+  max-width: 100px !important;
 }
 
 .colAmount {
-  min-width: 100px !important;
+  width: 10% !important;
+  min-width: 70px !important;
+  max-width: 90px !important;
+  text-align: right !important;
+}
+
+.colPaid {
+  width: 8% !important;
+  min-width: 60px !important;
+  max-width: 80px !important;
   text-align: right !important;
 }
 
 .colStatus {
-  min-width: 80px !important;
+  width: 8% !important;
+  min-width: 60px !important;
+  max-width: 80px !important;
 }
 
 /* Expanded table content */
@@ -139,10 +215,100 @@ $text-02: #eb4848 !default;
   padding: 0 !important;
 }
 
-/* For mobile responsiveness */
+/* Override any global table styles that might cause issues */
+.invoiceTable :global(.cds--data-table) {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.invoiceTable :global(.cds--data-table tbody tr td) {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Remove any extra space from the DataTable wrapper */
+.invoiceTable :global(.cds--data-table-content) {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Responsive behavior - similar to admission table */
+@media (max-width: 992px) {
+  .tableContainer {
+    overflow-x: auto !important; 
+  }
+
+  .tableBodyScroll {
+    overflow-x: auto !important; 
+  }
+
+  .searchbox {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 8px 16px !important;
+  }
+
+  /* Adjust column widths for tablets */
+  .colBillId {
+    min-width: 100px !important;
+    max-width: 150px !important;
+  }
+  
+  .colGlobalBillId {
+    min-width: 50px !important;
+  }
+}
+
 @media (max-width: 768px) {
   .tableContainer {
+    overflow-x: auto !important; 
+  }
+
+  .tableBodyScroll {
     overflow-x: auto !important;
+  }
+  
+  /* Adjust all columns for mobile */
+  .colBillId {
+    min-width: 80px !important;
+    max-width: 120px !important;
+  }
+  
+  .colGlobalBillId,
+  .colDate,
+  .colCreatedBy,
+  .colAdmissionDate,
+  .colDischargeDate,
+  .colAmount,
+  .colPaid,
+  .colStatus {
+    min-width: 60px !important;
+  }
+  
+  /* Reduce padding on mobile */
+  .invoiceTable :global(.cds--data-table td) {
+    padding: 0.25rem 0.125rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  .invoiceTable :global(.cds--data-table th) {
+    padding: 0.5rem 0.25rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* Make expand button smaller on mobile */
+  .invoiceTable :global(.cds--table-expand) {
+    width: 32px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+  }
+
+  /* Allow text wrapping on mobile for better readability */
+  .invoiceTable :global(.cds--data-table td) {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
   }
 }
 

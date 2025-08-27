@@ -27,7 +27,7 @@ import { showSnackbar } from '@openmrs/esm-framework';
 
 export interface ReportRecord {
   column: string;
-  value: string | string[];
+  value: string | number | null | (number | string)[];
 }
 
 export interface ReportRow {
@@ -155,10 +155,20 @@ const PaymentRefundReport: React.FC = () => {
 
   const getPageSizes = () => [50];
 
-  const formatDateTime = (dateString: string | string[] | undefined) => {
-    if (!dateString) return '-';
-    const val = Array.isArray(dateString) ? dateString[0] : dateString;
-    return dayjs(val).isValid() ? dayjs(val).format('YYYY-MM-DD HH:mm') : formatValue(val);
+  const formatDateTime = (raw: unknown) => {
+    if (raw == null) return '-';
+
+    if (Array.isArray(raw)) {
+      const parts = raw.map((n) => Number(n));
+      const [y, m, d, hh = 0, mm = 0, ss = 0] = parts;
+      if (!y || !m || !d) return '-';
+      const jsDate = new Date(y, m - 1, d, hh, mm, ss);
+      const djs = dayjs(jsDate);
+      return djs.isValid() ? djs.format('YYYY-MM-DD HH:mm') : '-';
+    }
+
+    const djs = dayjs(raw as any);
+    return djs.isValid() ? djs.format('YYYY-MM-DD HH:mm') : formatValue(raw as any);
   };
 
   const closeModal = () => {

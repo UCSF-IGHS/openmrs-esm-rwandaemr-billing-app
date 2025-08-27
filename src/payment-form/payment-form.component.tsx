@@ -62,7 +62,7 @@ interface SelectedItemInfo {
 interface PaymentFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void; // parent will re-fetch consommations + items
+  onSuccess: () => void; 
   selectedItems: SelectedItemInfo[];
   onItemToggle: (consommationId: string, itemIndex: number) => void;
   patientUuid?: string;
@@ -339,7 +339,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         const balance = parseFloat(depositBalance);
 
         if (deductAmount < amountToPay) {
-          setPaymentError(t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'));
+          setPaymentError(
+            t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'),
+          );
         } else if (deductAmount > balance) {
           setPaymentError(t('insufficientBalance', 'Deducted amount exceeds available balance'));
         } else {
@@ -349,18 +351,35 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setPaymentError('');
       }
     }
-  }, [paymentMethod, receivedCash, deductedAmount, paymentAmount, depositBalance, t, paymentSuccess, isFormReady, insuranceInfo.isLoading]);
+  }, [
+    paymentMethod,
+    receivedCash,
+    deductedAmount,
+    paymentAmount,
+    depositBalance,
+    t,
+    paymentSuccess,
+    isFormReady,
+    insuranceInfo.isLoading,
+  ]);
 
   const groupedAllItems = localSelectedItems.reduce(
     (groups, s) => {
       const { consommationId, consommationService } = s;
       if (!groups[consommationId]) {
-        groups[consommationId] = { consommationId, consommationService, items: [] as (ConsommationItem & { selected?: boolean })[] };
+        groups[consommationId] = {
+          consommationId,
+          consommationService,
+          items: [] as (ConsommationItem & { selected?: boolean })[],
+        };
       }
       groups[consommationId].items.push(s.item);
       return groups;
     },
-    {} as Record<string, { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }>,
+    {} as Record<
+      string,
+      { consommationId: string; consommationService: string; items: (ConsommationItem & { selected?: boolean })[] }
+    >,
   );
 
   const computeItemPaymentStatusLocal = (item: ConsommationItem & { selected?: boolean }): string =>
@@ -389,7 +408,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
       const itemsWithConsommationInfo = paidItems.map((item) => ({
         ...item,
-        consommationId: localSelectedItems.find((s) => s.item.patientServiceBillId === item.patientServiceBillId)?.consommationId,
+        consommationId: localSelectedItems.find((s) => s.item.patientServiceBillId === item.patientServiceBillId)
+          ?.consommationId,
       }));
 
       printReceipt(paymentData, groupedConsommationData, itemsWithConsommationInfo);
@@ -441,7 +461,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           throw new Error(t('insufficientBalance', 'Deducted amount exceeds available balance'));
         }
         if (parseFloat(data.deductedAmount) < enteredAmount) {
-          throw new Error(t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'));
+          throw new Error(
+            t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'),
+          );
         }
       }
 
@@ -452,7 +474,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       // Do not let patients overpay the patient portion when insurance applies
       const maxAllowedAmount = insuranceInfo.rate > 0 ? patientBalance : selectedItemsTotal;
       if (enteredAmount > maxAllowedAmount) {
-        const coverageInfo = insuranceInfo.rate > 0 ? `${insuranceInfo.rate}% insurance coverage` : 'no insurance coverage';
+        const coverageInfo =
+          insuranceInfo.rate > 0 ? `${insuranceInfo.rate}% insurance coverage` : 'no insurance coverage';
         const errorMessage =
           insuranceInfo.rate > 0
             ? t(
@@ -469,7 +492,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       const groups = actuallySelected.reduce(
         (acc, s) => {
           if (!acc[s.consommationId]) {
-            acc[s.consommationId] = { consommationId: s.consommationId, consommationService: s.consommationService, items: [] as ConsommationItem[] };
+            acc[s.consommationId] = {
+              consommationId: s.consommationId,
+              consommationService: s.consommationService,
+              items: [] as ConsommationItem[],
+            };
           }
           acc[s.consommationId].items.push(s.item);
           return acc;
@@ -829,7 +856,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                       <div className={styles.formRow}>
                         <div className={styles.formLabel}>{t('balance', 'Balance')}</div>
                         <div className={styles.formInput}>
-                          <TextInput id="deposit-balance" labelText={t('balance', 'Balance')} value={depositBalance} readOnly />
+                          <TextInput
+                            id="deposit-balance"
+                            labelText={t('balance', 'Balance')}
+                            value={depositBalance}
+                            readOnly
+                          />
                         </div>
                       </div>
                     </>
@@ -967,12 +999,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                                 const remainingAmount = Math.max(0, itemTotal - paidAmt);
 
                                 return (
-                                  <tr key={item.patientServiceBillId} className={item.selected ? styles.selectedItem : ''}>
+                                  <tr
+                                    key={item.patientServiceBillId}
+                                    className={item.selected ? styles.selectedItem : ''}
+                                  >
                                     <td>
                                       <Checkbox
                                         id={`payment-item-${group.consommationId}-${item.patientServiceBillId}`}
                                         checked={item.selected || false}
-                                        onChange={() => handleLocalItemToggle(group.consommationId, item.patientServiceBillId || 0)}
+                                        onChange={() =>
+                                          handleLocalItemToggle(group.consommationId, item.patientServiceBillId || 0)
+                                        }
                                         labelText=""
                                       />
                                     </td>

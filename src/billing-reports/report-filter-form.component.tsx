@@ -1,5 +1,5 @@
 import React from 'react';
-import { DatePicker, DatePickerInput, Dropdown, TextInput, Button } from '@carbon/react';
+import { DatePicker, DatePickerInput, ComboBox, TextInput, Button } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
 import styles from './report-filter-form.scss';
 
@@ -53,7 +53,7 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({
             <DatePickerInput
               id={field}
               labelText={t(field, field === 'startDate' ? 'Start Date' : 'End Date')}
-              placeholder={t('datePlaceholder', 'DD-MMM-YYYY')}
+              placeholder={t('datePlaceholder', 'DD-MM-YYYY')}
               aria-label={t(field, field === 'startDate' ? 'Start Date' : 'End Date')}
             />
           </DatePicker>
@@ -61,79 +61,103 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({
 
       case 'insurance':
         return (
-          <Dropdown
+          <ComboBox
             id="insurance"
             titleText={t('insurance', 'Insurance')}
             size="md"
-            label={t('select', 'Select')}
+            placeholder={t('select', 'Select')}
             items={insuranceOptions || []}
             itemToString={(item) => item?.label || ''}
             onChange={({ selectedItem }) => handleChange('insurance', selectedItem?.value)}
+            shouldFilterItem={({ item, inputValue }) => {
+              if (!inputValue) return true;
+              return item?.label?.toLowerCase().includes(inputValue.toLowerCase());
+            }}
           />
         );
 
       case 'service':
         return (
-          <Dropdown
+          <ComboBox
             id="service"
             titleText={t('service', 'Service')}
             size="md"
-            label={t('select', 'Select')}
+            placeholder={t('select', 'Select')}
             items={['Consultation', 'Pharmacy', 'Lab', 'Radiology', 'Surgery']}
             itemToString={(item) => item}
             onChange={({ selectedItem }) => handleChange('service', selectedItem)}
+            shouldFilterItem={({ item, inputValue }) => {
+              if (!inputValue) return true;
+              return item?.toLowerCase().includes(inputValue.toLowerCase());
+            }}
           />
         );
 
       case 'thirdParty':
         return (
-          <Dropdown
+          <ComboBox
             id="third-party"
             titleText={t('thirdParty', 'Third Party')}
             size="md"
-            label={t('select', 'Select')}
+            placeholder={t('select', 'Select')}
             items={thirdPartyOptions || []}
             itemToString={(item) => item?.label || ''}
             onChange={({ selectedItem }) => handleChange('thirdParty', selectedItem?.value)}
+            shouldFilterItem={({ item, inputValue }) => {
+              if (!inputValue) return true;
+              return item?.label?.toLowerCase().includes(inputValue.toLowerCase());
+            }}
           />
         );
 
       case 'reportType':
         return (
-          <Dropdown
+          <ComboBox
             id="report-type"
             titleText={t('reportType', 'Report Type')}
             size="md"
-            label={t('select', 'Select')}
+            placeholder={t('select', 'Select')}
             items={['Ordinary Report', 'DCP Report', 'All']}
             itemToString={(item) => item}
             onChange={({ selectedItem }) => handleChange('reportType', selectedItem)}
+            shouldFilterItem={({ item, inputValue }) => {
+              if (!inputValue) return true;
+              return item?.toLowerCase().includes(inputValue.toLowerCase());
+            }}
           />
         );
 
       case 'billStatus':
         return (
-          <Dropdown
+          <ComboBox
             id="bill-status"
             titleText={t('billStatus', 'Bill Status')}
             size="md"
-            label={t('select', 'Select')}
+            placeholder={t('select', 'Select')}
             items={['Paid', 'Fully Paid', 'UnPaid', 'Partly Paid']}
             itemToString={(item) => item}
             onChange={({ selectedItem }) => handleChange('billStatus', selectedItem)}
+            shouldFilterItem={({ item, inputValue }) => {
+              if (!inputValue) return true;
+              return item?.toLowerCase().includes(inputValue.toLowerCase());
+            }}
           />
         );
 
       case 'type':
         return (
-          <Dropdown
+          <ComboBox
             id="deposit-type"
             titleText={t('type', 'Deposit Report Type')}
             size="md"
-            label={t('select', 'Select')}
+            placeholder={t('select', 'Select')}
             items={['Deposit', 'Payment', 'Withdrawal']}
             itemToString={(item) => item}
             onChange={({ selectedItem }) => handleChange('type', selectedItem)}
+            shouldFilterItem={({ item, inputValue }) => {
+              if (!inputValue) return true;
+              return item?.toLowerCase().includes(inputValue.toLowerCase());
+            }}
           />
         );
 
@@ -150,14 +174,18 @@ const ReportFilterForm: React.FC<ReportFilterFormProps> = ({
 
       case 'company':
         return (
-          <Dropdown
+          <ComboBox
             id="company"
             titleText={t('company', 'Company')}
             size="md"
-            label={t('select', 'Select')}
+            placeholder={t('select', 'Select')}
             items={companyOptions || []}
             itemToString={(item) => item?.label || ''}
             onChange={({ selectedItem }) => handleChange('company', selectedItem?.value)}
+            shouldFilterItem={({ item, inputValue }) => {
+              if (!inputValue) return true;
+              return item?.label?.toLowerCase().includes(inputValue.toLowerCase());
+            }}
           />
         );
 

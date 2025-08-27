@@ -3,6 +3,9 @@
 @use '@carbon/colors';
 @use '@openmrs/esm-styleguide/src/vars' as *;
 
+/* ===========================
+   Billing Reports (scoped)
+   =========================== */
 .billingWrapper {
   width: 100%;
   height: 100vh;
@@ -17,8 +20,7 @@
     position: relative;
     background: colors.$white-0;
     margin: 0;
-    
-    // Ensures dropdowns don't cause horizontal scroll
+
     * {
       box-sizing: border-box;
     }
@@ -36,6 +38,7 @@
     position: relative;
   }
 
+  /* right side of header: the report-type dropdown lives here */
   .billingRightJustifiedItems {
     display: flex;
     flex-direction: column;
@@ -44,56 +47,88 @@
     margin: 0 layout.$spacing-03;
     row-gap: layout.$spacing-01;
     width: auto;
-    min-width: 250px;
+    min-width: 350px;
 
-    // Scoped dropdown styling
-    :global(.cds--dropdown--inline) {
+    /* ---- Carbon Dropdowns/ComboBoxes in this header ONLY ---- */
+    :global(.cds--dropdown),
+    :global(.cds--dropdown--inline),
+    :global(.cds--combo-box) {
+      width: auto;
+      min-width: 280px;
       background-color: transparent;
       border: none;
-      width: auto;
-      min-width: 250px;
-      
-      .cds--list-box {
-        width: 100%;
-        min-width: 250px;
-      }
-      
+
+      /* closed control */
+      .cds--list-box,
       .cds--list-box__field {
-        background-color: transparent;
-        border: none;
-        padding: 0;
-        height: auto;
-        min-height: auto;
-        width: 100%;
-        min-width: 250px;
+        min-width: 320px;
+        width: auto;
+        overflow: visible;
+
+        border: 1px solid colors.$gray-30;
+        border-radius: 4px;
+        background-color: colors.$white-0;
+        padding: 0.5rem 0.75rem;
+        min-height: 2.5rem;
+
+        &:focus-within {
+          border-color: colors.$blue-60;
+          box-shadow: 0 0 0 2px colors.$blue-20;
+        }
       }
-      
-      .cds--list-box__label {
+
+      .cds--list-box__label,
+      .cds--text-input {
         color: colors.$gray-100;
         font-weight: 400;
         @include type.type-style('body-compact-01');
-        white-space: nowrap;
       }
-      
+
+      .cds--text-input {
+        background-color: transparent;
+        border: none;
+        padding: 0;
+
+        &::placeholder {
+          color: colors.$gray-70;
+        }
+      }
+
+      /* open menu */
       .cds--list-box__menu {
-        width: auto;
-        min-width: 250px;
-        max-width: 350px;
+        width: max-content;
+        min-width: 320px;
+        max-width: 520px;
         z-index: 9999;
         position: absolute;
         right: 0;
         left: auto;
+        background-color: colors.$white-0;
+        border: 1px solid colors.$gray-30;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       }
-      
-      .cds--list-box__menu-item__option {
-        white-space: nowrap;
-        padding: 8px 12px;
-        font-size: 14px;
+
+      .cds--list-box__menu-item__option,
+      .cds--list-box__menu-item__option .cds--text-truncate {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        word-break: keep-all;
+        padding: 0.5rem 0.75rem;
+        line-height: 1.25rem;
+        max-width: none;
+        color: colors.$gray-100;
+        cursor: pointer;
+      }
+
+      .cds--list-box__menu-item__option:hover,
+      .cds--list-box__menu-item__option[aria-selected='true'] {
+        background-color: colors.$blue-10;
       }
     }
   }
 
-  // Billing Document Icon - matching billing header colors     
   .billingDocumentIcon {
     fill: #7BBCB9;
     color: #7BBCB9;
@@ -146,13 +181,11 @@
     margin: 0;
   }
 
-  // Content Area Styles
   .billingContent {
     padding: layout.$spacing-05;
     width: 100%;
   }
 
-  // Custom Header Styles
   .billingCustomHeaderContainer {
     display: flex;
     justify-content: space-between;
@@ -178,7 +211,6 @@
     }
   }
 
-  // Bill History Table Styles
   .billingHistoryContainer {
     background-color: colors.$white-0;
     border: 1px solid colors.$gray-20;
@@ -308,11 +340,60 @@
     text-overflow: ellipsis;
   }
 
+  /* ----- Report Filter Form (searchable dropdowns) ----- */
   .billingReportFilterForm {
     padding: 1.5rem;
     background: #f9f9f9;
     border-radius: 6px;
     margin-top: 1rem;
+
+    :global(.cds--combo-box) {
+      width: 100%;
+
+      .cds--text-input {
+        background-color: colors.$white-0;
+        border: 1px solid colors.$gray-30;
+        border-radius: 4px;
+        padding: 0.75rem 1rem;
+        font-size: 14px;
+        color: colors.$gray-100;
+
+        &:focus {
+          border-color: colors.$blue-60;
+          box-shadow: 0 0 0 2px colors.$blue-20;
+        }
+
+        &::placeholder {
+          color: colors.$gray-70;
+        }
+      }
+
+      .cds--list-box__menu {
+        background-color: colors.$white-0;
+        border: 1px solid colors.$gray-30;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+      }
+
+      .cds--list-box__menu-item__option {
+        padding: 0.75rem 1rem;
+        font-size: 14px;
+        color: colors.$gray-100;
+        cursor: pointer;
+
+        &:hover {
+          background-color: colors.$blue-10;
+        }
+
+        &:focus {
+          background-color: colors.$blue-20;
+          outline: none;
+        }
+      }
+    }
   }
 
   .billingReportFilterFormFields {
@@ -328,7 +409,7 @@
     justify-content: flex-start;
   }
 
-  // Modal styles for refund reports
+  /* ----- Modal (refund report) ----- */
   .billingModalBackdrop {
     position: fixed;
     top: 0;
@@ -389,7 +470,6 @@
     justify-content: flex-end;
   }
 
-  // Enhanced expanded table styles here
   .billingExpandedTableContainer {
     padding: layout.$spacing-05;
     background-color: colors.$gray-10;
@@ -453,15 +533,13 @@
     color: colors.$gray-100;
     width: 25%;
     word-break: break-word;
-    
-    // Special styling for amounts/numbers
-    &:matches([class*="amount"], [class*="due"], [class*="paid"]) {
+
+    &:matches([class*='amount'], [class*='due'], [class*='paid']) {
       font-weight: 500;
       text-align: right;
     }
   }
 
-  // RTL support - scoped to billing wrapper
   &[dir='rtl'] {
     .billingDateAndLocation {
       & > svg {
