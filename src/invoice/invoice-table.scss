@@ -2,19 +2,24 @@
 @use '@carbon/type';
 @use '~@openmrs/esm-styleguide/src/vars';
 
+/* Ensure variables have fallback values */
 $ui-01: #ffffff !default;
 $ui-02: #f4f4f4 !default;
 $ui-03: #dcdcdc !default;
-$text-02: #525252 !default;
+$text-02: #eb4848 !default;
 
+/* Main widget card to fill width */
 .widgetCard {
   background: $ui-01;
   width: 100%;
   max-width: 100%;
   display: flex;
   flex-direction: column;
+  height: auto;
+  min-height: auto;
 }
 
+/* Ensure table container takes full width without horizontal scroll */
 .tableContainer {
   width: 100%;
   max-width: 100%;
@@ -22,121 +27,187 @@ $text-02: #525252 !default;
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow: hidden;
-}
-
-.tableBodyScroll {
-  margin: 0 !important;
-  overflow: hidden !important;
-  width: 100% !important;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 .invoiceTable {
   width: 100% !important;
-  min-width: 100% !important;
+  table-layout: auto !important;
+  min-width: auto !important;
 }
 
+/* Table body scroll container - prevent horizontal overflow */
+.tableBodyScroll {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+/* Search box */
+.searchbox {
+  margin-bottom: 1rem;
+  max-width: 100%;
+  width: 100%;
+}
+
+/* Table header */
+.tableHeader {
+  font-weight: 600;
+  padding: 0.5rem 0.25rem; 
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Error container */
+.errorContainer {
+  margin: 16px;
+  width: calc(100% - 32px);
+}
+
+/* Empty state styling */
+.filterEmptyState {
+  width: 100%;
+  padding: 16px;
+}
+
+.filterEmptyStateTile {
+  width: 100%;
+  text-align: center;
+  padding: 32px !important;
+}
+
+.filterEmptyStateContent {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.filterEmptyStateHelper {
+  font-size: 14px;
+  color: $text-02;
+}
+
+/* Expandable content */
+.expandedContent {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0.5rem !important; 
+  overflow-x: hidden !important; 
+}
+
+/* Scope to this invoice table only using the invoiceTable class */
 .invoiceTable :global(.cds--data-table-container),
-.invoiceTable :global(.cds--table-container),
-.invoiceTable :global(.cds--data-table),
-.invoiceTable :global(.cds--data-table-content) {
+.invoiceTable :global(.cds--table-container) {
   width: 100% !important;
   min-width: 100% !important;
-  max-width: 100% !important;
-  overflow: hidden !important;
+  overflow-x: hidden !important; 
 }
 
-.invoiceTable :global(.cds--data-table) {
-  table-layout: fixed !important;
-  border-collapse: collapse !important;
+/* Make the expand button column wider to show the icon */
+.invoiceTable :global(.cds--table-expand) {
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+}
+
+/* Ensure the expand button itself is visible */
+.invoiceTable :global(.cds--table-expand__button) {
   width: 100% !important;
-  max-width: 100% !important;
-}
-
-.invoiceTable :global(.cds--data-table th),
-.invoiceTable :global(.cds--data-table td) {
-  box-sizing: border-box !important;
-  white-space: normal !important;
-  overflow-wrap: break-word !important;
-  word-break: break-word !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  padding: 0.75rem 0.5rem !important;
-  line-height: 1.3 !important;
-}
-
-.invoiceTable :global(.cds--table-header-row) {
   height: auto !important;
-  background: $ui-02 !important;
+  padding: 0.5rem !important;
 }
 
-.invoiceTable :global(.cds--table-header) {
-  background: $ui-02 !important;
-  border-bottom: 1px solid $ui-03 !important;
-  text-align: center !important;
+/* Make sure the expand icon is visible */
+.invoiceTable :global(.cds--table-expand__svg) {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Table cells - prevent overflow on desktop */
+.invoiceTable :global(.cds--data-table td) {
+  padding: 0.5rem 0.5rem !important; 
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0; 
+  word-break: break-word;
   vertical-align: middle !important;
 }
 
-.invoiceTable :global(.cds--table-header-label) {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  white-space: normal !important;          
-  word-break: break-word !important;       
-  overflow-wrap: break-word !important;    
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  font-weight: 700 !important;             
-  font-size: 0.875rem !important;          
-  line-height: 1.2 !important;
-  padding: 0.5rem 0.25rem !important;
-  min-height: 40px !important;
-  flex-wrap: wrap !important;
-}
-
-.invoiceTable :global(.cds--table-expand) {
-  width: 40px !important;
-  min-width: 40px !important;
-  max-width: 40px !important;
-}
-
+/* Amount columns - needs right alignment */
 .invoiceTable :global(.cds--data-table td:nth-last-child(2)),
 .invoiceTable :global(.cds--data-table td:nth-last-child(3)) {
   text-align: right !important;
 }
 
-.colGlobalBillId { min-width: 80px !important; max-width: 100px !important; width: 90px !important; }
-.colDate         { min-width: 90px !important; max-width: 110px !important; width: 100px !important; }
-.colCreatedBy    { min-width: 70px !important; max-width: 90px !important; width: 80px !important; }
-.colAdmissionDate{ min-width: 90px !important; max-width: 110px !important; width: 100px !important; }
-.colDischargeDate{ min-width: 90px !important; max-width: 110px !important; width: 100px !important; }
-.colBillId       { min-width: 120px !important; max-width: 140px !important; width: 130px !important; word-break: break-word !important; }
-.colAmount       { min-width: 70px !important; max-width: 90px !important; width: 80px !important; text-align: right !important; }
-.colPaid         { min-width: 60px !important; max-width: 80px !important; width: 70px !important; text-align: right !important; }
-.colStatus       { min-width: 60px !important; max-width: 80px !important; width: 70px !important; }
-
-.expandedContent {
-  width: 100% !important;
-  max-width: 100% !important;
-  padding: 8px !important;
-  overflow: hidden !important;
+/* Responsive column sizing - adjust for wider expand column */
+.colGlobalBillId {
+  width: 7% !important;
+  min-width: 60px !important;
+  max-width: 80px !important;
 }
 
-.expandedContent :global(.cds--data-table-container),
-.expandedContent :global(.cds--table-container),
-.expandedContent :global(.cds--data-table) {
-  width: 100% !important;
-  max-width: 100% !important;
-  overflow: hidden !important;
+.colDate {
+  width: 11% !important;
+  min-width: 90px !important;
+  max-width: 110px !important;
 }
 
-.expandedContent table td,
+.colCreatedBy {
+  width: 9% !important;
+  min-width: 70px !important;
+  max-width: 90px !important;
+}
+
+.colBillId {
+  width: 19% !important; 
+  min-width: 120px !important;
+  max-width: 200px !important;
+  word-break: break-all !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.colAdmissionDate,
+.colDischargeDate {
+  width: 10% !important;
+  min-width: 80px !important;
+  max-width: 100px !important;
+}
+
+.colAmount {
+  width: 10% !important;
+  min-width: 70px !important;
+  max-width: 90px !important;
+  text-align: right !important;
+}
+
+.colPaid {
+  width: 8% !important;
+  min-width: 60px !important;
+  max-width: 80px !important;
+  text-align: right !important;
+}
+
+.colStatus {
+  width: 8% !important;
+  min-width: 60px !important;
+  max-width: 80px !important;
+}
+
+/* Expanded table content */
+.expandedContent table td, 
 .expandedContent table th {
   white-space: normal !important;
   overflow: visible !important;
   text-overflow: clip !important;
 }
 
+/* Make sure expanded rows don't cause horizontal scrolling */
 .invoiceTable :global(.cds--table-expand__content) {
   width: 100% !important;
   max-width: 100% !important;
@@ -144,34 +215,121 @@ $text-02: #525252 !default;
   padding: 0 !important;
 }
 
-.searchbox { width: 100% !important; max-width: 100% !important; margin: 8px 16px !important; }
-.errorContainer { margin: 16px; width: calc(100% - 32px); }
-.filterEmptyState { width: 100%; padding: 16px; }
-.filterEmptyStateTile { width: 100%; text-align: center; padding: 32px !important; }
-.filterEmptyStateContent { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
-.filterEmptyStateHelper { font-size: 14px; color: $text-02; }
-.insuranceInfoContainer { position: relative; display: flex; justify-content: flex-end; width: 100%; margin-bottom: 1rem; }
+/* Override any global table styles that might cause issues */
+.invoiceTable :global(.cds--data-table) {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
 
-.unpaidStatus { background-color: #fff1f1; color: #da1e28; }
-.paidStatus   { background-color: #defbe6; color: #0e6027; }
+.invoiceTable :global(.cds--data-table tbody tr td) {
+  border-bottom: 1px solid #e0e0e0;
+}
 
+/* Remove any extra space from the DataTable wrapper */
+.invoiceTable :global(.cds--data-table-content) {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Responsive behavior - similar to admission table */
 @media (max-width: 992px) {
-  .tableContainer { overflow-x: hidden !important; }
-  .colGlobalBillId, .colDate, .colCreatedBy, .colAdmissionDate, .colDischargeDate,
-  .colBillId, .colAmount, .colPaid, .colStatus {
-    min-width: 60px !important; max-width: none !important;
+  .tableContainer {
+    overflow-x: auto !important; 
+  }
+
+  .tableBodyScroll {
+    overflow-x: auto !important; 
+  }
+
+  .searchbox {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 8px 16px !important;
+  }
+
+  /* Adjust column widths for tablets */
+  .colBillId {
+    min-width: 100px !important;
+    max-width: 150px !important;
+  }
+  
+  .colGlobalBillId {
+    min-width: 50px !important;
   }
 }
 
 @media (max-width: 768px) {
-  .tableContainer { overflow: hidden !important; }
-  .invoiceTable :global(.cds--table-header-label) {
-    font-size: 0.75rem !important;
-    min-height: 35px !important;
-    padding: 0.25rem 0.125rem !important;
+  .tableContainer {
+    overflow-x: auto !important; 
   }
+
+  .tableBodyScroll {
+    overflow-x: auto !important;
+  }
+  
+  /* Adjust all columns for mobile */
+  .colBillId {
+    min-width: 80px !important;
+    max-width: 120px !important;
+  }
+  
+  .colGlobalBillId,
+  .colDate,
+  .colCreatedBy,
+  .colAdmissionDate,
+  .colDischargeDate,
+  .colAmount,
+  .colPaid,
+  .colStatus {
+    min-width: 60px !important;
+  }
+  
+  /* Reduce padding on mobile */
   .invoiceTable :global(.cds--data-table td) {
-    padding: 8px 6px !important;
+    padding: 0.25rem 0.125rem !important;
     font-size: 0.875rem !important;
   }
+
+  .invoiceTable :global(.cds--data-table th) {
+    padding: 0.5rem 0.25rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* Make expand button smaller on mobile */
+  .invoiceTable :global(.cds--table-expand) {
+    width: 32px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+  }
+
+  /* Allow text wrapping on mobile for better readability */
+  .invoiceTable :global(.cds--data-table td) {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+}
+
+.insuranceInfoContainer {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.unpaidStatus {
+  background-color: #fff1f1;
+  color: #da1e28;
+}
+
+.paidStatus {
+  background-color: #defbe6;
+  color: #0e6027;
+}
+
+:global(.omrs-breakpoint-gt-small-desktop .-esm-patient-chart__patient-chart__widthContained___Ow0JH) {
+  max-width: 150rem;
 }
