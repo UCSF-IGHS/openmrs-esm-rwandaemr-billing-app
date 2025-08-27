@@ -450,6 +450,20 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       fetchConsommations();
     }, [fetchConsommations, cleanupOldPaymentData]);
 
+    // Ensure expanded consommations auto-load their items after any refresh
+    useEffect(() => {
+      if (expandedConsommations.size === 0 || consommationsWithItems.length === 0) return;
+
+      consommationsWithItems.forEach((c) => {
+        const id = c.consommationId?.toString();
+        if (!id) return;
+        if (expandedConsommations.has(id) && !c.itemsLoaded && !c.isLoadingItems) {
+          // Re-fetch items for expanded panels that lost their loaded state after a refresh
+          loadConsommationItems(id);
+        }
+      });
+    }, [consommationsWithItems, expandedConsommations, loadConsommationItems]);
+
     // Refresh insurance rates for all consommations when global bill changes
     const refreshAllInsuranceRates = useCallback(async () => {
       if (consommationsWithItems.length === 0) return;

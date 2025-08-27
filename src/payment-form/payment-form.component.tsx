@@ -641,13 +641,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setPaymentData(receiptPaymentData);
         setGroupedConsommationData(receiptGrouped);
         setPaidItems(allPaidItems);
+        // Do NOT refresh parent or close modal immediately; show success view with Print Receipt.
+        // Parent refresh is triggered only when the user closes the modal (see handleCloseModal).
         setPaymentSuccess(true);
-
-        try {
-          onSuccess();
-        } catch {
-          /* no-op */
-        }
 
         showToast({
           title: t('paymentSuccess', 'Payment Successful'),
