@@ -59,7 +59,20 @@ const schema = z
       path: ['thirdPartyProvider'],
       message: 'Third Party Provider is required when Has Third Party is checked',
     },
-  );
+  )
+  .superRefine((data, ctx) => {
+    if (data.coverageStartDate && data.coverageEndDate) {
+      const start = new Date(data.coverageStartDate);
+      const end = new Date(data.coverageEndDate);
+      if (end < start) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['coverageEndDate'],
+          message: 'Coverage end date cannot be before coverage start date',
+        });
+      }
+    }
+  });
 
 type InsuranceFormSchema = z.infer<typeof schema>;
 
@@ -99,6 +112,11 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
 
   const hasThirdParty = watch('hasThirdParty');
   const coverageStartDate = watch('coverageStartDate');
+  const coverageEndDate = watch('coverageEndDate');
+  const endBeforeStart =
+    !!coverageStartDate &&
+    !!coverageEndDate &&
+    new Date(coverageEndDate).getTime() < new Date(coverageStartDate).getTime();
 
   const onSubmit: SubmitHandler<InsuranceFormSchema> = async (data) => {
     setIsSubmitting(true);
@@ -176,6 +194,17 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
     loadThirdParties();
   }, []);
 
+  useEffect(() => {
+    if (endBeforeStart) {
+      methods.setError('coverageEndDate', {
+        type: 'manual',
+        message: 'Coverage end date cannot be before coverage start date',
+      });
+    } else {
+      methods.clearErrors('coverageEndDate');
+    }
+  }, [endBeforeStart, methods]);
+
   return (
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
@@ -214,9 +243,8 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                   <DatePicker
                     datePickerType="single"
                     dateFormat="d/m/Y"
-                    maxDate={new Date().toISOString()}
+                    maxDate={new Date()}
                     onChange={([date]) => onChange(date)}
-                    // onBlur={onBlur}
                     value={value}
                   >
                     <DatePickerInput
@@ -237,16 +265,16 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                   <DatePicker
                     datePickerType="single"
                     dateFormat="d/m/Y"
-                    minDate={coverageStartDate || new Date().toISOString()}
-                    // placeholder="dd/mm/yyyy"
+                    minDate={coverageStartDate ? new Date(coverageStartDate) : new Date()}
                     onChange={([date]) => onChange(date)}
-                    // onBlur={onBlur}
                     value={value}
                   >
                     <DatePickerInput
                       id="coverageEndDateInput"
                       labelText={<RequiredFieldLabel label={t('coverageEndDate', 'Coverage End Date')} t={t} />}
                       placeholder="dd/mm/yyyy"
+                      invalid={endBeforeStart || !!errors.coverageEndDate}
+                      invalidText={t('endDateBeforeStart', 'Coverage end date cannot be before coverage start date')}
                     />
                   </DatePicker>
                 </ResponsiveWrapper>
@@ -325,7 +353,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
 
               <Button
                 className={styles.button}
-                disabled={isSubmitting}
+                disabled={isSubmitting || endBeforeStart || !!errors.coverageEndDate}
                 kind="primary"
                 type="button"
                 onClick={() => {
