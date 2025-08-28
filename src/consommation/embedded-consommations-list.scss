@@ -150,12 +150,11 @@ $disabled-03: #8d8d8d !default;
 .itemsTable {
   width: 100% !important;
   max-width: 100% !important;
-  overflow-x: hidden;
+  overflow-x: hidden; // we’ll wrap content instead of scrolling
   background-color: #fff;
   border-radius: 4px;
   border: 1px solid #ececec;
-  margin: 0;                      
-  display: block;
+  margin: 0;
 }
 
 /* ---------- Actual table ---------- */
@@ -163,7 +162,7 @@ $disabled-03: #8d8d8d !default;
   width: 100% !important;
   max-width: 100% !important;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
   margin: 0 !important;
 
   th,
@@ -173,9 +172,9 @@ $disabled-03: #8d8d8d !default;
     border-bottom: 1px solid #e0e0e0;
     font-size: 0.825rem;
     line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   /* Header */
@@ -185,85 +184,17 @@ $disabled-03: #8d8d8d !default;
     color: #161616;
   }
 
+  /* Column alignment without forcing widths */
+  tbody td:nth-child(1) { text-align: center; width: 36px; }
+  tbody td:nth-last-child(6),
+  tbody td:nth-last-child(5),
+  tbody td:nth-last-child(4),
+  tbody td:nth-last-child(3) { text-align: right; }
+  tbody td:nth-last-child(2) { text-align: center; }
+
   /* Hover */
   tbody tr:hover {
     background-color: #f8f9fa;
-  }
-
-  th:nth-child(1),
-  td:nth-child(1) {
-    width: 50px !important;
-    max-width: 50px !important;
-    text-align: center;
-  }
-
-  th:nth-child(2),
-  td:nth-child(2) {
-    width: 130px !important;
-    max-width: 130px !important;
-  }
-
-  th:nth-child(3),
-  td:nth-child(3) {
-    width: auto !important;
-    max-width: none !important;
-    min-width: 300px !important;
-  }
-
-  /* Qty - wider for better alignment and readability */
-  th:nth-last-child(8),
-  td:nth-last-child(8) {
-    width: 80px !important;
-    max-width: 80px !important;
-    text-align: center !important;
-  }
-
-  /* Unit Price - wider for better number display */
-  th:nth-last-child(7),
-  td:nth-last-child(7) {
-    width: 130px !important;
-    max-width: 130px !important;
-    text-align: right !important;
-  }
-
-  /* Total - wider for better number display */
-  th:nth-last-child(6),
-  td:nth-last-child(6) {
-    width: 130px !important;
-    max-width: 130px !important;
-    text-align: right !important;
-  }
-
-  /* Insurance - wider for better number display */
-  th:nth-last-child(5),
-  td:nth-last-child(5) {
-    width: 140px !important;
-    max-width: 140px !important;
-    text-align: right !important;
-  }
-
-  /* Patient - wider for better number display */
-  th:nth-last-child(4),
-  td:nth-last-child(4) {
-    width: 140px !important;
-    max-width: 140px !important;
-    text-align: right !important;
-  }
-
-  /* Paid - wider for better number display */
-  th:nth-last-child(3),
-  td:nth-last-child(3) {
-    width: 130px !important;
-    max-width: 130px !important;
-    text-align: right !important;
-  }
-
-  /* Status - wider for better badge display */
-  th:nth-last-child(2),
-  td:nth-last-child(2) {
-    width: 120px !important;
-    max-width: 120px !important;
-    text-align: center !important;
   }
 
   /* Edge padding trims to prevent overflow caused by cell padding */
@@ -285,9 +216,10 @@ $disabled-03: #8d8d8d !default;
 
 /* Item name clamp */
 .itemNameCell {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
 }
 
 /* Status tag baseline */
@@ -387,6 +319,7 @@ $disabled-03: #8d8d8d !default;
     td {
       padding: 0.5rem 0.25rem;
       font-size: 0.75rem;
+      white-space: normal;
     }
   }
 }
