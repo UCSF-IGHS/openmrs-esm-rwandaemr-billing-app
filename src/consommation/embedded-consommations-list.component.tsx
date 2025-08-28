@@ -84,6 +84,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     const [isClosing, setIsClosing] = useState(false);
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
     const [isClosedLocal, setIsClosedLocal] = useState<boolean>(Boolean(isGlobalBillClosed));
+    const ratesCacheRef = React.useRef<Record<string, { insuranceRate: number; patientRate: number }>>({});
     useEffect(() => {
       setIsClosedLocal(Boolean(isGlobalBillClosed));
     }, [isGlobalBillClosed]);
@@ -194,17 +195,21 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
     const fetchInsuranceRates = useCallback(
       async (consommationId: string) => {
+        const cached = ratesCacheRef.current[consommationId];
+        if (cached) return cached;
+
         try {
           const rates = await getConsommationRates(consommationId, globalBillId);
-
           if (rates.insuranceRate + rates.patientRate !== 100) {
             console.warn(`Rate validation failed for consommation ${consommationId}:`, rates);
           }
-
+          ratesCacheRef.current[consommationId] = rates;
           return rates;
         } catch (error) {
           console.error('Error fetching insurance rates:', error);
-          return { insuranceRate: 0, patientRate: 100 };
+          const fallback = { insuranceRate: 0, patientRate: 100 };
+          ratesCacheRef.current[consommationId] = fallback;
+          return fallback;
         }
       },
       [globalBillId],
@@ -237,24 +242,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
           setConsommationsWithItems(consommationsWithItemsData);
 
-          // Load insurance rates for all consommations immediately
-          consommationData.results.forEach(async (consommation) => {
-            if (consommation.consommationId) {
-              try {
-                const rates = await fetchInsuranceRates(consommation.consommationId.toString());
-                setConsommationsWithItems((prev) =>
-                  prev.map((c) =>
-                    c.consommationId?.toString() === consommation.consommationId?.toString()
-                      ? { ...c, insuranceRates: rates }
-                      : c,
-                  ),
-                );
-              } catch (error) {
-                console.error(`Failed to load initial rates for consommation ${consommation.consommationId}:`, error);
-              }
-            }
-          });
-
           loadConsommationStatuses(consommationData.results);
         }
       } catch (error: any) {
@@ -266,7 +253,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       } finally {
         setIsLoading(false);
       }
-    }, [globalBillId, t, loadConsommationStatuses, fetchInsuranceRates]);
+    }, [globalBillId, t, loadConsommationStatuses]);
 
     // Paid strictly from backend-derived fields
     const isActuallyPaid = useCallback((item: ConsommationItem): boolean => isItemPaid(item), []);
@@ -490,12 +477,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
         }),
       );
     }, [consommationsWithItems, fetchInsuranceRates]);
-
-    useEffect(() => {
-      if (consommationsWithItems.length > 0) {
-        refreshAllInsuranceRates();
-      }
-    }, [globalBillId, consommationsWithItems.length, refreshAllInsuranceRates]);
 
     const handleAddNewInvoice = useCallback(() => {
       if (onAddNewInvoice) {
