@@ -868,7 +868,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               <div className={styles.paymentFormColumn}>
                 <FormGroup legendText="">
                   <div className={styles.formRow}>
-                    <div className={styles.formLabel}>{t('amountPaid', 'Amount Paid')}</div>
+                    <div className={styles.formLabel}>{t('amountPaid', 'Amount To Be Paid')}</div>
                     <div className={styles.formInput}>
                       <Controller
                         name="paymentAmount"
