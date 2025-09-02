@@ -1,26 +1,29 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './billing.scss';
 import PaymentsDeskIcon from './images/payments-desk-icon.svg';
-import BillConfirmation from './bill-tabs/bill-confirmation.component';
-import SearchInsurance from './bill-tabs/search-insurance.component';
-import GlobalBillSearch from './bill-tabs/global-bill-search.component';
-import ConsommationSearch from './bill-tabs/consommation-search.component';
-import BillListTable from './recent-bills/bill-list-table.component';
 import { useSession } from '@openmrs/esm-framework';
-import { RadioButtonGroup, RadioButton, CodeSnippetSkeleton, StructuredListSkeleton } from '@carbon/react';
+import { CodeSnippetSkeleton, Tabs, Tab, TabList, TabPanel, TabPanels, TextInput } from '@carbon/react';
 import { getGlobalBillSummary } from './api/billing';
 import { formatNumberCurrency } from './metrics/metrics.resources';
 
 type SearchOption = 'bill-confirmation' | 'search-insurance' | 'global-bill' | 'consommation';
 
+const LazyGlobalBills = lazy(() =>
+  import('./invoice/invoice-table.component').then((m) => ({ default: m.BillingHomeGlobalBillsTable })),
+);
+const LazyConsommationSearch = lazy(() => import('./bill-tabs/consommation-search.component'));
+
 const Billing: React.FC = () => {
   const { t } = useTranslation();
   const session = useSession();
-  const [activeOption, setActiveOption] = useState<SearchOption>('search-insurance');
   const userLocation = session?.sessionLocation?.display || 'Unknown Location';
 
-  // State for fetched metrics
+  const [patientUuidInput, setPatientUuidInput] = useState('');
+  const [insuranceCardNoInput, setInsuranceCardNoInput] = useState('');
+
+  const [active, setActive] = useState(0);
+
   const [metrics, setMetrics] = useState({
     cumulativeBills: 0,
     pendingBills: 0,
@@ -51,13 +54,11 @@ const Billing: React.FC = () => {
     fetchMetrics();
   }, [fetchMetrics]);
 
-  // Listen for global bill created events to refresh metrics
   useEffect(() => {
     const handleGlobalBillCreated = (event: CustomEvent) => {
-      // Refresh metrics when a new global bill is created
       setTimeout(() => {
         fetchMetrics();
-      }, 1000); // Small delay to ensure the bill is fully processed
+      }, 1000); 
     };
 
     window.addEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
@@ -69,15 +70,6 @@ const Billing: React.FC = () => {
 
   const formatCurrency = (value: number): string => {
     return `RWF ${value.toFixed(2)}`;
-  };
-
-  const handleOptionChange = (selected: any): void => {
-    const value =
-      typeof selected === 'object' && selected !== null
-        ? selected.target?.value || selected.selectedItem?.value || selected
-        : selected;
-
-    setActiveOption(value as SearchOption);
   };
 
   return (
@@ -123,39 +115,46 @@ const Billing: React.FC = () => {
           )}
         </div>
 
-        {/* Radio Navigation */}
-        <div className={styles.radioNavigationContainer}>
-          <RadioButtonGroup
-            name="billing-option"
-            valueSelected={activeOption}
-            onChange={handleOptionChange}
-            orientation="horizontal"
-          >
-            <RadioButton
-              id="bill-confirmation"
-              labelText={t('billConfirmation', 'Bill Confirmation')}
-              value="bill-confirmation"
-            />
-            <RadioButton
-              id="search-insurance"
-              labelText={t('searchInsurancePolicy', 'Search Insurance Policy')}
-              value="search-insurance"
-            />
-            <RadioButton id="global-bill" labelText={t('searchGlobalBill', 'Search Global Bill')} value="global-bill" />
-            <RadioButton
-              id="consommation"
-              labelText={t('searchConsommations', 'Search Consommations')}
-              value="consommation"
-            />
-          </RadioButtonGroup>
-        </div>
-
         <div className={styles.content}>
-          {activeOption === 'bill-confirmation' && <BillConfirmation />}
-          {activeOption === 'search-insurance' && <SearchInsurance />}
-          {activeOption === 'global-bill' && <GlobalBillSearch />}
-          {activeOption === 'consommation' && <ConsommationSearch />}
-          <BillListTable />
+          <Tabs onChange={({ selectedIndex }) => setActive(selectedIndex)}>
+            <TabList aria-label="Billing views">
+              <Tab>Global Bills</Tab>
+              <Tab>Consommations</Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel>
+                {/* Search inputs for Global Bills */}
+                <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1rem', gridTemplateColumns: '1fr 1fr' }}>
+                  <TextInput
+                    id="patient-uuid-input"
+                    labelText={t('patientUuid', 'Patient UUID')}
+                    placeholder={t('enterPatientUuid', 'Enter patient UUID')}
+                    value={patientUuidInput}
+                    onChange={(e) => setPatientUuidInput(e.target.value)}
+                  />
+                  <TextInput
+                    id="insurance-card-input"
+                    labelText={t('insuranceCardNumber', 'Insurance Card Number')}
+                    placeholder={t('enterInsuranceCardNumber', 'Enter insurance card number')}
+                    value={insuranceCardNoInput}
+                    onChange={(e) => setInsuranceCardNoInput(e.target.value)}
+                  />
+                </div>
+                <Suspense fallback={null}>
+                  {active === 0 && (
+                    <LazyGlobalBills
+                      patientQuery={patientUuidInput || undefined}
+                      policyIdQuery={insuranceCardNoInput || undefined}
+                    />
+                  )}
+                </Suspense>
+              </TabPanel>
+
+              <TabPanel>
+                <Suspense fallback={null}>{active === 1 && <LazyConsommationSearch />}</Suspense>
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
         </div>
       </div>
     </div>

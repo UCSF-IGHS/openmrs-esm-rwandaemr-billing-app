@@ -5,7 +5,6 @@ import type { PatientBill, BillPaymentRequest, BillPaymentResponse, ApiResponse 
 
 const BASE_API_URL = API_CONFIG.BASE_BILLING_URL;
 
-// Type definitions
 export type PatientBillResponse = ApiResponse<PatientBill>;
 
 /**
@@ -24,6 +23,37 @@ export const getPatientBills = async (
 ): Promise<PatientBillResponse> => {
   const response = await openmrsFetch<PatientBillResponse>(`${BASE_API_URL}/patientBill?limit=${limit}`);
   return response.data;
+};
+
+/** Fetch a single patient bill by ID with full details (including payments) */
+export const getPatientBillById = async (patientBillId: number | string): Promise<PatientBill> => {
+  const url = `${BASE_API_URL}/patientBill/${patientBillId}?v=full`;
+  const response = await openmrsFetch<PatientBill>(url);
+  return response.data as unknown as PatientBill;
+};
+
+/**
+ * Fetch recent patient bills and hydrate each with its full details (payments etc.)
+ * Falls back gracefully if any detail call fails.
+ */
+export const getPatientBillsDetailed = async (
+  startDate: string,
+  endDate: string,
+  startIndex: number = 0,
+  limit: number = 20,
+): Promise<PatientBillResponse> => {
+  const summary = await getPatientBills(startDate, endDate, startIndex, limit);
+  const results = await Promise.all(
+    (summary.results || []).map(async (b: any) => {
+      try {
+        const full = await getPatientBillById(b.patientBillId);
+        return { ...b, ...full };
+      } catch {
+        return b;
+      }
+    }),
+  );
+  return { ...summary, results } as PatientBillResponse;
 };
 
 /**
