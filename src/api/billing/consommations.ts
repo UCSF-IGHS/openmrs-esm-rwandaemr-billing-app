@@ -35,6 +35,54 @@ export const getConsommationsByGlobalBillId = async (globalBillId: string): Prom
 };
 
 /**
+ * Fetches consommations list (paginated) sorted by most recent first
+ * @param limit - page size (default 10)
+ * @param startIndex - pagination start index (default 0)
+ * @param sort - sort string, default `createdDate:desc`
+ */
+export const searchConsommations = async ({
+  patientName,
+  policyIdNumber,
+  limit = 10,
+  startIndex = 0,
+  orderBy = 'createdDate',
+  orderDirection = 'desc',
+}: {
+  patientName?: string;
+  policyIdNumber?: string;
+  limit?: number;
+  startIndex?: number;
+  orderBy?: string;
+  orderDirection?: 'asc' | 'desc';
+}): Promise<ConsommationListResponse> => {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  params.set('startIndex', String(startIndex));
+  params.set('orderBy', orderBy);
+  params.set('orderDirection', orderDirection);
+  if (patientName && patientName.trim()) params.set('patientName', patientName.trim());
+  if (policyIdNumber && policyIdNumber.trim()) params.set('policyIdNumber', policyIdNumber.trim());
+
+  const url = `${BASE_API_URL}/consommation?${params.toString()}`;
+  const response = await openmrsFetch<ConsommationListResponse>(url);
+  return response.data;
+};
+
+/**
+ * Fetches consommations list (paginated) sorted by newest first.
+ */
+export const getConsommations = async (
+  limit: number = 10,
+  startIndex: number = 0,
+  orderBy: string = 'createdDate',
+  orderDirection: 'asc' | 'desc' = 'desc',
+): Promise<ConsommationListResponse> => {
+  const url = `${BASE_API_URL}/consommation?limit=${limit}&startIndex=${startIndex}&orderBy=${encodeURIComponent(orderBy)}&orderDirection=${encodeURIComponent(orderDirection)}`;
+  const response = await openmrsFetch<ConsommationListResponse>(url);
+  return response.data;
+};
+
+/**
  * Utility to extract service name from a bill item
  * Updated to work with the new BillableService structure
  */
@@ -91,7 +139,7 @@ export async function getConsommationItems(consommationId: string): Promise<Cons
 
     const items = consommationData.billItems.map((item: any, index: number) => {
       const itemName =
-        (item?.service?.facilityServicePrice?.name) ||
+        item?.service?.facilityServicePrice?.name ||
         item?.serviceOtherDescription ||
         item?.serviceOther ||
         `${departmentName} Service Item`;
@@ -124,7 +172,7 @@ export async function getConsommationItems(consommationId: string): Promise<Cons
         itemType: item.itemType,
         paid: isFullyPaid,
         partiallyPaid: isPartiallyPaid,
-        paidQuantity: parentPaid ? qty : (item.paidQuantity || 0),
+        paidQuantity: parentPaid ? qty : item.paidQuantity || 0,
         drugFrequency: item.drugFrequency,
         patientServiceBillId: extractPatientServiceBillId(item, index),
         serviceId: item.service?.serviceId,

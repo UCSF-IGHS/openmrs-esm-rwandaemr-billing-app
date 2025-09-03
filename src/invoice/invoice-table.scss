@@ -62,6 +62,104 @@ $text-02: #eb4848 !default;
   text-overflow: ellipsis;
 }
 
+/* Global Bills Table Specific Styles */
+.globalBillsTable {
+  .clickableRow {
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    
+    &:hover {
+      background-color: #f4f4f4;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+  }
+
+  .actionColumn {
+    text-align: center;
+    font-weight: 500;
+    color: #0f62fe;
+    font-size: 14px;
+    width: 120px;
+  }
+
+  .descriptiveText {
+    margin: 0 0 16px;
+    color: #525252;
+    font-size: 14px;
+    font-style: italic;
+  }
+}
+
+/* Expandable row styles for Global Bills */
+.globalBillExpandedContent {
+  padding: 16px;
+  background-color: #f4f4f4;
+  border-left: 3px solid #0f62fe;
+  margin: 8px 0;
+  border-radius: 4px;
+
+  .consommationDetails {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+}
+
+/* Enhanced hover effects for better UX */
+.enhancedTableRow {
+  transition: all 0.15s ease-in-out;
+  position: relative;
+
+  &:hover {
+    background-color: #f4f4f4 !important;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background-color: #0f62fe;
+    }
+  }
+
+  &.expanded {
+    background-color: #e8f4ff !important;
+  }
+}
+
+/* Improve expand button visibility */
+:global(.cds--table-expand__button) {
+  color: #0f62fe !important;
+  
+  &:hover {
+    background-color: rgba(15, 98, 254, 0.1) !important;
+  }
+}
+
+/* Status indicators improvements */
+.statusIndicator {
+  &.paid {
+    background-color: #defbe6;
+    color: #0e6027;
+    border: 1px solid #24a148;
+  }
+
+  &.unpaid {
+    background-color: #fff1f1;
+    color: #da1e28;
+    border: 1px solid #fa4d56;
+  }
+
+  &.closed {
+    background-color: #e0e0e0;
+    color: #525252;
+    border: 1px solid #8d8d8d;
+  }
+}
+
 /* Error container */
 .errorContainer {
   margin: 16px;
@@ -133,9 +231,47 @@ $text-02: #eb4848 !default;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 0; 
   word-break: break-word;
   vertical-align: middle !important;
+}
+
+/* Special handling for item name columns - allow more space and proper text wrapping */
+.invoiceTable :global(.cds--data-table td:nth-child(4)) { /* Item Name column - adjust index as needed */
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  min-width: 150px !important;
+  max-width: none !important;
+}
+
+/* Ensure expandable table content has proper spacing */
+.expandedContent table td {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  word-break: normal !important;
+  min-width: auto !important;
+  max-width: none !important;
+}
+
+/* Fix for embedded consommation tables - ensure item names display properly */
+.expandedContent :global(.cds--data-table td) {
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  max-width: none !important;
+}
+
+/* Specific fix for item name cells in any embedded tables */
+.expandedContent table td[data-column="itemName"],
+.expandedContent table td:nth-child(3), /* Typically where item names appear */
+.expandedContent table td:nth-child(4) {
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  min-width: 120px !important;
+  max-width: none !important;
+  vertical-align: top !important;
 }
 
 /* Amount columns - needs right alignment */
@@ -309,6 +445,12 @@ $text-02: #eb4848 !default;
     white-space: normal !important;
     word-break: break-word !important;
     overflow-wrap: break-word !important;
+  }
+
+  /* Reduce hover effects on mobile */
+  .globalBillsTable .clickableRow:hover {
+    transform: none;
+    box-shadow: none;
   }
 }
 

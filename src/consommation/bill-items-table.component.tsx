@@ -1,14 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  DataTable,
-  Table,
-  TableHead,
-  TableRow,
-  TableHeader,
-  TableBody,
-  TableCell
-} from '@carbon/react';
+import { DataTable, Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '@carbon/react';
 import styles from './bill-items-table.scss';
 
 const BillItemsTable = ({ items, insuranceRate }) => {
@@ -21,13 +13,13 @@ const BillItemsTable = ({ items, insuranceRate }) => {
   const headers = [
     { key: 'no', header: t('no', 'No.') },
     { key: 'serviceDate', header: t('serviceDate', 'Service Date') },
-    { key: 'description', header: t('description', 'Description') },
+    { key: 'description', header: t('itemName', 'Item Name') },
     { key: 'qty', header: t('qty', 'Qty') },
     { key: 'paidQty', header: t('paidQty', 'Paid Qty') },
     { key: 'unitPrice', header: t('unitPrice', 'Unit Price (RWF)') },
     { key: 'total', header: t('total', 'Total (RWF)') },
     { key: 'insurance', header: t('insurance', 'Insurance: ' + insuranceRate.toFixed(1) + '%') },
-    { key: 'patient', header: t('patient', 'Patient: ' + (100 - insuranceRate).toFixed(1) + '%') }
+    { key: 'patient', header: t('patient', 'Patient: ' + (100 - insuranceRate).toFixed(1) + '%') },
   ];
 
   const rows = items.map((item, index) => {
@@ -39,7 +31,12 @@ const BillItemsTable = ({ items, insuranceRate }) => {
       id: (index + 1).toString(),
       no: index + 1,
       serviceDate: new Date(item.serviceDate).toLocaleDateString(),
-      description: item.serviceOtherDescription || item.serviceOther || t('noDescription', 'No description'),
+      description:
+        item.itemName ||
+        item?.service?.facilityServicePrice?.name ||
+        item.serviceOtherDescription ||
+        item.serviceOther ||
+        t('noDescription', 'No description'),
       qty: item.quantity,
       paidQty: item.paidQuantity,
       unitPrice: item.unitPrice.toLocaleString(),
@@ -49,7 +46,6 @@ const BillItemsTable = ({ items, insuranceRate }) => {
     };
   });
 
-  // Calculate totals for the footer
   const totals = items.reduce(
     (acc, item) => {
       const totalPrice = item.unitPrice * item.quantity;
@@ -58,7 +54,7 @@ const BillItemsTable = ({ items, insuranceRate }) => {
       acc.patient += totalPrice - (totalPrice * insuranceRate) / 100;
       return acc;
     },
-    { total: 0, insurance: 0, patient: 0 }
+    { total: 0, insurance: 0, patient: 0 },
   );
 
   return (
@@ -69,9 +65,7 @@ const BillItemsTable = ({ items, insuranceRate }) => {
             <TableHead>
               <TableRow>
                 {headers.map((header) => (
-                  <TableHeader {...getHeaderProps({ header })}>
-                    {header.header}
-                  </TableHeader>
+                  <TableHeader {...getHeaderProps({ header })}>{header.header}</TableHeader>
                 ))}
               </TableRow>
             </TableHead>
@@ -79,9 +73,7 @@ const BillItemsTable = ({ items, insuranceRate }) => {
               {rows.map((row) => (
                 <TableRow {...getRowProps({ row })}>
                   {row.cells.map((cell) => (
-                    <TableCell key={cell.id}>
-                      {cell.value}
-                    </TableCell>
+                    <TableCell key={cell.id}>{cell.value}</TableCell>
                   ))}
                 </TableRow>
               ))}

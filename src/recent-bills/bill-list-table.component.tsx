@@ -18,8 +18,8 @@ import {
 } from '@carbon/react';
 import { isDesktop, useLayoutType, usePagination, ErrorState } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
-import { getPatientBills } from '../api/billing';
 import styles from './bill-list-table.scss';
+import { getPatientBillsDetailed } from '../api/billing/payments';
 
 const BillListTable: React.FC = () => {
   const { t } = useTranslation();
@@ -43,18 +43,28 @@ const BillListTable: React.FC = () => {
   const fetchBills = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await getPatientBills(startDate, endDate, 0, 100);
+      const response = await getPatientBillsDetailed(startDate, endDate, 0, 100);
 
-      const billsWithDefaults = response.results.map((bill) => ({
-        ...bill,
-        beneficiaryName: bill.beneficiaryName || '--',
-        policyIdNumber: bill.policyIdNumber || '--',
-        insuranceName: bill.insuranceName || '--',
-        creator: bill.creator || '--',
-        departmentName: bill.departmentName || '--',
-        // Use the service name directly from the response with TypeScript type assertion
-        serviceName: (bill as any).serviceName || bill.departmentName || '--',
-      }));
+      const billsWithDefaults = response.results.map((bill) => {
+        const payments = Array.isArray(bill.payments) ? bill.payments : [];
+        const paidAmount = payments.reduce((sum, p) => sum + (Number(p.amountPaid) || 0), 0);
+        const total = Number(bill.amount) || 0;
+        let computedStatus: 'PAID' | 'PARTIAL' | 'PENDING' = 'PENDING';
+        if (paidAmount >= total && total > 0) computedStatus = 'PAID';
+        else if (paidAmount > 0 && paidAmount < total) computedStatus = 'PARTIAL';
+
+        return {
+          ...bill,
+          beneficiaryName: bill.beneficiaryName || '--',
+          policyIdNumber: bill.policyIdNumber || '--',
+          insuranceName: bill.insuranceName || '--',
+          creator: bill.creator || '--',
+          departmentName: bill.departmentName || '--',
+          serviceName: (bill as any).serviceName || bill.departmentName || '--',
+          _computedPaidAmount: paidAmount,
+          _computedStatus: computedStatus,
+        };
+      });
 
       setBills(billsWithDefaults);
       setTotalItems(response.results?.length || 0);
@@ -69,13 +79,11 @@ const BillListTable: React.FC = () => {
     fetchBills();
   }, [fetchBills]);
 
-  // Listen for global bill created events to refresh the bills list
   useEffect(() => {
     const handleGlobalBillCreated = (event: CustomEvent) => {
-      // Refresh bills when a new global bill is created
       setTimeout(() => {
         fetchBills();
-      }, 1000); // Small delay to ensure the bill is fully processed
+      }, 1000);
     };
 
     window.addEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
@@ -86,9 +94,12 @@ const BillListTable: React.FC = () => {
   }, [fetchBills]);
 
   const getBillStatus = (bill: any) => {
+    if (bill._computedStatus) return bill._computedStatus;
     if (bill.payments && bill.payments.length > 0) {
       const totalPaid = bill.payments.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0);
-      return totalPaid >= bill.amount ? 'PAID' : 'PENDING';
+      if (totalPaid >= bill.amount) return 'PAID';
+      if (totalPaid > 0) return 'PARTIAL';
+      return 'PENDING';
     }
     return 'PENDING';
   };
@@ -202,12 +213,13 @@ const BillListTable: React.FC = () => {
   ];
 
   const rowData = results?.map((bill, index) => {
-    const totalPaid = bill.payments?.reduce((sum, payment) => sum + (payment.amountPaid || 0), 0) || 0;
-
+    const totalPaid = Number(
+      bill._computedPaidAmount ?? (bill.payments?.reduce((sum, p) => sum + (Number(p.amountPaid) || 0), 0) || 0),
+    );
     const status = getBillStatus(bill);
-
-    // Use the serviceName directly from the bill
     const billItems = bill.serviceName || bill.departmentName || '--';
+    const totalAmount = Number(bill.amount) || 0;
+    const patientDue = Math.max(totalAmount - totalPaid, 0);
 
     return {
       id: `${index}`,
@@ -215,8 +227,8 @@ const BillListTable: React.FC = () => {
       policyId: bill.policyIdNumber || '--',
       beneficiary: bill.beneficiaryName || '--',
       insuranceName: bill.insuranceName || '--',
-      total: bill.amount ? bill.amount.toFixed(2) : '0.00',
-      patientDue: bill.amount ? bill.amount.toFixed(2) : '0.00',
+      total: totalAmount.toFixed(2),
+      patientDue: patientDue.toFixed(2),
       paidAmount: totalPaid.toFixed(2),
       billStatus: status,
       refId: bill.patientBillId?.toString() || '--',
