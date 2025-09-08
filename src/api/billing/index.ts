@@ -70,7 +70,7 @@ export {
   createDirectGlobalBill,
   closeGlobalBill,
   fetchRecentGlobalBills,
-  fetchConsommationTotals,     
+  fetchConsommationTotals,
   getPatientNameFromGlobalBill,
   type GlobalBillResponse,
 } from './global-bills';
@@ -89,3 +89,6 @@ export {
 
 // Report operations
 export { fetchInsuranceFirms, fetchAllInsuranceReportData, fetchInsuranceReport } from './reports';
+
+// Patient operations
+export { fetchPatientPhoneNumber, fetchPatientInfo, type PatientPhoneNumber } from '../patient';
