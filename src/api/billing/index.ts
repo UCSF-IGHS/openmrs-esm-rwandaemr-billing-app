@@ -90,3 +90,6 @@ export {
 
 // Report operations
 export { fetchInsuranceFirms, fetchAllInsuranceReportData, fetchInsuranceReport } from './reports';
+
+// Patient operations
+export { fetchPatientPhoneNumber, fetchPatientInfo, type PatientPhoneNumber } from '../patient';

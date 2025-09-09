@@ -11,10 +11,11 @@ import {
   Button,
   Accordion,
   AccordionItem,
+  Dropdown,
 } from '@carbon/react';
 import { Printer, CheckmarkFilled } from '@carbon/react/icons';
 import { showToast, useSession } from '@openmrs/esm-framework';
-import { submitBillPayment, getConsommationById } from '../api/billing';
+import { submitBillPayment, getConsommationById, fetchPatientPhoneNumber } from '../api/billing';
 import { isItemPaid, calculateChange, computePaymentStatus } from '../utils/billing-calculations';
 import { printReceipt } from '../payment-receipt/print-receipt';
 import { type ConsommationItem } from '../types';
@@ -42,6 +43,14 @@ const paymentFormSchema = z.object({
     .refine((value) => value === '' || parseFloat(value) >= 0, {
       message: 'Amount must be a positive number',
     }),
+  iremboPayAmount: z
+    .string()
+    .refine((value) => value === '' || /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
+      message: 'Must be a valid number',
+    })
+    .refine((value) => value === '' || parseFloat(value) >= 0, {
+      message: 'Amount must be a positive number',
+    }),
   paymentAmount: z
     .string()
     .refine((value) => /^(\d+(\.\d*)?|\.\d+)$/.test(value), {
@@ -62,7 +71,7 @@ interface SelectedItemInfo {
 interface PaymentFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void; 
+  onSuccess: () => void;
   selectedItems: SelectedItemInfo[];
   onItemToggle: (consommationId: string, itemIndex: number) => void;
   patientUuid?: string;
@@ -83,6 +92,14 @@ interface PaymentData {
   thirdPartyProvider?: string;
   totalAmount?: string;
   insuranceRate?: number;
+  // Irembo Pay specific fields
+  phoneNumber?: string;
+  invoiceNumber?: string;
+  paymentReference?: string;
+  // Multiple payment method details
+  cashAmount?: string;
+  depositAmount?: string;
+  iremboPayAmount?: string;
 }
 
 interface ConsommationInfo {
@@ -103,7 +120,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const session = useSession();
   const collectorUuid = session?.user?.uuid;
 
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'deposit'>('cash');
+  const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<Set<'cash' | 'deposit' | 'irembopay'>>(
+    new Set(),
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [depositBalance, setDepositBalance] = useState('1100.00'); // TODO: wire to real deposit balance if you have it
@@ -114,6 +133,19 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [paidItems, setPaidItems] = useState<ConsommationItem[]>([]);
   const [thirdPartyAmount, setThirdPartyAmount] = useState('0.00');
   const [patientBalance, setPatientBalance] = useState(0);
+
+  // Irembo Pay specific state
+  const [iremboPayPhoneNumber, setIremboPayPhoneNumber] = useState('');
+  const [isPaymentPrompting, setIsPaymentPrompting] = useState(false);
+  const [paymentPromptStatus, setPaymentPromptStatus] = useState<
+    'idle' | 'prompting' | 'pending' | 'success' | 'failed'
+  >('idle');
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
+
+  // Payment state
+  const [patientPhoneNumber, setPatientPhoneNumber] = useState('');
+  const [totalAmountToPay, setTotalAmountToPay] = useState(0);
 
   // form refs/state to avoid jitter on open
   const [isFormReady, setIsFormReady] = useState(false);
@@ -136,6 +168,52 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     isLoading: true,
   });
 
+  // Fetch patient phone number
+  const fetchPatientPhoneNumberData = useCallback(async () => {
+    if (!patientUuid) return;
+
+    try {
+      const result = await fetchPatientPhoneNumber(patientUuid);
+
+      if (result.success) {
+        setPatientPhoneNumber(result.phoneNumber);
+        setIremboPayPhoneNumber(result.phoneNumber);
+      } else {
+        // Fallback to empty if no phone number found
+        setPatientPhoneNumber('');
+        setIremboPayPhoneNumber('');
+        if (result.error) {
+          console.warn('Phone number fetch warning:', result.error);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching patient phone number:', error);
+      // Fallback to empty if API call fails
+      setPatientPhoneNumber('');
+      setIremboPayPhoneNumber('');
+    }
+  }, [patientUuid]);
+
+  // Calculate selected items total (remaining to be paid)
+  const calculateSelectedItemsTotal = useCallback(() => {
+    return localSelectedItems.reduce((total, selectedItemInfo) => {
+      const item = selectedItemInfo.item;
+      if (item.selected === false) return total;
+
+      const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+      const paidAmount = item.paidAmount || 0;
+      const remainingAmount = Math.max(0, itemTotal - paidAmount);
+      return total + remainingAmount;
+    }, 0);
+  }, [localSelectedItems]);
+
+  // Calculate total amount to be paid
+  const calculateTotalAmountToPay = useCallback(() => {
+    const selectedItemsTotal = calculateSelectedItemsTotal();
+    const maxAllowedAmount = insuranceInfo.rate > 0 ? patientBalance : selectedItemsTotal;
+    return maxAllowedAmount;
+  }, [insuranceInfo.rate, patientBalance, calculateSelectedItemsTotal]);
+
   const {
     control,
     handleSubmit,
@@ -150,8 +228,61 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       paymentAmount: '',
       receivedCash: '',
       deductedAmount: '',
+      iremboPayAmount: '',
     },
   });
+
+  // Auto-fill payment amounts when form opens
+  const autoFillPaymentAmounts = useCallback(() => {
+    const totalAmount = calculateTotalAmountToPay();
+    setTotalAmountToPay(totalAmount);
+
+    // Auto-fill all payment fields with the total amount
+    setValue('receivedCash', totalAmount.toFixed(2));
+    setValue('deductedAmount', totalAmount.toFixed(2));
+    setValue('iremboPayAmount', totalAmount.toFixed(2));
+    setValue('paymentAmount', totalAmount.toFixed(2));
+  }, [calculateTotalAmountToPay, setValue]);
+
+  // Handle payment method selection
+  const togglePaymentMethod = useCallback(
+    (method: 'cash' | 'deposit' | 'irembopay') => {
+      setSelectedPaymentMethods((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(method)) {
+          newSet.delete(method);
+          // Clear the amount for this method when unselected
+          if (method === 'cash') setValue('receivedCash', '');
+          if (method === 'deposit') setValue('deductedAmount', '');
+          if (method === 'irembopay') setValue('iremboPayAmount', '');
+        } else {
+          newSet.add(method);
+          // Auto-fill with total amount when selected
+          const totalAmount = totalAmountToPay;
+          if (method === 'cash') setValue('receivedCash', totalAmount.toFixed(2));
+          if (method === 'deposit') setValue('deductedAmount', totalAmount.toFixed(2));
+          if (method === 'irembopay') setValue('iremboPayAmount', totalAmount.toFixed(2));
+        }
+        return newSet;
+      });
+    },
+    [setValue, totalAmountToPay],
+  );
+
+  // Get selected payment methods as text
+  const getSelectedPaymentMethodsText = useCallback(() => {
+    const methods = Array.from(selectedPaymentMethods);
+    if (methods.length === 0) return t('noPaymentMethodsSelected', 'No payment methods selected');
+    if (methods.length === 1) {
+      const methodNames = {
+        cash: t('payWithCash', 'Pay with cash'),
+        deposit: t('payWithDeposit', 'Pay with deposit'),
+        irembopay: t('payWithIremboPay', 'Pay with Irembo Pay'),
+      };
+      return methodNames[methods[0]];
+    }
+    return t('multiplePaymentMethods', 'Multiple payment methods selected');
+  }, [selectedPaymentMethods, t]);
 
   const paymentAmount = watch('paymentAmount');
   const receivedCash = watch('receivedCash');
@@ -161,19 +292,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     (item: ConsommationItem & { selected?: boolean }): boolean => isItemPaid(item),
     [],
   );
-
-  // Calculate selected items total (remaining to be paid)
-  const calculateSelectedItemsTotal = useCallback(() => {
-    return localSelectedItems.reduce((total, selectedItemInfo) => {
-      const item = selectedItemInfo.item;
-      if (item.selected === false) return total;
-
-      const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-      const paidAmount = item.paidAmount || 0;
-      const remainingAmount = Math.max(0, itemTotal - paidAmount);
-      return total + remainingAmount;
-    }, 0);
-  }, [localSelectedItems]);
 
   const countSelectedItems = useCallback(
     () => localSelectedItems.filter((i) => i.item.selected === true && !isActuallyPaid(i.item)).length,
@@ -228,7 +346,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       formInitializedRef.current = false;
       userModifiedFormRef.current = false;
 
-      setPaymentMethod('cash');
+      setSelectedPaymentMethods(new Set());
       setPaymentError('');
       setIsFormReady(false);
 
@@ -246,7 +364,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           return sum + Math.max(0, itemTotal - paidAmount);
         }, 0);
 
-        reset({ paymentAmount: total.toFixed(2), receivedCash: '', deductedAmount: '' });
+        reset({
+          paymentAmount: total.toFixed(2),
+          receivedCash: '',
+          deductedAmount: '',
+          iremboPayAmount: '',
+        });
+        setTotalAmountToPay(total);
+        fetchPatientPhoneNumberData();
         setIsFormReady(true);
         formInitializedRef.current = true;
       }
@@ -281,10 +406,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           const patientPays = Math.round((total - insurancePays) * 100) / 100;
           setThirdPartyAmount(insurancePays.toFixed(2));
           setPatientBalance(patientPays);
+          setTotalAmountToPay(patientPays);
           setValue('paymentAmount', patientPays.toFixed(2), { shouldValidate: false });
         } else {
           setThirdPartyAmount('0.00');
           setPatientBalance(total);
+          setTotalAmountToPay(total);
           setValue('paymentAmount', total.toFixed(2), { shouldValidate: false });
         }
       }
@@ -306,10 +433,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         const patientPays = Math.round((total - insurancePays) * 100) / 100;
         setThirdPartyAmount(insurancePays.toFixed(2));
         setPatientBalance(patientPays);
+        setTotalAmountToPay(patientPays);
         setValue('paymentAmount', patientPays.toFixed(2), { shouldValidate: false });
       } else {
         setThirdPartyAmount('0.00');
         setPatientBalance(total);
+        setTotalAmountToPay(total);
         setValue('paymentAmount', total.toFixed(2), { shouldValidate: false });
       }
     }
@@ -322,45 +451,88 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     [isFormReady],
   );
 
+  // Calculate total payment from selected methods only
+  const calculateTotalPayment = useCallback(
+    (data: PaymentFormValues) => {
+      let total = 0;
+
+      if (selectedPaymentMethods.has('cash')) {
+        total += parseFloat(data.receivedCash || '0');
+      }
+      if (selectedPaymentMethods.has('deposit')) {
+        total += parseFloat(data.deductedAmount || '0');
+      }
+      if (selectedPaymentMethods.has('irembopay')) {
+        total += parseFloat(data.iremboPayAmount || '0');
+      }
+
+      return total;
+    },
+    [selectedPaymentMethods],
+  );
+
   // Inline validation for payment method specifics
   useEffect(() => {
     if (!paymentSuccess && isFormReady && !insuranceInfo.isLoading) {
-      if (paymentMethod === 'cash' && receivedCash && paymentAmount) {
-        const cashAmount = parseFloat(receivedCash);
-        const amountToPay = parseFloat(paymentAmount);
-        setPaymentError(
-          !isNaN(cashAmount) && !isNaN(amountToPay) && cashAmount < amountToPay
-            ? t('insufficientCash', 'Received cash must be equal to or greater than the payment amount')
-            : '',
-        );
-      } else if (paymentMethod === 'deposit' && deductedAmount && paymentAmount) {
-        const deductAmount = parseFloat(deductedAmount);
-        const amountToPay = parseFloat(paymentAmount);
+      const formValues = watch();
+      const totalPayment = calculateTotalPayment(formValues);
+      const requiredAmount = totalAmountToPay;
+
+      // Check if individual payment methods have issues
+      if (selectedPaymentMethods.has('cash')) {
+        const cashAmount = parseFloat(formValues.receivedCash || '0');
+        if (cashAmount < 0) {
+          setPaymentError(t('invalidCashAmount', 'Cash amount cannot be negative'));
+          return;
+        }
+      }
+
+      if (selectedPaymentMethods.has('deposit')) {
+        const depositAmount = parseFloat(formValues.deductedAmount || '0');
         const balance = parseFloat(depositBalance);
 
-        if (deductAmount < amountToPay) {
-          setPaymentError(
-            t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'),
-          );
-        } else if (deductAmount > balance) {
+        if (depositAmount < 0) {
+          setPaymentError(t('invalidDeductedAmount', 'Please enter a valid deducted amount'));
+          return;
+        }
+        if (depositAmount > balance) {
           setPaymentError(t('insufficientBalance', 'Deducted amount exceeds available balance'));
+          return;
+        }
+      }
+
+      if (selectedPaymentMethods.has('irembopay')) {
+        const iremboPayAmount = parseFloat(formValues.iremboPayAmount || '0');
+        if (iremboPayAmount < 0) {
+          setPaymentError(t('invalidIremboPayAmount', 'Irembo Pay amount cannot be negative'));
+          return;
+        }
+      }
+
+      // Check if total payment covers the required amount
+      const paymentCoversAmount = Math.abs(totalPayment - requiredAmount) < 0.01;
+      if (totalPayment > 0 && !paymentCoversAmount) {
+        if (totalPayment < requiredAmount) {
+          setPaymentError(t('insufficientPayment', 'Total payment amount is insufficient'));
         } else {
-          setPaymentError('');
+          setPaymentError(t('overpayment', 'Total payment amount exceeds required amount'));
         }
       } else {
         setPaymentError('');
       }
     }
   }, [
-    paymentMethod,
+    selectedPaymentMethods,
     receivedCash,
     deductedAmount,
-    paymentAmount,
     depositBalance,
     t,
     paymentSuccess,
     isFormReady,
     insuranceInfo.isLoading,
+    totalAmountToPay,
+    calculateTotalPayment,
+    watch,
   ]);
 
   const groupedAllItems = localSelectedItems.reduce(
@@ -430,10 +602,130 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     onClose();
   };
 
+  // Simple phone number validation
+  const validateRwandanPhoneNumber = (phoneNumber: string): boolean => {
+    const cleaned = phoneNumber.replace(/\D/g, '');
+    return /^07\d{9}$/.test(cleaned);
+  };
+
+  const handleIremboPayPrompt = async () => {
+    if (!iremboPayPhoneNumber) {
+      setPaymentError(t('phoneNumberRequired', 'Phone number is required for Irembo Pay'));
+      return;
+    }
+
+    // Validate phone number
+    if (!validateRwandanPhoneNumber(iremboPayPhoneNumber)) {
+      setPaymentError(t('invalidPhoneNumber', 'Please enter a valid Rwandan phone number (e.g., 0781234567)'));
+      return;
+    }
+
+    setIsPaymentPrompting(true);
+    setPaymentPromptStatus('prompting');
+    setPaymentError('');
+
+    try {
+      // TODO: Replace with actual backend API calls when ready
+      // For now, simulate the API call
+      const totalAmount = calculateSelectedItemsTotal();
+
+      // Simulate creating invoice
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const mockInvoiceNumber = `INV-${Date.now()}`;
+      setInvoiceNumber(mockInvoiceNumber);
+
+      // Simulate sending payment prompt
+      setPaymentPromptStatus('pending');
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Simulate payment success (in real implementation, this would be polled)
+      setPaymentPromptStatus('success');
+      setPaymentReference(`REF-${Date.now()}`);
+
+      showToast({
+        title: t('paymentPromptSent', 'Payment Prompt Sent'),
+        description: t(
+          'paymentPromptSentDescription',
+          'A payment prompt has been sent to the phone number. Please wait for payment confirmation.',
+        ),
+        kind: 'success',
+      });
+    } catch (error) {
+      setPaymentPromptStatus('failed');
+      showToast({
+        title: t('paymentPromptFailed', 'Failed to send payment prompt'),
+        description: t('paymentPromptFailedDescription', 'Please try again or contact support if the issue persists.'),
+        kind: 'error',
+      });
+      console.error('Irembo Pay error:', error);
+    } finally {
+      setIsPaymentPrompting(false);
+    }
+  };
+
+  // Check for insufficient cash and suggest other payment methods
+  const getInsufficientCashWarning = useCallback(() => {
+    const formValues = watch();
+    const cashAmount = parseFloat(formValues.receivedCash || '0');
+    const totalPayment = calculateTotalPayment(formValues);
+    const requiredAmount = totalAmountToPay;
+    const remainingAmount = requiredAmount - totalPayment;
+
+    if (selectedPaymentMethods.has('cash') && cashAmount > 0 && remainingAmount > 0) {
+      // Check if there are other payment methods available that aren't currently selected
+      const availableMethods = ['deposit', 'irembopay'].filter((method) => {
+        if (method === 'deposit') return parseFloat(depositBalance) > 0;
+        if (method === 'irembopay') return true;
+        return false;
+      });
+
+      if (availableMethods.length > 0) {
+        const methodNames = {
+          deposit: t('payWithDeposit', 'Pay with deposit'),
+          irembopay: t('payWithIremboPay', 'Pay with Irembo Pay'),
+        };
+        const availableMethodText = availableMethods.map((method) => methodNames[method]).join(' or ');
+        return t(
+          'insufficientCashSuggestion',
+          `Insufficient cash. You can pay the remaining ${remainingAmount.toFixed(2)} RWF using ${availableMethodText}.`,
+        );
+      }
+    }
+    return null;
+  }, [selectedPaymentMethods, watch, calculateTotalPayment, totalAmountToPay, depositBalance, t]);
+
   const isFormValid = () => {
     if (!isValid || paymentError || paymentSuccess || insuranceInfo.isLoading || !isFormReady) return false;
     const hasSelectedItems = localSelectedItems.some((s) => s.item.selected === true);
-    return hasSelectedItems && !isSubmitting;
+
+    if (!hasSelectedItems || isSubmitting || selectedPaymentMethods.size === 0) return false;
+
+    // Get current form values
+    const formValues = watch();
+    const requiredAmount = totalAmountToPay;
+
+    // Calculate total payment only from selected payment methods
+    let totalPayment = 0;
+
+    if (selectedPaymentMethods.has('cash')) {
+      totalPayment += parseFloat(formValues.receivedCash || '0');
+    }
+    if (selectedPaymentMethods.has('deposit')) {
+      totalPayment += parseFloat(formValues.deductedAmount || '0');
+    }
+    if (selectedPaymentMethods.has('irembopay')) {
+      totalPayment += parseFloat(formValues.iremboPayAmount || '0');
+    }
+
+    // Check if total payment covers the required amount
+    const paymentCoversAmount = Math.abs(totalPayment - requiredAmount) < 0.01; // Allow for small rounding differences
+
+    // For Irembo Pay, also check if payment has been successful
+    if (selectedPaymentMethods.has('irembopay') && parseFloat(formValues.iremboPayAmount || '0') > 0) {
+      return paymentCoversAmount && paymentPromptStatus === 'success';
+    }
+
+    return paymentCoversAmount;
   };
 
   const onSubmit = async (data: PaymentFormValues) => {
@@ -447,23 +739,42 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
     try {
       const selectedItemsTotal = calculateSelectedItemsTotal();
-      const enteredAmount = parseFloat(data.paymentAmount);
 
-      if (paymentMethod === 'cash' && (!data.receivedCash || parseFloat(data.receivedCash) < enteredAmount)) {
-        throw new Error(t('insufficientCash', 'Received cash amount must be equal to the payment amount'));
+      // Calculate combined total from all selected payment methods
+      const combinedPaymentTotal = calculateTotalPayment(data);
+      const enteredAmount = combinedPaymentTotal;
+
+      // Validate individual payment methods
+      if (selectedPaymentMethods.has('cash')) {
+        const cashAmount = parseFloat(data.receivedCash || '0');
+        if (cashAmount < 0) {
+          throw new Error(t('invalidCashAmount', 'Cash amount cannot be negative'));
+        }
       }
 
-      if (paymentMethod === 'deposit') {
-        if (!data.deductedAmount || parseFloat(data.deductedAmount) <= 0) {
+      if (selectedPaymentMethods.has('deposit')) {
+        const depositAmount = parseFloat(data.deductedAmount || '0');
+        if (depositAmount <= 0) {
           throw new Error(t('invalidDeductedAmount', 'Please enter a valid deducted amount'));
         }
-        if (parseFloat(data.deductedAmount) > parseFloat(depositBalance)) {
+        if (depositAmount > parseFloat(depositBalance)) {
           throw new Error(t('insufficientBalance', 'Deducted amount exceeds available balance'));
         }
-        if (parseFloat(data.deductedAmount) < enteredAmount) {
-          throw new Error(
-            t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'),
-          );
+      }
+
+      if (selectedPaymentMethods.has('irembopay')) {
+        const iremboPayAmount = parseFloat(data.iremboPayAmount || '0');
+        if (iremboPayAmount < 0) {
+          throw new Error(t('invalidIremboPayAmount', 'Irembo Pay amount cannot be negative'));
+        }
+      }
+
+      if (selectedPaymentMethods.has('irembopay')) {
+        if (!iremboPayPhoneNumber) {
+          throw new Error(t('phoneNumberRequired', 'Phone number is required for Irembo Pay'));
+        }
+        if (paymentPromptStatus !== 'success') {
+          throw new Error(t('paymentNotConfirmed', 'Please complete the Irembo Pay payment process first'));
         }
       }
 
@@ -617,12 +928,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         const activeInsurancePolicy = insurancePolicies?.find((policy) => new Date(policy.expirationDate) > new Date());
         const insuranceProviderName = activeInsurancePolicy?.insurance?.name || '';
 
+        // Calculate individual payment amounts for receipt
+        const cashAmount = selectedPaymentMethods.has('cash') ? parseFloat(data.receivedCash || '0') : 0;
+        const depositAmount = selectedPaymentMethods.has('deposit') ? parseFloat(data.deductedAmount || '0') : 0;
+        const iremboPayAmount = selectedPaymentMethods.has('irembopay') ? parseFloat(data.iremboPayAmount || '0') : 0;
+
         const receiptPaymentData: PaymentData = {
           amountPaid: enteredAmount.toFixed(2),
-          receivedCash: data.receivedCash || '',
+          receivedCash: cashAmount.toFixed(2),
           change: calculateChange(data.receivedCash, data.paymentAmount),
-          paymentMethod,
-          deductedAmount: paymentMethod === 'deposit' ? data.deductedAmount : '',
+          paymentMethod: Array.from(selectedPaymentMethods).join(', '),
+          deductedAmount: depositAmount.toFixed(2),
           dateReceived: new Date().toISOString().split('T')[0],
           collectorName: session?.user?.display || 'Unknown',
           patientName: details?.patientBill?.beneficiaryName || 'Unknown',
@@ -631,6 +947,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           thirdPartyProvider: insuranceProviderName,
           totalAmount: selectedItemsTotal.toFixed(2),
           insuranceRate: insuranceInfo.rate,
+          // Irembo Pay specific fields
+          phoneNumber: selectedPaymentMethods.has('irembopay') ? iremboPayPhoneNumber : undefined,
+          invoiceNumber: selectedPaymentMethods.has('irembopay') ? invoiceNumber : undefined,
+          paymentReference: selectedPaymentMethods.has('irembopay') ? paymentReference : undefined,
+          // Multiple payment method details
+          cashAmount: cashAmount.toFixed(2),
+          depositAmount: depositAmount.toFixed(2),
+          iremboPayAmount: iremboPayAmount.toFixed(2),
         };
 
         const receiptGrouped: Record<string, ConsommationInfo> = {};
@@ -687,12 +1011,51 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           </div>
           <div className={styles.summaryRow}>
             <span>{t('paymentMethod', 'Payment Method')}:</span>
-            <span>{paymentData.paymentMethod === 'cash' ? t('cash', 'Cash') : t('deposit', 'Deposit')}</span>
+            <span>{paymentData.paymentMethod}</span>
           </div>
+
+          {/* Multiple Payment Method Breakdown */}
+          {paymentData.cashAmount && parseFloat(paymentData.cashAmount) > 0 && (
+            <div className={styles.summaryRow}>
+              <span>{t('cashAmount', 'Cash Amount')}:</span>
+              <span className={styles.amount}>{paymentData.cashAmount} RWF</span>
+            </div>
+          )}
+          {paymentData.depositAmount && parseFloat(paymentData.depositAmount) > 0 && (
+            <div className={styles.summaryRow}>
+              <span>{t('depositAmount', 'Deposit Amount')}:</span>
+              <span className={styles.amount}>{paymentData.depositAmount} RWF</span>
+            </div>
+          )}
+          {paymentData.iremboPayAmount && parseFloat(paymentData.iremboPayAmount) > 0 && (
+            <div className={styles.summaryRow}>
+              <span>{t('iremboPayAmount', 'Irembo Pay Amount')}:</span>
+              <span className={styles.amount}>{paymentData.iremboPayAmount} RWF</span>
+            </div>
+          )}
+
           {paymentData.receivedCash && (
             <div className={styles.summaryRow}>
               <span>{t('change', 'Change')}:</span>
               <span className={styles.amount}>{paymentData.change}</span>
+            </div>
+          )}
+          {paymentData.phoneNumber && (
+            <div className={styles.summaryRow}>
+              <span>{t('phoneNumber', 'Phone Number')}:</span>
+              <span>{paymentData.phoneNumber}</span>
+            </div>
+          )}
+          {paymentData.invoiceNumber && (
+            <div className={styles.summaryRow}>
+              <span>{t('invoiceNumber', 'Invoice Number')}:</span>
+              <span>{paymentData.invoiceNumber}</span>
+            </div>
+          )}
+          {paymentData.paymentReference && (
+            <div className={styles.summaryRow}>
+              <span>{t('paymentReference', 'Payment Reference')}:</span>
+              <span>{paymentData.paymentReference}</span>
             </div>
           )}
         </div>
@@ -764,103 +1127,290 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                   </div>
 
                   <div className={styles.formRow}>
-                    <div className={styles.formLabel}>{t('paymentMethod', 'Payment Method')}</div>
+                    <div className={styles.formLabel}>{t('paymentMethods', 'Payment Methods')}</div>
                     <div className={styles.formInput}>
-                      <div className={styles.radioGroup}>
-                        <div className={styles.radioOption}>
-                          <input
-                            type="radio"
-                            id="pay-with-deposit"
-                            name="payment-method"
-                            value="deposit"
-                            checked={paymentMethod === 'deposit'}
-                            onChange={() => setPaymentMethod('deposit')}
-                          />
-                          <label htmlFor="pay-with-deposit">{t('payWithDeposit', 'Pay with deposit')}</label>
+                      <div className={styles.paymentMethodsContainer}>
+                        <div className={styles.paymentMethodHeader}>
+                          <span>{t('totalAmountToPay', 'Total Amount to Pay')}:</span>
+                          <span className={styles.totalAmount}>{totalAmountToPay.toFixed(2)} RWF</span>
                         </div>
-                        <div className={styles.radioOption}>
-                          <input
-                            type="radio"
-                            id="pay-with-cash"
-                            name="payment-method"
-                            value="cash"
-                            checked={paymentMethod === 'cash'}
-                            onChange={() => setPaymentMethod('cash')}
+
+                        {/* Payment Method Selection Dropdown */}
+                        <div className={styles.paymentMethodDropdown}>
+                          <Dropdown
+                            id="payment-methods"
+                            titleText=""
+                            label={getSelectedPaymentMethodsText()}
+                            items={['cash', 'deposit', 'irembopay']}
+                            itemToString={(item) => {
+                              const methodNames = {
+                                cash: t('payWithCash', 'Pay with cash'),
+                                deposit: t('payWithDeposit', 'Pay with deposit'),
+                                irembopay: t('payWithIremboPay', 'Pay with Irembo Pay'),
+                              };
+                              return methodNames[item] || '';
+                            }}
+                            onChange={({ selectedItem }) => {
+                              if (selectedItem && ['cash', 'deposit', 'irembopay'].includes(selectedItem)) {
+                                togglePaymentMethod(selectedItem as 'cash' | 'deposit' | 'irembopay');
+                              }
+                            }}
+                            selectedItem={Array.from(selectedPaymentMethods)[0] || ''}
+                            size="md"
+                            type="default"
                           />
-                          <label htmlFor="pay-with-cash">{t('payWithCash', 'Pay with cash')}</label>
                         </div>
+
+                        {/* Selected Payment Methods with Remove Buttons */}
+                        {selectedPaymentMethods.size > 0 && (
+                          <div className={styles.selectedPaymentMethods}>
+                            {Array.from(selectedPaymentMethods).map((method) => {
+                              const methodNames = {
+                                cash: t('payWithCash', 'Pay with cash'),
+                                deposit: t('payWithDeposit', 'Pay with deposit'),
+                                irembopay: t('payWithIremboPay', 'Pay with Irembo Pay'),
+                              };
+                              return (
+                                <div key={method} className={styles.selectedMethodTag}>
+                                  <span>{methodNames[method]}</span>
+                                  <Button
+                                    kind="ghost"
+                                    size="sm"
+                                    hasIconOnly
+                                    iconDescription={t('remove', 'Remove')}
+                                    onClick={() => togglePaymentMethod(method)}
+                                    className={styles.removeButton}
+                                  >
+                                    ×
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Dynamic Payment Fields */}
+                        {selectedPaymentMethods.size > 0 && (
+                          <div className={styles.paymentFieldsContainer}>
+                            {selectedPaymentMethods.has('cash') && (
+                              <div className={styles.paymentFieldSection}>
+                                <div className={styles.paymentFieldLabel}>{t('payWithCash', 'Pay with cash')}</div>
+                                <Controller
+                                  name="receivedCash"
+                                  control={control}
+                                  render={({ field }) => (
+                                    <NumberInput
+                                      id="received-cash"
+                                      value={field.value}
+                                      onChange={(e) => {
+                                        handleUserInput('receivedCash');
+                                        field.onChange((e.target as HTMLInputElement).value);
+                                      }}
+                                      onFocus={() => handleUserInput('receivedCash')}
+                                      min={0}
+                                      step={0.01}
+                                      invalid={!!errors.receivedCash}
+                                      invalidText={errors.receivedCash?.message}
+                                      disabled={insuranceInfo.isLoading || !isFormReady}
+                                      placeholder="0.00"
+                                    />
+                                  )}
+                                />
+                              </div>
+                            )}
+
+                            {selectedPaymentMethods.has('deposit') && (
+                              <div className={styles.paymentFieldSection}>
+                                <div className={styles.paymentFieldLabel}>
+                                  {t('payWithDeposit', 'Pay with deposit')}
+                                </div>
+                                <Controller
+                                  name="deductedAmount"
+                                  control={control}
+                                  render={({ field }) => (
+                                    <NumberInput
+                                      id="deducted-amount"
+                                      value={field.value}
+                                      onChange={(e) => {
+                                        handleUserInput('deductedAmount');
+                                        field.onChange((e.target as HTMLInputElement).value);
+                                      }}
+                                      onFocus={() => handleUserInput('deductedAmount')}
+                                      min={0}
+                                      max={parseFloat(depositBalance)}
+                                      step={0.01}
+                                      invalid={!!errors.deductedAmount}
+                                      invalidText={errors.deductedAmount?.message}
+                                      disabled={insuranceInfo.isLoading || !isFormReady}
+                                      placeholder="0.00"
+                                    />
+                                  )}
+                                />
+                              </div>
+                            )}
+
+                            {selectedPaymentMethods.has('irembopay') && (
+                              <div className={styles.paymentFieldSection}>
+                                <div className={styles.paymentFieldLabel}>
+                                  {t('payWithIremboPay', 'Pay with Irembo Pay')}
+                                </div>
+                                <Controller
+                                  name="iremboPayAmount"
+                                  control={control}
+                                  render={({ field }) => (
+                                    <NumberInput
+                                      id="irembo-pay-amount"
+                                      value={field.value}
+                                      onChange={(e) => {
+                                        handleUserInput('iremboPayAmount');
+                                        field.onChange((e.target as HTMLInputElement).value);
+                                      }}
+                                      onFocus={() => handleUserInput('iremboPayAmount')}
+                                      min={0}
+                                      step={0.01}
+                                      invalid={!!errors.iremboPayAmount}
+                                      invalidText={errors.iremboPayAmount?.message}
+                                      disabled={insuranceInfo.isLoading || !isFormReady}
+                                      placeholder="0.00"
+                                    />
+                                  )}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Irembo Pay Instructions */}
+                        {selectedPaymentMethods.has('irembopay') && (
+                          <div className={styles.iremboPayInstructions}>
+                            <InlineNotification
+                              kind="info"
+                              title={t('iremboPayInstructions', 'Irembo Pay Instructions')}
+                              subtitle={t(
+                                'iremboPayInstructionsText',
+                                'Click "Send Payment Prompt" to initiate payment. The "Confirm Payment" button will be enabled only after successful payment.',
+                              )}
+                              hideCloseButton
+                            />
+                          </div>
+                        )}
+
+                        {/* Insufficient Cash Warning */}
+                        {getInsufficientCashWarning() && (
+                          <div className={styles.insufficientCashWarning}>
+                            <InlineNotification
+                              kind="warning"
+                              title={t('insufficientCash', 'Insufficient Cash')}
+                              subtitle={getInsufficientCashWarning()}
+                              hideCloseButton
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {paymentMethod === 'cash' && (
-                    <div className={styles.formRow}>
-                      <div className={styles.formLabel}>{t('receivedCash', 'Received Cash')}</div>
-                      <div className={styles.formInput}>
-                        <Controller
-                          name="receivedCash"
-                          control={control}
-                          render={({ field }) => (
-                            <NumberInput
-                              id="received-cash"
-                              value={field.value}
-                              onChange={(e) => {
-                                handleUserInput('receivedCash');
-                                field.onChange((e.target as HTMLInputElement).value);
-                              }}
-                              onFocus={() => handleUserInput('receivedCash')}
-                              min={0}
-                              step={0.01}
-                              invalid={!!errors.receivedCash}
-                              invalidText={errors.receivedCash?.message}
-                              disabled={insuranceInfo.isLoading || !isFormReady}
+                  {/* Irembo Pay specific fields - only show when Irembo Pay is selected */}
+                  {selectedPaymentMethods.has('irembopay') && (
+                    <>
+                      <div className={styles.formRow}>
+                        <div className={styles.formLabel}>{t('phoneNumber', 'Phone Number')}</div>
+                        <div className={styles.formInput}>
+                          <TextInput
+                            id="irembo-pay-phone"
+                            labelText={t('phoneNumber', 'Phone Number')}
+                            value={iremboPayPhoneNumber}
+                            onChange={(e) => setIremboPayPhoneNumber(e.target.value)}
+                            placeholder="0781234567"
+                            disabled={isPaymentPrompting || !isFormReady}
+                            invalid={
+                              selectedPaymentMethods.has('irembopay') &&
+                              !iremboPayPhoneNumber &&
+                              userModifiedFormRef.current
+                            }
+                            invalidText={t('phoneNumberRequired', 'Phone number is required for Irembo Pay')}
+                          />
+                        </div>
+                      </div>
+
+                      <div className={styles.formRow}>
+                        <div className={styles.formLabel}></div>
+                        <div className={styles.formInput}>
+                          <Button
+                            kind="primary"
+                            onClick={handleIremboPayPrompt}
+                            disabled={!iremboPayPhoneNumber || isPaymentPrompting || paymentPromptStatus === 'success'}
+                            className={styles.promptButton}
+                          >
+                            {isPaymentPrompting
+                              ? t('sendingPrompt', 'Sending Prompt...')
+                              : t('sendPaymentPrompt', 'Send Payment Prompt')}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {paymentPromptStatus !== 'idle' && (
+                        <div className={styles.formRow}>
+                          <div className={styles.formLabel}>{t('paymentStatus', 'Payment Status')}</div>
+                          <div className={styles.formInput}>
+                            <div className={styles.paymentStatusContainer}>
+                              {paymentPromptStatus === 'prompting' && (
+                                <div className={styles.paymentStatus}>
+                                  <div className={styles.spinner}></div>
+                                  <span>{t('sendingPaymentPrompt', 'Sending payment prompt...')}</span>
+                                </div>
+                              )}
+                              {paymentPromptStatus === 'pending' && (
+                                <div className={styles.paymentStatus}>
+                                  <div className={styles.spinner}></div>
+                                  <span>{t('waitingForPayment', 'Waiting for payment confirmation...')}</span>
+                                </div>
+                              )}
+                              {paymentPromptStatus === 'success' && (
+                                <div className={styles.paymentStatusSuccess}>
+                                  <CheckmarkFilled size={16} />
+                                  <span>{t('paymentSuccessful', 'Payment successful!')}</span>
+                                </div>
+                              )}
+                              {paymentPromptStatus === 'failed' && (
+                                <div className={styles.paymentStatusError}>
+                                  <span>{t('paymentFailed', 'Payment failed. Please try again.')}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {invoiceNumber && (
+                        <div className={styles.formRow}>
+                          <div className={styles.formLabel}>{t('invoiceNumber', 'Invoice Number')}</div>
+                          <div className={styles.formInput}>
+                            <TextInput
+                              id="invoice-number"
+                              labelText={t('invoiceNumber', 'Invoice Number')}
+                              value={invoiceNumber}
+                              readOnly
                             />
-                          )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Deposit balance - only show when deposit is selected */}
+                  {selectedPaymentMethods.has('deposit') && (
+                    <div className={styles.formRow}>
+                      <div className={styles.formLabel}>{t('balance', 'Balance')}</div>
+                      <div className={styles.formInput}>
+                        <TextInput
+                          id="deposit-balance"
+                          labelText={t('balance', 'Balance')}
+                          value={depositBalance}
+                          readOnly
                         />
                       </div>
                     </div>
-                  )}
-
-                  {paymentMethod === 'deposit' && (
-                    <>
-                      <div className={styles.formRow}>
-                        <div className={styles.formLabel}>{t('deductedAmount', 'Deducted Amount')}</div>
-                        <div className={styles.formInput}>
-                          <Controller
-                            name="deductedAmount"
-                            control={control}
-                            render={({ field }) => (
-                              <NumberInput
-                                id="deducted-amount"
-                                value={field.value}
-                                onChange={(e) => {
-                                  handleUserInput('deductedAmount');
-                                  field.onChange((e.target as HTMLInputElement).value);
-                                }}
-                                onFocus={() => handleUserInput('deductedAmount')}
-                                min={0}
-                                max={parseFloat(depositBalance)}
-                                step={0.01}
-                                invalid={!!errors.deductedAmount}
-                                invalidText={errors.deductedAmount?.message}
-                                disabled={insuranceInfo.isLoading || !isFormReady}
-                              />
-                            )}
-                          />
-                        </div>
-                      </div>
-                      <div className={styles.formRow}>
-                        <div className={styles.formLabel}>{t('balance', 'Balance')}</div>
-                        <div className={styles.formInput}>
-                          <TextInput
-                            id="deposit-balance"
-                            labelText={t('balance', 'Balance')}
-                            value={depositBalance}
-                            readOnly
-                          />
-                        </div>
-                      </div>
-                    </>
                   )}
                 </FormGroup>
               </div>
@@ -928,13 +1478,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                         id="rest-amount"
                         labelText={t('rest', 'Rest')}
                         value={
-                          paymentMethod === 'cash'
+                          selectedPaymentMethods.has('cash')
                             ? calculateChange(receivedCash, paymentAmount)
                             : (parseFloat(deductedAmount || '0') - parseFloat(paymentAmount || '0')).toFixed(2)
                         }
                         className={`${styles.restInput} ${styles.readOnlyInput} ${
-                          (paymentMethod === 'cash' && parseFloat(calculateChange(receivedCash, paymentAmount)) < 0) ||
-                          (paymentMethod === 'deposit' &&
+                          (selectedPaymentMethods.has('cash') &&
+                            parseFloat(calculateChange(receivedCash, paymentAmount)) < 0) ||
+                          (selectedPaymentMethods.has('deposit') &&
                             parseFloat(deductedAmount || '0') - parseFloat(paymentAmount || '0') < 0)
                             ? styles.negativeRest
                             : ''

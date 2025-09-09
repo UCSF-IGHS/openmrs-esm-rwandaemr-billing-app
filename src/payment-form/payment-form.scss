@@ -921,3 +921,200 @@ tbody tr:hover {
   background-color: #fff1f1;
   color: #da1e28;
 }
+
+// Irembo Pay specific styles
+.promptButton {
+  width: auto;
+  min-width: 200px;
+}
+
+// Payment methods container
+.paymentMethodsContainer {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: #f8f9fa;
+}
+
+.paymentMethodHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.totalAmount {
+  color: #0f62fe;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+// Payment method dropdown
+.paymentMethodDropdown {
+  margin-bottom: 16px;
+}
+
+// Selected payment methods
+.selectedPaymentMethods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.selectedMethodTag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background-color: #e8f4fd;
+  border: 1px solid #0f62fe;
+  border-radius: 16px;
+  font-size: 0.875rem;
+  color: #0f62fe;
+  font-weight: 500;
+}
+
+.removeButton {
+  min-width: 20px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 4px; // Square with slight rounding
+  background-color: #da1e28; // Red background
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background-color: #b8191f; // Darker red on hover
+  }
+  
+  &:focus {
+    outline: 2px solid #da1e28;
+    outline-offset: 2px;
+  }
+}
+
+// Payment fields container
+.paymentFieldsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.paymentFieldSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background-color: white;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #0f62fe;
+    box-shadow: 0 2px 4px rgba(15, 98, 254, 0.1);
+  }
+}
+
+.paymentFieldLabel {
+  font-weight: 600;
+  color: #161616;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+// Insufficient cash warning
+.insufficientCashWarning {
+  margin-top: 16px;
+}
+
+// Irembo Pay instructions
+.iremboPayInstructions {
+  margin-top: 16px;
+}
+
+// Responsive design
+@media (min-width: 768px) {
+  .paymentFieldsContainer {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 767px) {
+  .paymentMethodHeader {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+  
+  .paymentFieldsContainer {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.paymentStatusContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: #f4f4f4;
+  border: 1px solid #e0e0e0;
+}
+
+.paymentStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #0f62fe;
+  font-weight: 500;
+}
+
+.paymentStatusSuccess {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #0e6027;
+  font-weight: 500;
+}
+
+.paymentStatusError {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #da1e28;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e0e0e0;
+  border-top: 2px solid #0f62fe;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
