@@ -115,10 +115,9 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     }, [consommationStatuses]);
 
     const globalBillDisplayStatus = useMemo(() => {
-      if (allPaid) return 'PAID';
       if (isClosedLocal) return 'CLOSED';
       return '';
-    }, [allPaid, isClosedLocal]);
+    }, [isClosedLocal]);
 
     const layout = useLayoutType();
     const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
@@ -513,11 +512,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           kind: 'info',
         });
 
-        const result = await closeGlobalBill(
-          globalBillId,
-          allPaid ? 'Bill paid and closed by user' : 'Bill closed by user',
-          allPaid ? 'FULLY PAID' : 'PARTIALLY PAID',
-        );
+        const result = await closeGlobalBill(globalBillId, 'Bill closed by user');
 
         setIsClosedLocal(true);
         setShowCloseConfirm(false);
@@ -545,6 +540,16 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           description: t('billClosedSuccessfully', 'Global bill closed successfully'),
           kind: 'success',
         });
+
+        const globalBillClosedEvent = new CustomEvent('globalBillClosed', {
+          detail: {
+            globalBillId,
+            patientUuid,
+            insuranceCardNo,
+            closed: true,
+          },
+        });
+        window.dispatchEvent(globalBillClosedEvent);
       } catch (error: any) {
         showToast({
           title: t('error', 'Error'),
@@ -554,7 +559,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       } finally {
         setIsClosing(false);
       }
-    }, [globalBillId, onBillClosed, t, allPaid]);
+    }, [globalBillId, onBillClosed, t, patientUuid, insuranceCardNo]);
 
     const handleRevertSuccess = useCallback(async () => {
       setIsClosedLocal(false);
@@ -562,7 +567,18 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
       // Refresh the data to reflect the reverted status
       await fetchConsommations();
-    }, [fetchConsommations]);
+
+      // Dispatch custom event for global bill reverted
+      const globalBillRevertedEvent = new CustomEvent('globalBillReverted', {
+        detail: {
+          globalBillId,
+          patientUuid,
+          insuranceCardNo,
+          closed: false,
+        },
+      });
+      window.dispatchEvent(globalBillRevertedEvent);
+    }, [fetchConsommations, globalBillId, patientUuid, insuranceCardNo]);
 
     const handlePaymentModalClose = useCallback(() => {
       setIsPaymentModalOpen(false);
@@ -823,8 +839,8 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
               {globalBillDisplayStatus && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: 12 }}>
                   <Tag
-                    type={globalBillDisplayStatus === 'PAID' ? 'green' : 'cool-gray'}
-                    className={globalBillDisplayStatus === 'PAID' ? styles.paidStatus : ''}
+                    type={globalBillDisplayStatus === 'CLOSED' ? 'cool-gray' : 'cool-gray'}
+                    className={globalBillDisplayStatus === 'CLOSED' ? '' : ''}
                   >
                     {globalBillDisplayStatus}
                   </Tag>
@@ -845,14 +861,8 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                 renderIcon={(props) => <Close size={16} {...props} />}
                 iconDescription={t('closeBill', 'Close bill')}
                 onClick={() => setShowCloseConfirm(true)}
-                disabled={isClosedLocal || isClosing || !allPaid}
-                title={
-                  isClosedLocal
-                    ? t('closedBillNoClose', 'Cannot close a closed bill')
-                    : !allPaid
-                      ? t('cannotCloseWithUnpaid', 'All consommations must be paid before closing this bill')
-                      : ''
-                }
+                disabled={isClosedLocal || isClosing}
+                title={isClosedLocal ? t('closedBillNoClose', 'Cannot close a closed bill') : ''}
               >
                 {isClosing ? (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>

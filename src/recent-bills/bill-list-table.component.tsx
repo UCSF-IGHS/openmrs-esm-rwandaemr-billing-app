@@ -86,10 +86,26 @@ const BillListTable: React.FC = () => {
       }, 1000);
     };
 
+    const handleGlobalBillClosed = (event: CustomEvent) => {
+      setTimeout(() => {
+        fetchBills();
+      }, 1000);
+    };
+
+    const handleGlobalBillReverted = (event: CustomEvent) => {
+      setTimeout(() => {
+        fetchBills();
+      }, 1000);
+    };
+
     window.addEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+    window.addEventListener('globalBillClosed', handleGlobalBillClosed as EventListener);
+    window.addEventListener('globalBillReverted', handleGlobalBillReverted as EventListener);
 
     return () => {
       window.removeEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+      window.removeEventListener('globalBillClosed', handleGlobalBillClosed as EventListener);
+      window.removeEventListener('globalBillReverted', handleGlobalBillReverted as EventListener);
     };
   }, [fetchBills]);
 
