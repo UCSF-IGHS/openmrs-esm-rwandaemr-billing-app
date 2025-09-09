@@ -69,8 +69,9 @@ export {
   getGlobalBillSummary,
   createDirectGlobalBill,
   closeGlobalBill,
+  revertGlobalBill,
   fetchRecentGlobalBills,
-  fetchConsommationTotals,     
+  fetchConsommationTotals,
   getPatientNameFromGlobalBill,
   type GlobalBillResponse,
 } from './global-bills';

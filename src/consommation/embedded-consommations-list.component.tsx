@@ -21,6 +21,7 @@ import {
   isConsommationPaid,
   getDepartments,
   closeGlobalBill,
+  revertGlobalBill,
   getGlobalBillById,
 } from '../api/billing';
 import { isItemPaid, isItemPartiallyPaid } from '../utils/billing-calculations';
@@ -28,8 +29,9 @@ import { type ConsommationListResponse, type ConsommationListItem, type Consomma
 import styles from './embedded-consommations-list.scss';
 import PaymentForm from '../payment-form/payment-form.component';
 import { printReceipt } from '../payment-receipt/print-receipt';
-import { Add, Printer, Close } from '@carbon/react/icons';
+import { Add, Printer, Close, Undo } from '@carbon/react/icons';
 import GlobalBillInsuranceInfo from '../invoice/global-bill-insurance-info.component';
+import RevertGlobalBillModal from './revert-global-bill-modal.component';
 
 interface EmbeddedConsommationsListProps {
   globalBillId: string;
@@ -83,20 +85,34 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     const [expandedConsommations, setExpandedConsommations] = useState<Set<string>>(new Set());
     const [isClosing, setIsClosing] = useState(false);
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+    const [showRevertConfirm, setShowRevertConfirm] = useState(false);
+    const [admissionData, setAdmissionData] = useState<any>(null);
     const [isClosedLocal, setIsClosedLocal] = useState<boolean>(Boolean(isGlobalBillClosed));
     const ratesCacheRef = React.useRef<Record<string, { insuranceRate: number; patientRate: number }>>({});
+    const loadAdmissionData = useCallback(async () => {
+      try {
+        const globalBillData = await getGlobalBillById(globalBillId);
+        setAdmissionData(globalBillData?.admission || null);
+      } catch (error) {
+        console.error('Error loading admission data:', error);
+      }
+    }, [globalBillId]);
+
     useEffect(() => {
       setIsClosedLocal(Boolean(isGlobalBillClosed));
     }, [isGlobalBillClosed]);
 
-    const allPaid = useMemo(
-      () => {
-        const values = Object.values(consommationStatuses);
-        if (values.length === 0) return true;
-        return values.every((s) => s === 'PAID');
-      },
-      [consommationStatuses],
-    );
+    useEffect(() => {
+      if (showRevertConfirm) {
+        loadAdmissionData();
+      }
+    }, [showRevertConfirm, loadAdmissionData]);
+
+    const allPaid = useMemo(() => {
+      const values = Object.values(consommationStatuses);
+      if (values.length === 0) return true;
+      return values.every((s) => s === 'PAID');
+    }, [consommationStatuses]);
 
     const globalBillDisplayStatus = useMemo(() => {
       if (allPaid) return 'PAID';
@@ -519,7 +535,9 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
               await new Promise((res) => setTimeout(res, POLL_DELAY_MS));
               attempts += 1;
             }
-          } catch { /* non-fatal */ }
+          } catch {
+            /* non-fatal */
+          }
         }
 
         showToast({
@@ -537,6 +555,14 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
         setIsClosing(false);
       }
     }, [globalBillId, onBillClosed, t, allPaid]);
+
+    const handleRevertSuccess = useCallback(async () => {
+      setIsClosedLocal(false);
+      setShowRevertConfirm(false);
+
+      // Refresh the data to reflect the reverted status
+      await fetchConsommations();
+    }, [fetchConsommations]);
 
     const handlePaymentModalClose = useCallback(() => {
       setIsPaymentModalOpen(false);
@@ -764,7 +790,6 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       );
     }
 
-
     return (
       <div className={styles.container}>
         <Modal
@@ -780,6 +805,13 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
         >
           <p>{t('closeBillWarning', 'This will mark the global bill as closed and prevent further additions.')}</p>
         </Modal>
+        <RevertGlobalBillModal
+          isOpen={showRevertConfirm}
+          onClose={() => setShowRevertConfirm(false)}
+          onSuccess={handleRevertSuccess}
+          globalBillId={globalBillId}
+          admission={admissionData}
+        />
         <div className={styles.tableHeader}>
           <div className={styles.headerTitleContainer}>
             <div className={styles.headerTitleInfo}>
@@ -787,10 +819,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                 {t('consommationsList', 'Consommations List for Global Bill')} #{globalBillId}
               </h4>
             </div>
-            <div
-              className={styles.headerActions}
-              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-            >
+            <div className={styles.headerActions} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {globalBillDisplayStatus && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: 12 }}>
                   <Tag
@@ -832,6 +861,17 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                 ) : (
                   t('closeBill', 'Close Bill')
                 )}
+              </Button>
+              <Button
+                kind="ghost"
+                renderIcon={(props) => <Undo size={16} {...props} />}
+                iconDescription={t('revertBill', 'Revert bill')}
+                onClick={() => setShowRevertConfirm(true)}
+                disabled={!isClosedLocal}
+                className={styles.revertButton}
+                title={!isClosedLocal ? t('canOnlyRevertClosedBill', 'Can only revert a closed bill') : ''}
+              >
+                {t('revertBill', 'Revert Bill')}
               </Button>
             </div>
           </div>

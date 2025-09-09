@@ -263,6 +263,20 @@ $disabled-03: #8d8d8d !default;
   gap: 1rem;
 }
 
+.revertButton {
+  color: #da1e28; // IBM Red 60 for danger/warning actions
+  
+  &:hover:not(:disabled) {
+    background-color: #fff1f1; // Light red background on hover
+    color: #b81921; // Darker red on hover
+  }
+  
+  &:disabled {
+    color: $disabled-03;
+    cursor: not-allowed;
+  }
+}
+
 /* ---------- Empty state ---------- */
 .emptyStateContainer {
   display: flex;
