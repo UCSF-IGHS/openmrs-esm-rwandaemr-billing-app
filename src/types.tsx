@@ -104,6 +104,7 @@ export interface MappedBill {
   paymentStatus: PaymentStatus;
   bill: boolean;
   isPaid?: boolean;
+  closed?: boolean;
 }
 
 export interface ConsommationStatus {

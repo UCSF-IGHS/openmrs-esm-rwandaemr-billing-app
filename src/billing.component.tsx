@@ -58,13 +58,29 @@ const Billing: React.FC = () => {
     const handleGlobalBillCreated = (event: CustomEvent) => {
       setTimeout(() => {
         fetchMetrics();
-      }, 1000); 
+      }, 1000);
+    };
+
+    const handleGlobalBillClosed = (event: CustomEvent) => {
+      setTimeout(() => {
+        fetchMetrics();
+      }, 1000);
+    };
+
+    const handleGlobalBillReverted = (event: CustomEvent) => {
+      setTimeout(() => {
+        fetchMetrics();
+      }, 1000);
     };
 
     window.addEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+    window.addEventListener('globalBillClosed', handleGlobalBillClosed as EventListener);
+    window.addEventListener('globalBillReverted', handleGlobalBillReverted as EventListener);
 
     return () => {
       window.removeEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+      window.removeEventListener('globalBillClosed', handleGlobalBillClosed as EventListener);
+      window.removeEventListener('globalBillReverted', handleGlobalBillReverted as EventListener);
     };
   }, [fetchMetrics]);
 

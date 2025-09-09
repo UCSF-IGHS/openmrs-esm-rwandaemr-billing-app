@@ -110,6 +110,24 @@ export const BillingHomeGlobalBillsTable: React.FC<{ patientQuery?: string; poli
     load();
   }, [load]);
 
+  useEffect(() => {
+    const handleGlobalBillClosed = () => {
+      load();
+    };
+
+    const handleGlobalBillReverted = () => {
+      load();
+    };
+
+    window.addEventListener('globalBillClosed', handleGlobalBillClosed as EventListener);
+    window.addEventListener('globalBillReverted', handleGlobalBillReverted as EventListener);
+
+    return () => {
+      window.removeEventListener('globalBillClosed', handleGlobalBillClosed as EventListener);
+      window.removeEventListener('globalBillReverted', handleGlobalBillReverted as EventListener);
+    };
+  }, [load]);
+
   const headers = useMemo(
     () => [
       { key: 'patient', header: t('patient', 'Patient Name') },
@@ -301,8 +319,35 @@ const InvoiceTableWithIdentifiers: React.FC<InvoiceTableWithIdentifiersProps> = 
       }
     };
 
+    const handleGlobalBillClosed = (event: CustomEvent) => {
+      if (patientUuid && (event as any).detail?.patientUuid === patientUuid) {
+        patientBillResponse.mutate();
+      }
+
+      if (insuranceCardNo && (event as any).detail?.insuranceCardNo === insuranceCardNo) {
+        insuranceBillResponse.mutate();
+      }
+    };
+
+    const handleGlobalBillReverted = (event: CustomEvent) => {
+      if (patientUuid && (event as any).detail?.patientUuid === patientUuid) {
+        patientBillResponse.mutate();
+      }
+
+      if (insuranceCardNo && (event as any).detail?.insuranceCardNo === insuranceCardNo) {
+        insuranceBillResponse.mutate();
+      }
+    };
+
     window.addEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
-    return () => window.removeEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+    window.addEventListener('globalBillClosed', handleGlobalBillClosed as EventListener);
+    window.addEventListener('globalBillReverted', handleGlobalBillReverted as EventListener);
+
+    return () => {
+      window.removeEventListener('globalBillCreated', handleGlobalBillCreated as EventListener);
+      window.removeEventListener('globalBillClosed', handleGlobalBillClosed as EventListener);
+      window.removeEventListener('globalBillReverted', handleGlobalBillReverted as EventListener);
+    };
   }, [patientUuid, insuranceCardNo, patientBillResponse, insuranceBillResponse]);
 
   const usePatientData = Boolean(patientUuid);
@@ -441,7 +486,7 @@ const InvoiceTableWithIdentifiers: React.FC<InvoiceTableWithIdentifiersProps> = 
   const createNewInvoice = useCallback(
     (globalBillId: string) => {
       const currentBill = lineItems.find((item: any) => item.globalBillId?.toString() === globalBillId.toString());
-      const isGlobalBillClosed = currentBill?.paymentStatus === 'PAID';
+      const isGlobalBillClosed = currentBill?.closed === true;
       if (isGlobalBillClosed) {
         showToast({
           title: t('closedBill', 'Closed Bill'),
@@ -473,6 +518,11 @@ const InvoiceTableWithIdentifiers: React.FC<InvoiceTableWithIdentifiersProps> = 
       const globalBillId = selectedGlobalBillId;
       if (!globalBillId) {
         throw new Error('No global bill ID found. Please create a global bill first.');
+      }
+
+      const currentBill = lineItems.find((item: any) => item.globalBillId?.toString() === globalBillId.toString());
+      if (currentBill?.closed === true) {
+        throw new Error('Cannot add items to a closed global bill.');
       }
       let policyNumber = insuranceCardNo;
       if (!policyNumber && patientUuid) {
@@ -590,7 +640,7 @@ const InvoiceTableWithIdentifiers: React.FC<InvoiceTableWithIdentifiersProps> = 
     } finally {
       setIsSaving(false);
     }
-  }, [calculatorItems, selectedGlobalBillId, patientUuid, insuranceCardNo, mutate, t]);
+  }, [calculatorItems, selectedGlobalBillId, patientUuid, insuranceCardNo, mutate, t, lineItems]);
 
   const handleCalculatorUpdate = useCallback((items: any[]) => {
     setCalculatorItems(items);
