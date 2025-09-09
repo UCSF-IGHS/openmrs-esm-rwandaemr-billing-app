@@ -331,6 +331,35 @@ export const closeGlobalBill = async (
 };
 
 /**
+ * Reverts a global bill to unpaid status
+ * @param globalBillId - The global bill ID to revert
+ * @param reason - The reason for reverting the bill
+ * @returns Promise with the updated global bill data
+ */
+export const revertGlobalBill = async (globalBillId: string | number, reason: string = 'Bill reverted by user') => {
+  return errorHandler.wrapAsync(
+    async () => {
+      const res = await openmrsFetch(`${BASE_API_URL}/globalBill/${globalBillId}/revert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+
+      // If openmrsFetch exposes ok/status, prefer that; otherwise rely on thrown errors
+      // @ts-ignore
+      if (typeof res.ok !== 'undefined' && !res.ok) {
+        // @ts-ignore
+        const msg = (res?.data && (res.data.error?.message || res.data.message)) || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      return res.data;
+    },
+    { component: 'billing-api', action: 'revertGlobalBill', metadata: { globalBillId, reason } },
+    commonErrorMessages.saveError,
+  );
+};
+
+/**
  * Lists recent global bills with pagination and optional date range filters.
  * Supports: startDate, endDate, limit, startIndex
  */

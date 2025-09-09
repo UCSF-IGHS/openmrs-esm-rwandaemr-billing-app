@@ -1,0 +1,164 @@
+@use '@carbon/layout';
+@use '@carbon/type';
+
+.modalContent {
+  display: flex;
+  flex-direction: column;
+  gap: layout.$spacing-06;
+  padding: layout.$spacing-05;
+}
+
+.dateInfo {
+  display: flex;
+  flex-direction: column;
+  gap: layout.$spacing-04;
+  padding: layout.$spacing-05;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dateField {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: layout.$spacing-03 0;
+  border-bottom: 1px solid #e5e5e5;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.dateLabel {
+  @include type.type-style('body-compact-01');
+  font-weight: 600;
+  color: #161616;
+  margin: 0;
+  min-width: 140px;
+}
+
+.dateValue {
+  @include type.type-style('body-compact-01');
+  color: #525252;
+  font-family: 'IBM Plex Mono', 'Monaco', 'Consolas', monospace;
+  background-color: #ffffff;
+  padding: layout.$spacing-03 layout.$spacing-04;
+  border-radius: 6px;
+  border: 2px solid #8d8d8d;
+  min-width: 140px;
+  text-align: center;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.reasonSection {
+  display: flex;
+  flex-direction: column;
+  gap: layout.$spacing-04;
+  margin-top: layout.$spacing-02;
+}
+
+.reasonLabel {
+  @include type.type-style('body-compact-01');
+  font-weight: 700;
+  color: #161616;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.reasonSelect {
+  width: 100%;
+  
+  .cds--select-input {
+    border: 2px solid #8d8d8d;
+    border-radius: 6px;
+    padding: layout.$spacing-03 layout.$spacing-04;
+    font-size: 1rem;
+    background-color: #ffffff;
+    
+    &:focus {
+      border-color: #0f62fe;
+      box-shadow: 0 0 0 2px rgba(15, 98, 254, 0.2);
+      outline: none;
+    }
+    
+    &:hover {
+      border-color: #0f62fe;
+    }
+  }
+  
+  .cds--select__arrow {
+    color: #8d8d8d;
+  }
+}
+
+.warningMessage {
+  padding: layout.$spacing-04;
+  background-color: #fff1f1;
+  border: 1px solid #da1e28;
+  border-radius: 6px;
+  margin-top: layout.$spacing-04;
+  
+  p {
+    @include type.type-style('body-compact-01');
+    color: #da1e28;
+    margin: 0;
+    font-weight: 500;
+  }
+}
+
+// Dark theme support
+:global(.cds--theme--g90) .modalContent,
+:global(.cds--theme--g100) .modalContent {
+  .dateInfo {
+    background-color: #393939;
+    border-color: #525252;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  
+  .dateField {
+    border-bottom-color: #525252;
+  }
+  
+  .dateLabel {
+    color: #f4f4f4;
+  }
+  
+  .dateValue {
+    background-color: #262626;
+    color: #f4f4f4;
+    border-color: #525252;
+  }
+  
+  .reasonLabel {
+    color: #f4f4f4;
+  }
+  
+  .reasonSelect {
+    .cds--select-input {
+      background-color: #262626;
+      border-color: #525252;
+      color: #f4f4f4;
+      
+      &:focus {
+        border-color: #0f62fe;
+        box-shadow: 0 0 0 2px rgba(15, 98, 254, 0.2);
+      }
+      
+      &:hover {
+        border-color: #0f62fe;
+      }
+    }
+  }
+  
+  .warningMessage {
+    background-color: #2d1b1b;
+    border-color: #da1e28;
+    
+    p {
+      color: #ff6b6b;
+    }
+  }
+}
