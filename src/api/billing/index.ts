@@ -85,6 +85,7 @@ export {
   createDirectConsommationWithBeneficiary,
   getConsommationStatus,
   isConsommationPaid,
+  getConsommationPaymentStatus,
   getMultipleConsommationStatuses,
 } from './consommations';
 

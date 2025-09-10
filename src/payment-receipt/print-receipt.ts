@@ -9,6 +9,12 @@ interface PaymentData {
   collectorName: string;
   patientName?: string;
   policyNumber?: string;
+  thirdPartyAmount?: string;
+  thirdPartyProvider?: string;
+  totalAmount?: string;
+  insuranceRate?: number;
+  patientRate?: number;
+  insuranceName?: string;
 }
 
 interface ConsommationInfo {
@@ -23,20 +29,21 @@ interface ConsommationItem {
   unitPrice?: number;
   paidAmount?: number;
   consommationId?: string;
+  drugFrequency?: string;
 }
 
 export const printReceipt = (
-  paymentData: PaymentData, 
-  groupedConsommationData: Record<string, ConsommationInfo>, 
-  allConsommationItems: ConsommationItem[]
+  paymentData: PaymentData,
+  groupedConsommationData: Record<string, ConsommationInfo>,
+  allConsommationItems: ConsommationItem[],
 ) => {
   const printWindow = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
-  
+
   if (!printWindow) {
     alert('Please allow pop-ups to print the receipt');
     return;
   }
-  
+
   printWindow.document.write(`
     <html>
       <head>
@@ -332,7 +339,7 @@ export const printReceipt = (
       </head>
       <body>
   `);
-  
+
   printWindow.document.write(`
     <div class="receiptContainer">
       <div class="receiptHeader">
@@ -351,18 +358,50 @@ export const printReceipt = (
         <h3>Payment Information</h3>
         <table class="receiptTable">
           <tbody>
-            ${paymentData.patientName ? `
+            ${
+              paymentData.patientName
+                ? `
             <tr>
               <td>Patient Name:</td>
               <td><strong>${paymentData.patientName}</strong></td>
             </tr>
-            ` : ''}
-            ${paymentData.policyNumber ? `
+            `
+                : ''
+            }
+            ${
+              paymentData.policyNumber
+                ? `
             <tr>
               <td>Policy Number:</td>
               <td>${paymentData.policyNumber}</td>
             </tr>
-            ` : ''}
+            `
+                : ''
+            }
+            ${
+              paymentData.insuranceName
+                ? `
+            <tr>
+              <td>Insurance Provider:</td>
+              <td><strong>${paymentData.insuranceName}</strong></td>
+            </tr>
+            `
+                : ''
+            }
+            ${
+              paymentData.insuranceRate !== undefined
+                ? `
+            <tr>
+              <td>Insurance Coverage:</td>
+              <td><strong>${paymentData.insuranceRate}%</strong></td>
+            </tr>
+            <tr>
+              <td>Patient Coverage:</td>
+              <td><strong>${paymentData.patientRate || 100 - paymentData.insuranceRate}%</strong></td>
+            </tr>
+            `
+                : ''
+            }
             <tr>
               <td>Collector:</td>
               <td>${paymentData.collectorName}</td>
@@ -371,7 +410,9 @@ export const printReceipt = (
               <td>Payment Date:</td>
               <td>${paymentData.dateReceived}</td>
             </tr>
-            ${paymentData.paymentMethod === 'cash' && paymentData.receivedCash ? `
+            ${
+              paymentData.paymentMethod === 'cash' && paymentData.receivedCash
+                ? `
               <tr>
                 <td>Cash Received:</td>
                 <td>${parseFloat(paymentData.receivedCash).toFixed(2)}</td>
@@ -380,13 +421,19 @@ export const printReceipt = (
                 <td>Change Given:</td>
                 <td>${paymentData.change}</td>
               </tr>
-            ` : ''}
-            ${paymentData.paymentMethod === 'deposit' && paymentData.deductedAmount ? `
+            `
+                : ''
+            }
+            ${
+              paymentData.paymentMethod === 'deposit' && paymentData.deductedAmount
+                ? `
               <tr>
                 <td>Amount Deducted:</td>
                 <td>${parseFloat(paymentData.deductedAmount).toFixed(2)}</td>
               </tr>
-            ` : ''}
+            `
+                : ''
+            }
             <tr>
               <td><strong>${paymentData.paymentMethod === 'N/A' ? 'Total Amount:' : paymentData.paymentMethod === 'pending' ? 'Amount Due:' : 'Total Amount Paid:'}</strong></td>
               <td class="amount-highlight">${paymentData.amountPaid}</td>
@@ -397,12 +444,11 @@ export const printReceipt = (
       
       <div class="receiptSection">
         <h3>Services & Itemized Payment Details</h3>
-        ${Object.entries(groupedConsommationData).map(([consommationId, consommationInfo]) => {
-          const consommationItems = allConsommationItems.filter(item => 
-            item.consommationId === consommationId
-          );
-          
-          return `
+        ${Object.entries(groupedConsommationData)
+          .map(([consommationId, consommationInfo]) => {
+            const consommationItems = allConsommationItems.filter((item) => item.consommationId === consommationId);
+
+            return `
             <div class="consommation-section">
               <div class="consommation-header">
                 <h4>Consommation #${consommationId} - ${consommationInfo.service}</h4>
@@ -412,43 +458,67 @@ export const printReceipt = (
               <table class="itemsTable">
                 <thead>
                   <tr>
-                    <th>Item Description</th>
-                    <th>Qty</th>
+                    <th>Item</th>
+                    <th>Quantity</th>
                     <th>Unit Price</th>
                     <th>Total Amount</th>
-                    <th>Amount Paid</th>
+                    <th>Insurance % Cover</th>
+                    <th>Patient % Cover</th>
+                    <th>Paid Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${consommationItems.map(item => {
-                    const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-                    const paidAmount = item.paidAmount || 0;
-                    return `
+                  ${consommationItems
+                    .map((item) => {
+                      const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+                      const paidAmount = item.paidAmount || 0;
+                      const insuranceRate = paymentData.insuranceRate || 0;
+                      const patientRate = 100 - insuranceRate;
+                      const insuranceCoverAmount = (itemTotal * insuranceRate) / 100;
+                      const patientCoverAmount = (itemTotal * patientRate) / 100;
+
+                      return `
                       <tr>
                         <td><strong>${item.itemName || 'Unnamed Item'}</strong></td>
                         <td style="text-align: center;">${item.quantity || '1'}</td>
                         <td style="text-align: right;">${Number(item.unitPrice || 0).toFixed(2)}</td>
                         <td style="text-align: right;">${Number(itemTotal).toFixed(2)}</td>
+                        <td style="text-align: right;">${insuranceRate.toFixed(1)}% (${insuranceCoverAmount.toFixed(2)})</td>
+                        <td style="text-align: right;">${patientRate.toFixed(1)}% (${patientCoverAmount.toFixed(2)})</td>
                         <td style="text-align: right;"><strong>${Number(paidAmount).toFixed(2)}</strong></td>
                       </tr>
                     `;
-                  }).join('')}
+                    })
+                    .join('')}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colspan="3"><strong>Consommation Totals:</strong></td>
+                    <td colspan="4"><strong>Consommation Totals:</strong></td>
                     <td style="text-align: right;">
                       <strong>
                         ${consommationItems
-                          .reduce((total, item) => total + ((item.quantity || 1) * (item.unitPrice || 0)), 0)
+                          .reduce((total, item) => {
+                            const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+                            const insuranceRate = paymentData.insuranceRate || 0;
+                            return total + (itemTotal * insuranceRate) / 100;
+                          }, 0)
                           .toFixed(2)}
                       </strong>
                     </td>
                     <td style="text-align: right;">
                       <strong>
                         ${consommationItems
-                          .reduce((total, item) => total + (item.paidAmount || 0), 0)
+                          .reduce((total, item) => {
+                            const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+                            const patientRate = 100 - (paymentData.insuranceRate || 0);
+                            return total + (itemTotal * patientRate) / 100;
+                          }, 0)
                           .toFixed(2)}
+                      </strong>
+                    </td>
+                    <td style="text-align: right;">
+                      <strong>
+                        ${consommationItems.reduce((total, item) => total + (item.paidAmount || 0), 0).toFixed(2)}
                       </strong>
                     </td>
                   </tr>
@@ -456,25 +526,39 @@ export const printReceipt = (
               </table>
             </div>
           `;
-        }).join('')}
+          })
+          .join('')}
         
         <div class="grand-totals">
           <table class="itemsTable">
             <tfoot>
               <tr style="background-color: #e9ecef; font-weight: bold;">
-                <td colspan="3"><strong>GRAND TOTALS:</strong></td>
+                <td colspan="4"><strong>GRAND TOTALS:</strong></td>
                 <td style="text-align: right;">
                   <strong>
                     ${allConsommationItems
-                      .reduce((total, item) => total + ((item.quantity || 1) * (item.unitPrice || 0)), 0)
+                      .reduce((total, item) => {
+                        const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+                        const insuranceRate = paymentData.insuranceRate || 0;
+                        return total + (itemTotal * insuranceRate) / 100;
+                      }, 0)
                       .toFixed(2)}
                   </strong>
                 </td>
                 <td style="text-align: right;">
                   <strong>
                     ${allConsommationItems
-                      .reduce((total, item) => total + (item.paidAmount || 0), 0)
+                      .reduce((total, item) => {
+                        const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
+                        const patientRate = 100 - (paymentData.insuranceRate || 0);
+                        return total + (itemTotal * patientRate) / 100;
+                      }, 0)
                       .toFixed(2)}
+                  </strong>
+                </td>
+                <td style="text-align: right;">
+                  <strong>
+                    ${allConsommationItems.reduce((total, item) => total + (item.paidAmount || 0), 0).toFixed(2)}
                   </strong>
                 </td>
               </tr>
@@ -502,13 +586,13 @@ export const printReceipt = (
       </div>
     </div>
   `);
-  
+
   printWindow.document.write('</body></html>');
   printWindow.document.close();
-  
+
   // Focus the print window
   printWindow.focus();
-  
+
   // Auto-trigger print dialog after a short delay
   setTimeout(() => {
     if (printWindow && !printWindow.closed) {

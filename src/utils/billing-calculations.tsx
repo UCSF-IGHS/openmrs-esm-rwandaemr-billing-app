@@ -1,6 +1,6 @@
 /**
  * Billing Calculations Helper Functions
- * 
+ *
  */
 
 import { getConsommationItems } from '../api/billing';
@@ -15,7 +15,7 @@ export const isItemPaid = (item: ConsommationItem): boolean => {
   // PRIMARY check: Check if payment amount equals or exceeds the total
   const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
   const paidAmount = item.paidAmount || 0;
-  
+
   if (paidAmount >= itemTotal) {
     return true;
   }
@@ -23,7 +23,7 @@ export const isItemPaid = (item: ConsommationItem): boolean => {
   if (item.paid === true) {
     return true;
   }
-  
+
   return false;
 };
 
@@ -36,23 +36,27 @@ export const isItemPartiallyPaid = (item: ConsommationItem): boolean => {
   if (isItemPaid(item)) {
     return false;
   }
-  
+
   if (item.partiallyPaid === true) {
     return true;
   }
-  
+
   const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
   const paidAmount = item.paidAmount || 0;
-  
+
   if (paidAmount > 0 && paidAmount < itemTotal) {
     return true;
   }
-  
-  if (item.paidQuantity !== undefined && item.paidQuantity > 0 && 
-      item.quantity !== undefined && item.paidQuantity < item.quantity) {
+
+  if (
+    item.paidQuantity !== undefined &&
+    item.paidQuantity > 0 &&
+    item.quantity !== undefined &&
+    item.paidQuantity < item.quantity
+  ) {
     return true;
   }
-  
+
   return false;
 };
 
@@ -74,15 +78,15 @@ export const calculateRemainingDue = (patientDue: number, paidAmount: number): s
  * @returns {string} The change amount as a formatted string
  */
 export const calculateChange = (receivedCash: string, paymentAmount: string): string => {
-  if (!receivedCash || !paymentAmount) return "-1.0";
-  
+  if (!receivedCash || !paymentAmount) return '-1.0';
+
   const received = parseFloat(receivedCash);
   const payment = parseFloat(paymentAmount);
-  
+
   if (isNaN(received) || isNaN(payment) || received < payment) {
-    return "-1.0";
+    return '-1.0';
   }
-  
+
   return (received - payment).toFixed(2);
 };
 
@@ -93,7 +97,7 @@ export const calculateChange = (receivedCash: string, paymentAmount: string): st
  */
 export const calculateSelectedItemsTotal = (items: ConsommationItem[]): number => {
   return items
-    .filter(item => item.selected && !isItemPaid(item))
+    .filter((item) => item.selected && !isItemPaid(item))
     .reduce((sum, item) => {
       // For partially paid items, only count the remaining amount
       const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
@@ -110,7 +114,7 @@ export const calculateSelectedItemsTotal = (items: ConsommationItem[]): number =
  */
 export const calculateTotalRemainingAmount = (items: ConsommationItem[]): number => {
   return items
-    .filter(item => !isItemPaid(item))
+    .filter((item) => !isItemPaid(item))
     .reduce((sum, item) => {
       const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
       const paidAmount = item.paidAmount || 0;
@@ -124,8 +128,8 @@ export const calculateTotalRemainingAmount = (items: ConsommationItem[]): number
  * @returns {boolean} True if all selected items are paid
  */
 export const areAllSelectedItemsPaid = (items: ConsommationItem[]): boolean => {
-  const selectedItems = items.filter(item => item.selected);
-  return selectedItems.length > 0 && selectedItems.every(item => isItemPaid(item));
+  const selectedItems = items.filter((item) => item.selected);
+  return selectedItems.length > 0 && selectedItems.every((item) => isItemPaid(item));
 };
 
 /**
@@ -152,7 +156,7 @@ export const getStatusClass = (item: ConsommationItem, styles: any): string => {
  */
 export const calculateTotalDueForSelected = (rows: any[], selectedRows: string[]): number => {
   let total = 0;
-  rows.forEach(row => {
+  rows.forEach((row) => {
     if (selectedRows.includes(row.id)) {
       const remainingDue = Math.max(0, row.rawPatientDue - row.rawPaidAmount);
       total += remainingDue;
@@ -161,24 +165,82 @@ export const calculateTotalDueForSelected = (rows: any[], selectedRows: string[]
   return Number(total.toFixed(2));
 };
 
-export const computePaymentStatus = (item: ConsommationItem): 'PAID' | 'PARTIAL' | 'UNPAID' => {
+export const computePaymentStatus = (item: ConsommationItem): 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' => {
   const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
   const paidAmount = item.paidAmount || 0;
 
   if (paidAmount >= itemTotal) return 'PAID';
-  if (paidAmount > 0 && paidAmount < itemTotal) return 'PARTIAL';
+  if (paidAmount > 0 && paidAmount < itemTotal) return 'PARTIALLY_PAID';
   return 'UNPAID';
+};
+
+/**
+ * Computes payment status for a consommation based on its items
+ * @param {ConsommationItem[]} items - Array of consommation items
+ * @returns {string} Payment status: 'PAID', 'PARTIALLY_PAID', or 'UNPAID'
+ */
+export const computeConsommationPaymentStatus = (items: ConsommationItem[]): string => {
+  if (!items || items.length === 0) return 'UNPAID';
+
+  const totalAmount = items.reduce((sum, item) => {
+    return sum + (item.quantity || 1) * (item.unitPrice || 0);
+  }, 0);
+
+  const paidAmount = items.reduce((sum, item) => {
+    return sum + (item.paidAmount || 0);
+  }, 0);
+
+  if (paidAmount >= totalAmount) return 'PAID';
+  if (paidAmount > 0 && paidAmount < totalAmount) return 'PARTIALLY_PAID';
+  return 'UNPAID';
+};
+
+/**
+ * Gets the appropriate CSS class for payment status
+ * @param {string} status - Payment status
+ * @param {Object} styles - The styles object
+ * @returns {string} The CSS class name
+ */
+export const getPaymentStatusClass = (status: string, styles: any): string => {
+  switch (status.toUpperCase()) {
+    case 'PAID':
+      return styles.paidStatus;
+    case 'PARTIALLY_PAID':
+    case 'PARTIALLY PAID':
+      return styles.partiallyPaidStatus;
+    case 'UNPAID':
+    default:
+      return styles.unpaidStatus;
+  }
+};
+
+/**
+ * Gets the appropriate Tag type for payment status
+ * @param {string} status - Payment status
+ * @returns {string} The Tag type
+ */
+export const getPaymentStatusTagType = (status: string): 'green' | 'cyan' | 'red' => {
+  switch (status.toUpperCase()) {
+    case 'PAID':
+      return 'green';
+    case 'PARTIALLY_PAID':
+    case 'PARTIALLY PAID':
+      return 'cyan';
+    case 'UNPAID':
+    default:
+      return 'red';
+  }
 };
 
 export const areAllItemsPaid = async (consommationId: string) => {
   try {
     const items = await getConsommationItems(consommationId);
-    
+
     if (!items || items.length === 0) {
       return false;
     }
-    
-    return items.every(item => {
+
+    return items.every((item) => {
       try {
         const paymentKey = `payment_${item.patientServiceBillId}`;
         const storedPayment = JSON.parse(sessionStorage.getItem(paymentKey) || '{}');
@@ -188,11 +250,11 @@ export const areAllItemsPaid = async (consommationId: string) => {
       } catch (e) {
         // Ignore errors
       }
-      
+
       if (item.paid) {
         return true;
       }
-      
+
       const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
       const paidAmount = item.paidAmount || 0;
       return paidAmount >= itemTotal;

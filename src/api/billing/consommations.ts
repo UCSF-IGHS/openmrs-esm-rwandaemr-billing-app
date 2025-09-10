@@ -134,8 +134,18 @@ function extractPatientServiceBillId(item: any, index: number): number {
 export async function getConsommationItems(consommationId: string): Promise<ConsommationItem[]> {
   try {
     const consommationData = await getConsommationById(consommationId);
-    const parentPaid = consommationData?.patientBill?.isPaid === true;
     const departmentName = consommationData.department?.name || 'Unknown Department';
+    const consommationPaymentStatus = consommationData.paymentStatus?.toUpperCase() || 'UNPAID';
+
+    const totalPaidAmount =
+      consommationData?.patientBill?.payments?.reduce((sum, payment) => {
+        return sum + (payment.amountPaid || 0);
+      }, 0) || 0;
+
+    const totalItemsAmount =
+      consommationData.billItems?.reduce((sum, item) => {
+        return sum + (item.quantity || 1) * (item.unitPrice || 0);
+      }, 0) || 0;
 
     const items = consommationData.billItems.map((item: any, index: number) => {
       const itemName =
@@ -148,16 +158,18 @@ export async function getConsommationItems(consommationId: string): Promise<Cons
       const unit = Number(item.unitPrice ?? 0);
       const itemTotal = qty * unit;
 
+      const itemProportion = totalItemsAmount > 0 ? itemTotal / totalItemsAmount : 0;
+      const proportionalPaidAmount = totalPaidAmount * itemProportion;
+
       const paidAmountFromBackend = Number(item.paidAmount ?? 0);
       const paidAmountFromQty = Number(item.paidQuantity ?? 0) * unit;
-
-      const paidAmount = parentPaid
-        ? itemTotal
-        : Math.max(paidAmountFromBackend, paidAmountFromQty, item.paid ? itemTotal : 0);
+      const paidAmount = Math.max(paidAmountFromBackend, paidAmountFromQty, proportionalPaidAmount);
 
       const remainingAmount = Math.max(0, itemTotal - paidAmount);
-      const isFullyPaid = parentPaid || remainingAmount <= 0 || item.paid === true;
-      const isPartiallyPaid = !isFullyPaid && paidAmount > 0;
+
+      const isFullyPaid = consommationPaymentStatus === 'PAID' || consommationPaymentStatus === 'FULLY PAID';
+      const isPartiallyPaid =
+        consommationPaymentStatus === 'PARTIALLY PAID' || consommationPaymentStatus === 'PARTIALLY_PAID';
 
       return {
         itemId: index + 1,
@@ -172,7 +184,7 @@ export async function getConsommationItems(consommationId: string): Promise<Cons
         itemType: item.itemType,
         paid: isFullyPaid,
         partiallyPaid: isPartiallyPaid,
-        paidQuantity: parentPaid ? qty : item.paidQuantity || 0,
+        paidQuantity: isFullyPaid ? qty : item.paidQuantity || 0,
         drugFrequency: item.drugFrequency,
         patientServiceBillId: extractPatientServiceBillId(item, index),
         serviceId: item.service?.serviceId,
@@ -544,16 +556,16 @@ export const createDirectConsommationWithBeneficiary = async (
 };
 
 /**
- * Fetches the real-time consommation status from the server using the isPaid flag
+ * Fetches the real-time consommation status from the server using all payment status properties
  * @param consommationId - The consommation ID to check status for
- * @returns Promise with the consommation status response containing isPaid status
+ * @returns Promise with the consommation status response containing payment status information
  */
 export const getConsommationStatus = async (consommationId: string): Promise<ConsommationStatusResponse | null> => {
   return (
     errorHandler.wrapAsync(
       async () => {
         const response = await openmrsFetch<ConsommationStatusResponse>(
-          `${BASE_API_URL}/consommation/${consommationId}?v=custom:(department,billItems,patientBill:(isPaid))`,
+          `${BASE_API_URL}/consommation/${consommationId}?v=custom:(department,billItems,patientBill:(payments),paymentStatus)`,
         );
         return response.data;
       },
@@ -579,6 +591,83 @@ export const isConsommationPaid = async (consommationId: string): Promise<boolea
       commonErrorMessages.fetchError,
     );
     return false;
+  }
+};
+
+/**
+ * Gets comprehensive payment status for a consommation
+ * @param consommationId - The consommation ID to check
+ * @returns Promise with detailed payment status information
+ */
+export const getConsommationPaymentStatus = async (
+  consommationId: string,
+): Promise<{
+  isPaid: boolean;
+  isPartiallyPaid: boolean;
+  paymentStatus: string;
+  paidAmount: number;
+  totalAmount: number;
+}> => {
+  try {
+    const statusResponse = await getConsommationStatus(consommationId);
+
+    if (!statusResponse) {
+      return {
+        isPaid: false,
+        isPartiallyPaid: false,
+        paymentStatus: 'UNPAID',
+        paidAmount: 0,
+        totalAmount: 0,
+      };
+    }
+
+    const backendPaymentStatus = statusResponse.paymentStatus || 'UNPAID';
+
+    const actualPaidAmount =
+      (statusResponse.patientBill as any)?.payments?.reduce((sum: number, payment: any) => {
+        return sum + (payment.amountPaid || 0);
+      }, 0) || 0;
+
+    const totalAmount =
+      statusResponse.billItems?.reduce((sum, item) => {
+        return sum + (item.quantity || 1) * (item.unitPrice || 0);
+      }, 0) || 0;
+
+    const normalizedStatus = backendPaymentStatus.toUpperCase();
+    let finalPaymentStatus = 'UNPAID';
+    let finalIsPaid = false;
+    let finalIsPartiallyPaid = false;
+
+    if (normalizedStatus === 'PAID' || normalizedStatus === 'FULLY PAID') {
+      finalPaymentStatus = 'PAID';
+      finalIsPaid = true;
+    } else if (normalizedStatus === 'PARTIALLY PAID' || normalizedStatus === 'PARTIALLY_PAID') {
+      finalPaymentStatus = 'PARTIALLY_PAID';
+      finalIsPartiallyPaid = true;
+    } else {
+      finalPaymentStatus = 'UNPAID';
+    }
+
+    return {
+      isPaid: finalIsPaid,
+      isPartiallyPaid: finalIsPartiallyPaid,
+      paymentStatus: finalPaymentStatus,
+      paidAmount: actualPaidAmount,
+      totalAmount,
+    };
+  } catch (error) {
+    errorHandler.handleError(
+      error,
+      { component: 'billing-api', action: 'getConsommationPaymentStatus', metadata: { consommationId } },
+      commonErrorMessages.fetchError,
+    );
+    return {
+      isPaid: false,
+      isPartiallyPaid: false,
+      paymentStatus: 'UNPAID',
+      paidAmount: 0,
+      totalAmount: 0,
+    };
   }
 };
 

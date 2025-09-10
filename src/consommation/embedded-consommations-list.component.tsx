@@ -17,14 +17,20 @@ import {
   getConsommationItems,
   getConsommationById,
   getConsommationRates,
-  getMultipleConsommationStatuses,
   isConsommationPaid,
+  getConsommationPaymentStatus,
   getDepartments,
   closeGlobalBill,
   revertGlobalBill,
   getGlobalBillById,
 } from '../api/billing';
-import { isItemPaid, isItemPartiallyPaid } from '../utils/billing-calculations';
+import {
+  isItemPaid,
+  isItemPartiallyPaid,
+  computeConsommationPaymentStatus,
+  getPaymentStatusClass,
+  getPaymentStatusTagType,
+} from '../utils/billing-calculations';
 import { type ConsommationListResponse, type ConsommationListItem, type ConsommationItem } from '../types';
 import styles from './embedded-consommations-list.scss';
 import PaymentForm from '../payment-form/payment-form.component';
@@ -88,6 +94,8 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     const [showRevertConfirm, setShowRevertConfirm] = useState(false);
     const [admissionData, setAdmissionData] = useState<any>(null);
     const [isClosedLocal, setIsClosedLocal] = useState<boolean>(Boolean(isGlobalBillClosed));
+    const [lastReceivedCashAmount, setLastReceivedCashAmount] = useState<string>('');
+    const [paidItemsWithReceivedCash, setPaidItemsWithReceivedCash] = useState<Set<number>>(new Set());
     const ratesCacheRef = React.useRef<Record<string, { insuranceRate: number; patientRate: number }>>({});
     const loadAdmissionData = useCallback(async () => {
       try {
@@ -161,8 +169,18 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
     const updateConsommationStatus = useCallback(async (consommationId: string): Promise<string> => {
       try {
-        const isPaid = await isConsommationPaid(consommationId);
-        const status = isPaid ? 'PAID' : 'UNPAID';
+        const paymentStatus = await getConsommationPaymentStatus(consommationId);
+        // using paymentStatus as single source of truth from endpoint
+        const backendStatus = paymentStatus.paymentStatus?.toUpperCase();
+        let status = 'UNPAID';
+
+        if (backendStatus === 'PAID' || backendStatus === 'FULLY PAID') {
+          status = 'PAID';
+        } else if (backendStatus === 'PARTIALLY PAID' || backendStatus === 'PARTIALLY_PAID') {
+          status = 'PARTIALLY_PAID';
+        } else {
+          status = 'UNPAID';
+        }
 
         setConsommationStatuses((prev) => ({
           ...prev,
@@ -187,11 +205,28 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           return;
         }
 
-        const statusMap = await getMultipleConsommationStatuses(consommationIds);
+        const statusPromises = consommationIds.map(async (consommationId) => {
+          try {
+            const paymentStatus = await getConsommationPaymentStatus(consommationId);
+            return { consommationId, status: paymentStatus.paymentStatus };
+          } catch (error) {
+            console.error(`Error loading status for consommation ${consommationId}:`, error);
+            return { consommationId, status: 'UNPAID' };
+          }
+        });
+
+        const statusResults = await Promise.all(statusPromises);
 
         const newStatusMap: Record<string, string> = {};
-        Object.entries(statusMap).forEach(([consommationId, isPaid]) => {
-          newStatusMap[consommationId] = isPaid ? 'PAID' : 'UNPAID';
+        statusResults.forEach(({ consommationId, status }) => {
+          const normalizedStatus = status?.toUpperCase();
+          if (normalizedStatus === 'PAID' || normalizedStatus === 'FULLY PAID') {
+            newStatusMap[consommationId] = 'PAID';
+          } else if (normalizedStatus === 'PARTIALLY PAID' || normalizedStatus === 'PARTIALLY_PAID') {
+            newStatusMap[consommationId] = 'PARTIALLY_PAID';
+          } else {
+            newStatusMap[consommationId] = 'UNPAID';
+          }
         });
 
         setConsommationStatuses(newStatusMap);
@@ -234,6 +269,9 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       if (!globalBillId) return;
 
       setIsLoading(true);
+      setPaidItemsWithReceivedCash(new Set());
+      setLastReceivedCashAmount('');
+
       try {
         const [consommationData, departmentData] = await Promise.all([
           getConsommationsByGlobalBillId(globalBillId),
@@ -344,7 +382,12 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
           const paidItems = items.map((item) => {
             const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-            const effectivePaidAmt = parentPaid ? itemTotal : item.paidAmount || 0;
+            const effectivePaidAmt =
+              paidItemsWithReceivedCash.has(item.patientServiceBillId) &&
+              lastReceivedCashAmount &&
+              lastReceivedCashAmount !== ''
+                ? parseFloat(lastReceivedCashAmount)
+                : item.paidAmount || 0;
             const isPaid = parentPaid || isActuallyPaid(item);
 
             return {
@@ -428,6 +471,8 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
         updateConsommationStatusImmediately,
         getDepartmentName,
         consommationStatuses,
+        lastReceivedCashAmount,
+        paidItemsWithReceivedCash,
       ],
     );
 
@@ -698,9 +743,28 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           return total + itemTotal;
         }, 0);
 
+        let insuranceRate = 0;
+        let patientRate = 100;
+        let insuranceName = '';
+
+        if (paidSelectedItems.length > 0) {
+          const firstConsommation = paidSelectedItems[0];
+          const consommation = consommationsWithItems.find(
+            (c) => c.consommationId?.toString() === firstConsommation.consommationId,
+          );
+          if (consommation?.insuranceRates) {
+            insuranceRate = consommation.insuranceRates.insuranceRate;
+            patientRate = consommation.insuranceRates.patientRate;
+            insuranceName = (consommation as any).patientBill?.insuranceName || '';
+          }
+        }
+
+        const actualReceivedCash =
+          lastReceivedCashAmount && lastReceivedCashAmount !== '' ? lastReceivedCashAmount : '0.00';
+
         const paymentData = {
           amountPaid: totalPaidAmount.toFixed(2),
-          receivedCash: '',
+          receivedCash: actualReceivedCash,
           change: '0.00',
           paymentMethod: 'N/A',
           deductedAmount: '',
@@ -708,6 +772,12 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           collectorName: session?.user?.display || 'Unknown',
           patientName: 'Patient',
           policyNumber: '',
+          thirdPartyAmount: '0.00',
+          thirdPartyProvider: '',
+          totalAmount: totalPaidAmount.toFixed(2),
+          insuranceRate: insuranceRate,
+          patientRate: patientRate,
+          insuranceName: insuranceName,
         };
 
         const groupedConsommationData: Record<string, any> = {};
@@ -725,10 +795,13 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           }
         });
 
+        const receivedCashAmount =
+          lastReceivedCashAmount && lastReceivedCashAmount !== '' ? parseFloat(lastReceivedCashAmount) : 0;
+
         const itemsForReceipt = paidSelectedItems.map((selectedItem) => {
           const item = selectedItem.item;
           const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-          const actualPaidAmount = Math.min(itemTotal, item.paidAmount || itemTotal); // display safeguard
+          const actualPaidAmount = receivedCashAmount;
 
           return {
             ...item,
@@ -758,7 +831,15 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       setIsPaymentModalOpen(false);
     };
 
-    const handlePaymentSuccess = async () => {
+    const handlePaymentSuccess = async (receivedCashAmount?: string, paidItemIds?: number[]) => {
+      if (receivedCashAmount) {
+        setLastReceivedCashAmount(receivedCashAmount);
+      }
+
+      if (paidItemIds && paidItemIds.length > 0) {
+        setPaidItemsWithReceivedCash(new Set(paidItemIds));
+      }
+
       // After backend confirms payment, always re-sync from server so UI mirrors persisted state
       try {
         await fetchConsommations();
@@ -776,11 +857,30 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
 
         if (ids.length > 0) {
           try {
-            const statusMap = await getMultipleConsommationStatuses(ids);
-            const updatedStatusMap: Record<string, string> = {};
-            Object.entries(statusMap).forEach(([consommationId, isPaid]) => {
-              updatedStatusMap[consommationId] = isPaid ? 'PAID' : 'UNPAID';
+            const statusPromises = ids.map(async (consommationId) => {
+              try {
+                const paymentStatus = await getConsommationPaymentStatus(consommationId);
+                return { consommationId, status: paymentStatus.paymentStatus };
+              } catch (error) {
+                console.error(`Error loading status for consommation ${consommationId}:`, error);
+                return { consommationId, status: 'UNPAID' };
+              }
             });
+
+            const statusResults = await Promise.all(statusPromises);
+
+            const updatedStatusMap: Record<string, string> = {};
+            statusResults.forEach(({ consommationId, status }) => {
+              const normalizedStatus = status?.toUpperCase();
+              if (normalizedStatus === 'PAID' || normalizedStatus === 'FULLY PAID') {
+                updatedStatusMap[consommationId] = 'PAID';
+              } else if (normalizedStatus === 'PARTIALLY PAID' || normalizedStatus === 'PARTIALLY_PAID') {
+                updatedStatusMap[consommationId] = 'PARTIALLY_PAID';
+              } else {
+                updatedStatusMap[consommationId] = 'UNPAID';
+              }
+            });
+
             setConsommationStatuses((prev) => ({ ...prev, ...updatedStatusMap }));
           } catch (e) {
             console.error('Error updating consommation statuses after payment:', e);
@@ -915,8 +1015,8 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                           </div>
                           <div className={styles.consommationStatus}>
                             <Tag
-                              type={statusText === 'PAID' ? 'green' : 'red'}
-                              className={statusText === 'PAID' ? styles.paidStatus : styles.unpaidStatus}
+                              type={getPaymentStatusTagType(statusText)}
+                              className={getPaymentStatusClass(statusText, styles)}
                             >
                               {statusText}
                             </Tag>
@@ -956,7 +1056,12 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                                   const parentPaidForRow =
                                     (consommationStatuses[consommationId] || '').toUpperCase() === 'PAID';
                                   const itemTotal = (item.quantity || 1) * (item.unitPrice || 0);
-                                  const paidAmt = parentPaidForRow ? itemTotal : item.paidAmount || 0;
+                                  const paidAmt =
+                                    paidItemsWithReceivedCash.has(item.patientServiceBillId) &&
+                                    lastReceivedCashAmount &&
+                                    lastReceivedCashAmount !== ''
+                                      ? parseFloat(lastReceivedCashAmount)
+                                      : item.paidAmount || 0;
                                   const insuranceAmount = (itemTotal * consommation.insuranceRates.insuranceRate) / 100;
                                   const patientAmount = (itemTotal * consommation.insuranceRates.patientRate) / 100;
                                   const isPaidEffective =
@@ -989,12 +1094,21 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                                       <td>{patientAmount.toFixed(2)}</td>
                                       <td>{Number(paidAmt).toFixed(2)}</td>
                                       <td>
-                                        <Tag
-                                          type={isPaidEffective ? 'green' : 'red'}
-                                          className={isPaidEffective ? styles.paidStatus : styles.unpaidStatus}
-                                        >
-                                          {isPaidEffective ? 'PAID' : 'UNPAID'}
-                                        </Tag>
+                                        {(() => {
+                                          // Use consommation's paymentStatus as single source of truth for items
+                                          const consommationStatus =
+                                            consommationStatuses[consommation.consommationId] || 'UNPAID';
+                                          const itemStatus = consommationStatus;
+
+                                          return (
+                                            <Tag
+                                              type={getPaymentStatusTagType(itemStatus)}
+                                              className={getPaymentStatusClass(itemStatus, styles)}
+                                            >
+                                              {itemStatus}
+                                            </Tag>
+                                          );
+                                        })()}
                                       </td>
                                     </tr>
                                   );
