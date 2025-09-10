@@ -364,7 +364,12 @@ const ConsommationSearch = () => {
           )}
         </div>
 
-        <BillItemsTable items={itemsWithNames} insuranceRate={insuranceRate} />
+        <BillItemsTable
+          items={itemsWithNames}
+          insuranceRate={insuranceRate}
+          insuranceAmount={details?.insuranceBill?.amount}
+          patientAmount={details?.patientBill?.amount}
+        />
       </div>
     );
   };

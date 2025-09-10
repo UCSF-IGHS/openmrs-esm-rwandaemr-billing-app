@@ -1045,8 +1045,18 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                                   <th>{t('quantity', 'Qty')}</th>
                                   <th>{t('unitPrice', 'Unit Price')}</th>
                                   <th>{t('itemTotal', 'Total')}</th>
-                                  <th>{t('insuranceAmount', `Ins.(${consommation.insuranceRates.insuranceRate}%)`)}</th>
-                                  <th>{t('patientAmount', `Pat.(${consommation.insuranceRates.patientRate}%)`)}</th>
+                                  <th>
+                                    {t(
+                                      'insuranceAmount',
+                                      `Ins. (${consommation.insuranceBill?.amount?.toFixed(2) || '0.00'} RWF)`,
+                                    )}
+                                  </th>
+                                  <th>
+                                    {t(
+                                      'patientAmount',
+                                      `Pat. (${consommation.patientBill?.amount?.toFixed(2) || '0.00'} RWF)`,
+                                    )}
+                                  </th>
                                   <th>{t('paidAmt', 'Paid')}</th>
                                   <th>{t('status', 'Status')}</th>
                                 </tr>
@@ -1062,8 +1072,16 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                                     lastReceivedCashAmount !== ''
                                       ? parseFloat(lastReceivedCashAmount)
                                       : item.paidAmount || 0;
-                                  const insuranceAmount = (itemTotal * consommation.insuranceRates.insuranceRate) / 100;
-                                  const patientAmount = (itemTotal * consommation.insuranceRates.patientRate) / 100;
+                                  // Based on backend insuranceBill and patientBill amounts
+                                  const totalConsommationAmount = consommation.items.reduce(
+                                    (sum, item) => sum + (item.quantity || 1) * (item.unitPrice || 0),
+                                    0,
+                                  );
+                                  const itemProportion =
+                                    totalConsommationAmount > 0 ? itemTotal / totalConsommationAmount : 0;
+
+                                  const insuranceAmount = (consommation.insuranceBill?.amount || 0) * itemProportion;
+                                  const patientAmount = (consommation.patientBill?.amount || 0) * itemProportion;
                                   const isPaidEffective =
                                     parentPaidForRow ||
                                     isItemPaid({ ...item, paidAmount: paidAmt, paid: parentPaidForRow || item.paid });

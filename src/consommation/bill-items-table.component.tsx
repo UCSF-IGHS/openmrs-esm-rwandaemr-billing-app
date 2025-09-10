@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { DataTable, Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '@carbon/react';
 import styles from './bill-items-table.scss';
 
-const BillItemsTable = ({ items, insuranceRate }) => {
+const BillItemsTable = ({ items, insuranceRate, insuranceAmount, patientAmount }) => {
   const { t } = useTranslation();
 
   if (!items || items.length === 0) {
@@ -24,8 +24,13 @@ const BillItemsTable = ({ items, insuranceRate }) => {
 
   const rows = items.map((item, index) => {
     const totalPrice = item.unitPrice * item.quantity;
-    const insuranceAmount = (totalPrice * insuranceRate) / 100;
-    const patientAmount = totalPrice - insuranceAmount;
+
+    // Based on backend insurance and patient amounts
+    const totalConsommationAmount = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    const itemProportion = totalConsommationAmount > 0 ? totalPrice / totalConsommationAmount : 0;
+
+    const itemInsuranceAmount = (insuranceAmount || 0) * itemProportion;
+    const itemPatientAmount = (patientAmount || 0) * itemProportion;
 
     return {
       id: (index + 1).toString(),
@@ -41,21 +46,19 @@ const BillItemsTable = ({ items, insuranceRate }) => {
       paidQty: item.paidQuantity,
       unitPrice: item.unitPrice.toLocaleString(),
       total: totalPrice.toLocaleString(),
-      insurance: insuranceAmount.toLocaleString(),
-      patient: patientAmount.toLocaleString(),
+      insurance: itemInsuranceAmount.toLocaleString(),
+      patient: itemPatientAmount.toLocaleString(),
     };
   });
 
-  const totals = items.reduce(
-    (acc, item) => {
-      const totalPrice = item.unitPrice * item.quantity;
-      acc.total += totalPrice;
-      acc.insurance += (totalPrice * insuranceRate) / 100;
-      acc.patient += totalPrice - (totalPrice * insuranceRate) / 100;
-      return acc;
-    },
-    { total: 0, insurance: 0, patient: 0 },
-  );
+  // Use the provided backend amounts for totals
+  const totalConsommationAmount = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+
+  const totals = {
+    total: totalConsommationAmount,
+    insurance: insuranceAmount || 0,
+    patient: patientAmount || 0,
+  };
 
   return (
     <div className={styles.tableContainer}>
