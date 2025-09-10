@@ -66,13 +66,7 @@ const ConsommationView: React.FC = () => {
   if (isLoading) {
     return (
       <div className={styles.loaderContainer}>
-        <DataTableSkeleton
-          data-testid="loader"
-          columnCount={5}
-          showHeader={false}
-          showToolbar={false}
-          zebra
-        />
+        <DataTableSkeleton data-testid="loader" columnCount={5} showHeader={false} showToolbar={false} zebra />
       </div>
     );
   }
@@ -89,11 +83,17 @@ const ConsommationView: React.FC = () => {
       <GlobalBillHeader />
       {consommation && (
         <div className={styles.billDetails}>
-          <h2>{t('consommationNumber', 'Consommation #')}: {consommation.consommationId}</h2>
-          <p>{t('department', 'Department')}: {consommation.department.name}</p>
-          <BillItemsTable 
-            items={consommation.billItems} 
+          <h2>
+            {t('consommationNumber', 'Consommation #')}: {consommation.consommationId}
+          </h2>
+          <p>
+            {t('department', 'Department')}: {consommation.department.name}
+          </p>
+          <BillItemsTable
+            items={consommation.billItems}
             insuranceRate={(consommation.insuranceBill.amount / consommation.patientBill.amount) * 100 || 0}
+            insuranceAmount={consommation.insuranceBill.amount}
+            patientAmount={consommation.patientBill.amount}
           />
         </div>
       )}
