@@ -439,16 +439,27 @@ const InvoiceTableWithIdentifiers: React.FC<InvoiceTableWithIdentifiersProps> = 
         ?.map((item: any) => {
           if (!item) return null;
           const statusContent = {
-            content: (
-              <Tag
-                type={item.isPaid === true || item.paymentStatus === 'PAID' ? 'green' : 'red'}
-                className={
-                  item.isPaid === true || item.paymentStatus === 'PAID' ? styles.paidStatus : styles.unpaidStatus
-                }
-              >
-                {item.isPaid === true ? 'PAID' : item.paymentStatus || 'UNPAID'}
-              </Tag>
-            ),
+            content: (() => {
+              const status = item.paymentStatus || 'UNPAID';
+              const tagType =
+                status === 'PAID'
+                  ? 'green'
+                  : status === 'PARTIALLY_PAID' || status === 'PARTIALLY PAID'
+                    ? 'cyan'
+                    : 'red';
+              const className =
+                status === 'PAID'
+                  ? styles.paidStatus
+                  : status === 'PARTIALLY_PAID' || status === 'PARTIALLY PAID'
+                    ? styles.partiallyPaidStatus
+                    : styles.unpaidStatus;
+
+              return (
+                <Tag type={tagType} className={className}>
+                  {status}
+                </Tag>
+              );
+            })(),
           };
           return {
             id: `${item.globalBillId || ''}`,

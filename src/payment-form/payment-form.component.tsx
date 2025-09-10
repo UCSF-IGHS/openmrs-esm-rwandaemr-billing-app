@@ -15,7 +15,14 @@ import {
 import { Printer, CheckmarkFilled } from '@carbon/react/icons';
 import { showToast, useSession } from '@openmrs/esm-framework';
 import { submitBillPayment, getConsommationById } from '../api/billing';
-import { isItemPaid, calculateChange, computePaymentStatus } from '../utils/billing-calculations';
+import {
+  isItemPaid,
+  isItemPartiallyPaid,
+  calculateChange,
+  computePaymentStatus,
+  getPaymentStatusClass,
+  getPaymentStatusTagType,
+} from '../utils/billing-calculations';
 import { printReceipt } from '../payment-receipt/print-receipt';
 import { type ConsommationItem } from '../types';
 import { usePatientInsurancePolicies } from '../patient-insurance-tag/patient-insurance-tag.resource';
@@ -62,7 +69,7 @@ interface SelectedItemInfo {
 interface PaymentFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void; 
+  onSuccess: (receivedCashAmount?: string, paidItemIds?: number[]) => void;
   selectedItems: SelectedItemInfo[];
   onItemToggle: (consommationId: string, itemIndex: number) => void;
   patientUuid?: string;
@@ -83,6 +90,8 @@ interface PaymentData {
   thirdPartyProvider?: string;
   totalAmount?: string;
   insuranceRate?: number;
+  patientRate?: number;
+  insuranceName?: string;
 }
 
 interface ConsommationInfo {
@@ -114,6 +123,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [paidItems, setPaidItems] = useState<ConsommationItem[]>([]);
   const [thirdPartyAmount, setThirdPartyAmount] = useState('0.00');
   const [patientBalance, setPatientBalance] = useState(0);
+  const [lastReceivedCashAmount, setLastReceivedCashAmount] = useState<string>('');
 
   // form refs/state to avoid jitter on open
   const [isFormReady, setIsFormReady] = useState(false);
@@ -180,40 +190,59 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     [localSelectedItems, isActuallyPaid],
   );
 
-  // Fetch insurance rates based on global bill
+  // Fetch insurance rates using the same method as embedded consommations
   useEffect(() => {
     const fetchInsuranceRates = async () => {
       if (!globalBillId || !isOpen) return;
 
       setInsuranceInfo((prev) => ({ ...prev, isLoading: true }));
       try {
-        const { getGlobalBillById, getInsuranceById } = await import('../api/billing');
+        const { getConsommationRates } = await import('../api/billing');
 
-        const gb = await getGlobalBillById(globalBillId);
-        let insuranceRate = 0;
-        let insuranceName = '';
+        // Get the first consommation to determine insurance rates
+        // This uses the same logic as embedded consommations
+        const { getConsommationsByGlobalBillId } = await import('../api/billing');
+        const consommationsResponse = await getConsommationsByGlobalBillId(globalBillId);
 
-        if (gb?.admission?.insurancePolicy?.insurance?.insuranceId) {
-          const ins = await getInsuranceById(gb.admission.insurancePolicy.insurance.insuranceId);
-          if (ins && ins.rate !== null && ins.rate !== undefined) {
-            insuranceRate = Number(ins.rate);
-            insuranceName = ins.name || '';
+        if (consommationsResponse?.results?.length > 0) {
+          const firstConsommation = consommationsResponse.results[0];
+          const rates = await getConsommationRates(firstConsommation.consommationId.toString(), globalBillId);
+
+          setInsuranceInfo({
+            rate: rates.insuranceRate,
+            patientRate: rates.patientRate,
+            name: rates.insuranceName || '',
+            isLoading: false,
+          });
+        } else {
+          // Fallback to global bill method if no consommations found
+          const { getGlobalBillById, getInsuranceById } = await import('../api/billing');
+          const gb = await getGlobalBillById(globalBillId);
+          let insuranceRate = 0;
+          let insuranceName = '';
+
+          if (gb?.admission?.insurancePolicy?.insurance?.insuranceId) {
+            const ins = await getInsuranceById(gb.admission.insurancePolicy.insurance.insuranceId);
+            if (ins && ins.rate !== null && ins.rate !== undefined) {
+              insuranceRate = Number(ins.rate);
+              insuranceName = ins.name || '';
+            }
+          } else if (gb?.insurance) {
+            if (gb.insurance.rate !== null && gb.insurance.rate !== undefined) {
+              insuranceRate = Number(gb.insurance.rate);
+              insuranceName = gb.insurance.name || '';
+            }
           }
-        } else if (gb?.insurance) {
-          if (gb.insurance.rate !== null && gb.insurance.rate !== undefined) {
-            insuranceRate = Number(gb.insurance.rate);
-            insuranceName = gb.insurance.name || '';
-          }
+
+          setInsuranceInfo({
+            rate: insuranceRate,
+            patientRate: 100 - insuranceRate,
+            name: insuranceName,
+            isLoading: false,
+          });
         }
-
-        setInsuranceInfo({
-          rate: insuranceRate,
-          patientRate: 100 - insuranceRate,
-          name: insuranceName,
-          isLoading: false,
-        });
       } catch (error) {
-        console.error('Error fetching global bill insurance rates:', error);
+        console.error('Error fetching insurance rates:', error);
         setInsuranceInfo({ rate: 0, patientRate: 100, name: '', isLoading: false });
       }
     };
@@ -322,15 +351,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     [isFormReady],
   );
 
-  // Inline validation for payment method specifics
   useEffect(() => {
     if (!paymentSuccess && isFormReady && !insuranceInfo.isLoading) {
       if (paymentMethod === 'cash' && receivedCash && paymentAmount) {
         const cashAmount = parseFloat(receivedCash);
         const amountToPay = parseFloat(paymentAmount);
         setPaymentError(
-          !isNaN(cashAmount) && !isNaN(amountToPay) && cashAmount < amountToPay
-            ? t('insufficientCash', 'Received cash must be equal to or greater than the payment amount')
+          !isNaN(cashAmount) && !isNaN(amountToPay) && cashAmount <= 0
+            ? t('noCashReceived', 'Please enter the amount of cash received')
             : '',
         );
       } else if (paymentMethod === 'deposit' && deductedAmount && paymentAmount) {
@@ -338,11 +366,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         const amountToPay = parseFloat(paymentAmount);
         const balance = parseFloat(depositBalance);
 
-        if (deductAmount < amountToPay) {
-          setPaymentError(
-            t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'),
-          );
-        } else if (deductAmount > balance) {
+        if (deductAmount > balance) {
           setPaymentError(t('insufficientBalance', 'Deducted amount exceeds available balance'));
         } else {
           setPaymentError('');
@@ -382,8 +406,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     >,
   );
 
-  const computeItemPaymentStatusLocal = (item: ConsommationItem & { selected?: boolean }): string =>
-    computePaymentStatus(item);
+  const computeItemPaymentStatusLocal = (item: ConsommationItem & { selected?: boolean }): string => {
+    const status = computePaymentStatus(item);
+    return status === 'PARTIALLY_PAID' ? 'PARTIALLY_PAID' : status;
+  };
 
   const handleLocalItemToggle = (consommationId: string, patientServiceBillId: number) => {
     setLocalSelectedItems((prev) =>
@@ -425,7 +451,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
   const handleCloseModal = () => {
     if (paymentSuccess) {
-      onSuccess(); // safety: ensure parent refreshed even if user closes first
+      const paidItemIds = paidItems
+        .map((item) => item.patientServiceBillId)
+        .filter((id) => id !== undefined) as number[];
+      onSuccess(lastReceivedCashAmount, paidItemIds);
     }
     onClose();
   };
@@ -449,8 +478,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       const selectedItemsTotal = calculateSelectedItemsTotal();
       const enteredAmount = parseFloat(data.paymentAmount);
 
-      if (paymentMethod === 'cash' && (!data.receivedCash || parseFloat(data.receivedCash) < enteredAmount)) {
-        throw new Error(t('insufficientCash', 'Received cash amount must be equal to the payment amount'));
+      if (paymentMethod === 'cash' && (!data.receivedCash || parseFloat(data.receivedCash) <= 0)) {
+        throw new Error(t('noCashReceived', 'Please enter the amount of cash received'));
       }
 
       if (paymentMethod === 'deposit') {
@@ -460,18 +489,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         if (parseFloat(data.deductedAmount) > parseFloat(depositBalance)) {
           throw new Error(t('insufficientBalance', 'Deducted amount exceeds available balance'));
         }
-        if (parseFloat(data.deductedAmount) < enteredAmount) {
-          throw new Error(
-            t('insufficientDeduction', 'Deducted amount must be equal to or greater than the payment amount'),
-          );
-        }
       }
 
       if (!collectorUuid) {
         throw new Error(t('noCollectorUuid', 'Unable to retrieve collector UUID. Please ensure you are logged in.'));
       }
 
-      // Do not let patients overpay the patient portion when insurance applies
       const maxAllowedAmount = insuranceInfo.rate > 0 ? patientBalance : selectedItemsTotal;
       if (enteredAmount > maxAllowedAmount) {
         const coverageInfo =
@@ -512,6 +535,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       }> = [];
       const allPaidItems: ConsommationItem[] = [];
 
+      const actualReceivedAmount =
+        paymentMethod === 'cash'
+          ? parseFloat(data.receivedCash || '0')
+          : parseFloat(data.deductedAmount || data.paymentAmount || '0');
+
       for (const consommationGroup of Object.values(groups)) {
         if (remainingPayment <= 0) break;
 
@@ -551,7 +579,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               billItem: { patientServiceBillId: item.patientServiceBillId },
               paidQty: item.quantity || 1,
             });
-            allPaidItems.push({ ...item, paidAmount: itemTotal });
+            allPaidItems.push({ ...item, paidAmount: actualReceivedAmount });
             remain -= itemCost;
           } else {
             // attempt partial by quantity if possible
@@ -565,7 +593,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                   billItem: { patientServiceBillId: item.patientServiceBillId },
                   paidQty: wholePaidQty,
                 });
-                allPaidItems.push({ ...item, paidAmount: (paidAmount || 0) + wholePaidQty * unit });
+                allPaidItems.push({ ...item, paidAmount: actualReceivedAmount });
                 remain -= wholePaidQty * unit;
               }
             } else {
@@ -574,15 +602,21 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                 billItem: { patientServiceBillId: item.patientServiceBillId },
                 paidQty: 1,
               });
-              allPaidItems.push({ ...item, paidAmount: itemTotal });
+              // For single unit payment, show exactly what user entered in Received Cash field
+              allPaidItems.push({ ...item, paidAmount: actualReceivedAmount });
               remain = 0;
             }
           }
         }
 
         if (paidItemsForPayload.length > 0) {
+          const amountToRecord =
+            paymentMethod === 'cash'
+              ? Math.min(parseFloat(data.receivedCash || '0'), payThisCons)
+              : Math.min(parseFloat(data.deductedAmount || '0'), payThisCons);
+
           const payload = {
-            amountPaid: parseFloat(payThisCons.toFixed(2)),
+            amountPaid: parseFloat(amountToRecord.toFixed(2)),
             patientBill: {
               patientBillId: full.patientBill.patientBillId,
               creator: collectorUuid,
@@ -618,7 +652,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         const insuranceProviderName = activeInsurancePolicy?.insurance?.name || '';
 
         const receiptPaymentData: PaymentData = {
-          amountPaid: enteredAmount.toFixed(2),
+          amountPaid: actualReceivedAmount.toFixed(2), // Use actual received amount for partial payments
           receivedCash: data.receivedCash || '',
           change: calculateChange(data.receivedCash, data.paymentAmount),
           paymentMethod,
@@ -631,6 +665,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           thirdPartyProvider: insuranceProviderName,
           totalAmount: selectedItemsTotal.toFixed(2),
           insuranceRate: insuranceInfo.rate,
+          patientRate: insuranceInfo.patientRate,
+          insuranceName: insuranceInfo.name,
         };
 
         const receiptGrouped: Record<string, ConsommationInfo> = {};
@@ -641,16 +677,21 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setPaymentData(receiptPaymentData);
         setGroupedConsommationData(receiptGrouped);
         setPaidItems(allPaidItems);
+        // Store the received cash amount for passing to parent component
+        setLastReceivedCashAmount(data.receivedCash || data.paymentAmount || '0');
         // Do NOT refresh parent or close modal immediately; show success view with Print Receipt.
         // Parent refresh is triggered only when the user closes the modal (see handleCloseModal).
         setPaymentSuccess(true);
 
+        const isPartialPayment = actualReceivedAmount < selectedItemsTotal;
         showToast({
           title: t('paymentSuccess', 'Payment Successful'),
           description:
             failed.length > 0
               ? t('partialPaymentSuccess', 'Some payments were processed successfully')
-              : t('paymentProcessed', 'Payment has been processed successfully'),
+              : isPartialPayment
+                ? t('partialPaymentProcessed', 'Partial payment has been processed successfully')
+                : t('paymentProcessed', 'Payment has been processed successfully'),
           kind: failed.length > 0 ? 'warning' : 'success',
         });
       } else {
@@ -814,6 +855,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                               invalid={!!errors.receivedCash}
                               invalidText={errors.receivedCash?.message}
                               disabled={insuranceInfo.isLoading || !isFormReady}
+                              helperText={t(
+                                'partialPaymentsAllowed',
+                                'Enter amount received - partial payments are allowed',
+                              )}
                             />
                           )}
                         />
@@ -844,6 +889,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                                 invalid={!!errors.deductedAmount}
                                 invalidText={errors.deductedAmount?.message}
                                 disabled={insuranceInfo.isLoading || !isFormReady}
+                                helperText={t(
+                                  'partialPaymentsAllowed',
+                                  'Enter amount to deduct - partial payments are allowed',
+                                )}
                               />
                             )}
                           />
@@ -891,8 +940,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                               insuranceInfo.isLoading
                                 ? t('calculatingPatientAmount', 'Calculating patient amount...')
                                 : insuranceInfo.rate > 0
-                                  ? `Patient portion (${insuranceInfo.patientRate}%)`
-                                  : t('fullPatientPayment', 'Full patient payment (100%)')
+                                  ? `Patient portion (${insuranceInfo.patientRate}%) - Partial payments allowed`
+                                  : t('fullPatientPayment', 'Full patient payment (100%) - Partial payments allowed')
                             }
                           />
                         )}

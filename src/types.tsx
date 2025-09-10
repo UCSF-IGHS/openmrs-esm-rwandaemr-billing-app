@@ -87,7 +87,7 @@ export interface Bill {
   resourceVersion: string;
 }
 
-export type PaymentStatus = 'PAID' | 'UNPAID' | 'PARTIALLY PAID';
+export type PaymentStatus = 'PAID' | 'UNPAID' | 'PARTIALLY_PAID' | 'PARTIALLY PAID';
 
 export interface MappedBill {
   uuid: number;
@@ -262,4 +262,40 @@ export interface InsuranceRatesResponse {
   insuranceRate: number;
   patientRate: number;
   insuranceName?: string;
+}
+
+export interface ConsommationStatusResponse {
+  department: {
+    departmentId: number;
+    name: string;
+    description: string;
+  };
+  billItems: Array<{
+    serviceDate: string;
+    service?: any;
+    hopService?: any;
+    unitPrice: number;
+    quantity: number;
+    paidQuantity: number;
+    paid: boolean;
+    serviceOther: string | null;
+    serviceOtherDescription: string | null;
+    drugFrequency: string;
+    itemType: number;
+  }>;
+  patientBill: {
+    isPaid: boolean;
+    amountPaid?: number;
+    payments?: Array<{
+      amountPaid: number;
+      dateReceived: string;
+      collector: {
+        uuid: string;
+        display: string;
+      };
+    }>;
+  };
+  paid?: boolean;
+  partiallyPaid?: boolean;
+  paymentStatus?: string;
 }

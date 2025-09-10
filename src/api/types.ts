@@ -205,6 +205,7 @@ export interface InsuranceBill {
 
 export interface Consommation extends BaseResource {
   consommationId: number;
+  paymentStatus?: string;
   department: Department;
   billItems: BillItem[];
   patientBill: PatientBill;
@@ -325,7 +326,11 @@ export interface ConsommationStatusResponse {
   billItems: BillItem[];
   patientBill: {
     isPaid: boolean;
+    amountPaid?: number;
   };
+  paid?: boolean;
+  partiallyPaid?: boolean;
+  paymentStatus?: string;
 }
 
 // Admission form interfaces

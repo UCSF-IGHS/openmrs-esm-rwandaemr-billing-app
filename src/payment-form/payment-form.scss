@@ -917,6 +917,16 @@ tbody tr:hover {
   color: #b28704;
 }
 
+.partiallyPaidItemRow {
+  background-color: #fff8e1;
+  border-left: 3px solid #f1c21b;
+}
+
+.partiallyPaidItemRow .cds--checkbox:disabled + .cds--checkbox-label::before {
+  background-color: #f1c21b;
+  border-color: #f1c21b;
+}
+
 .unpaidStatus {
   background-color: #fff1f1;
   color: #da1e28;

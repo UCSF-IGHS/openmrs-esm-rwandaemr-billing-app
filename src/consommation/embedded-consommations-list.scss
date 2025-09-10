@@ -234,6 +234,22 @@ $disabled-03: #8d8d8d !default;
   text-align: center;
 }
 
+/* Payment status styles */
+.paidStatus {
+  background-color: #defbe6;
+  color: #0e6027;
+}
+
+.partiallyPaidStatus {
+  background-color: #fff8e1;
+  color: #b28704;
+}
+
+.unpaidStatus {
+  background-color: #fff1f1;
+  color: #da1e28;
+}
+
 /* ---------- Actions ---------- */
 .actionsContainer {
   background-color: #fff;
