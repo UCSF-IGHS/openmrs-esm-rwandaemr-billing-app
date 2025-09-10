@@ -24,6 +24,7 @@ import {
   Tag,
   type DataTableRow,
   Button,
+  IconButton,
 } from '@carbon/react';
 import {
   isDesktop,
@@ -46,6 +47,8 @@ import {
   getInsurancePoliciesByPatient,
 } from '../api/billing';
 import { fetchGlobalBillsPage } from '../api/billing/global-bills';
+import { printGlobalBill } from '../payment-receipt/print-global-bill';
+import { Printer } from '@carbon/react/icons';
 
 interface InvoiceTableProps {
   patientUuid?: string;
@@ -137,6 +140,7 @@ export const BillingHomeGlobalBillsTable: React.FC<{ patientQuery?: string; poli
       { key: 'due', header: t('dueAmount', 'Due Amount') },
       { key: 'paid', header: t('paid', 'Paid') },
       { key: 'status', header: t('status', 'Status') },
+      { key: 'actions', header: t('actions', 'Actions') },
     ],
     [t],
   );
@@ -154,6 +158,100 @@ export const BillingHomeGlobalBillsTable: React.FC<{ patientQuery?: string; poli
   const handleRowExpand = (row: any) => {
     const isExpanding = expandedRowId !== row.id;
     setExpandedRowId(isExpanding ? row.id : null);
+  };
+
+  const handlePrintGlobalBill = async (globalBillId: string, rawData: any) => {
+    try {
+      // Import the API functions dynamically to avoid circular dependencies
+      const { getConsommationsByGlobalBillId, getConsommationItems, getConsommationRates } = await import(
+        '../api/billing'
+      );
+
+      // Fetch consommations for this global bill
+      const consommationsResponse = await getConsommationsByGlobalBillId(globalBillId);
+      const consommations = consommationsResponse?.results || [];
+
+      // Fetch detailed data for each consommation
+      const consommationsData = await Promise.all(
+        consommations.map(async (consommation: any) => {
+          try {
+            const [items, rates] = await Promise.all([
+              getConsommationItems(consommation.consommationId),
+              getConsommationRates(consommation.consommationId, globalBillId),
+            ]);
+
+            return {
+              consommationId: consommation.consommationId,
+              service: consommation.department?.name || `Service ${consommation.consommationId}`,
+              createdDate: consommation.createdDate,
+              items: items || [],
+              insuranceRates: rates || { insuranceRate: 0, patientRate: 100 },
+              totalAmount: consommation.totalAmount || 0,
+              paidAmount: consommation.paidAmount || 0,
+              dueAmount: (consommation.totalAmount || 0) - (consommation.paidAmount || 0),
+              status: consommation.status || 'UNPAID',
+            };
+          } catch (error) {
+            console.error(`Error fetching data for consommation ${consommation.consommationId}:`, error);
+            return {
+              consommationId: consommation.consommationId,
+              service: consommation.department?.name || `Service ${consommation.consommationId}`,
+              createdDate: consommation.createdDate,
+              items: [],
+              insuranceRates: { insuranceRate: 0, patientRate: 100 },
+              totalAmount: consommation.totalAmount || 0,
+              paidAmount: consommation.paidAmount || 0,
+              dueAmount: (consommation.totalAmount || 0) - (consommation.paidAmount || 0),
+              status: consommation.status || 'UNPAID',
+            };
+          }
+        }),
+      );
+
+      // Extract patient name using the same method as the API
+      const getPatientNameFromGlobalBill = (bill: any): string => {
+        const byOwner = bill?.admission?.insurancePolicy?.owner?.display as string | undefined;
+        if (byOwner) {
+          const parts = byOwner.split(' - ');
+          if (parts.length > 1) return parts[1];
+          return byOwner;
+        }
+        return (
+          bill?.beneficiaryName ||
+          bill?.patientName ||
+          bill?.patient?.display ||
+          bill?.patient?.name ||
+          'Unknown Patient'
+        );
+      };
+
+      // Prepare global bill data
+      const globalBillData = {
+        globalBillId: rawData.globalBillId,
+        patientName: getPatientNameFromGlobalBill(rawData),
+        policyNumber: rawData.policyNumber,
+        insuranceName: rawData.insuranceName,
+        insuranceRate: rawData.insuranceRate,
+        patientRate: rawData.patientRate,
+        admissionDate: rawData.admissionDate,
+        department: rawData.department,
+        totalAmount: rawData.totalAmount,
+        paidAmount: rawData.paidAmount,
+        dueAmount: rawData.dueAmount,
+        status: rawData.status,
+        closed: rawData.closed,
+      };
+
+      // Print the global bill
+      printGlobalBill(globalBillData, consommationsData, 'System User');
+    } catch (error) {
+      console.error('Error printing global bill:', error);
+      showToast({
+        title: t('printError', 'Print Error'),
+        description: t('printErrorDescription', 'There was an error preparing the global bill for printing'),
+        kind: 'error',
+      });
+    }
   };
 
   if (isLoading) return <DataTableSkeleton columnCount={headers.length} rowCount={5} />;
@@ -235,6 +333,18 @@ export const BillingHomeGlobalBillsTable: React.FC<{ patientQuery?: string; poli
                             >
                               {cell.value}
                             </Tag>
+                          ) : cell.info.header === 'actions' ? (
+                            <Button
+                              kind="ghost"
+                              size="sm"
+                              renderIcon={Printer}
+                              iconDescription={t('printGlobalBill', 'Print Global Bill')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrintGlobalBill(row.id, (row as any).rawData);
+                              }}
+                              title={t('printGlobalBill', 'Print Global Bill')}
+                            />
                           ) : (
                             cell.value
                           )}

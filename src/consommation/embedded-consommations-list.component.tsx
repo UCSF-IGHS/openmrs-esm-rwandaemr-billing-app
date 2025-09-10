@@ -35,6 +35,7 @@ import { type ConsommationListResponse, type ConsommationListItem, type Consomma
 import styles from './embedded-consommations-list.scss';
 import PaymentForm from '../payment-form/payment-form.component';
 import { printReceipt } from '../payment-receipt/print-receipt';
+import { printGlobalBill } from '../payment-receipt/print-global-bill';
 import { Add, Printer, Close, Undo } from '@carbon/react/icons';
 import GlobalBillInsuranceInfo from '../invoice/global-bill-insurance-info.component';
 import RevertGlobalBillModal from './revert-global-bill-modal.component';
@@ -823,6 +824,86 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
       }
     };
 
+    const handlePrintGlobalBill = async () => {
+      try {
+        if (!consommationsWithItems || consommationsWithItems.length === 0) {
+          showToast({
+            title: t('noData', 'No Data'),
+            description: t('noConsommationsToPrint', 'No consommations available for printing'),
+            kind: 'warning',
+          });
+          return;
+        }
+
+        // Load items for all consommations that don't have them loaded yet
+        const consommationsWithLoadedItems = await Promise.all(
+          consommationsWithItems.map(async (consommation) => {
+            if (!consommation.itemsLoaded && !consommation.isLoadingItems) {
+              await loadConsommationItems(consommation.consommationId?.toString() || '');
+              // Return the updated consommation from state
+              return consommationsWithItems.find(c => c.consommationId === consommation.consommationId) || consommation;
+            }
+            return consommation;
+          })
+        );
+
+        // Prepare global bill data
+        const totalAmount = consommationsWithLoadedItems.reduce((total, c) => total + ((c as any).totalAmount || 0), 0);
+        const totalPaidAmount = consommationsWithLoadedItems.reduce((total, c) => total + ((c as any).paidAmount || 0), 0);
+        const totalDueAmount = totalAmount - totalPaidAmount;
+
+        // Extract patient name using the same method as the API
+        const getPatientNameFromGlobalBill = (bill: any): string => {
+          const byOwner = bill?.admission?.insurancePolicy?.owner?.display as string | undefined;
+          if (byOwner) {
+            const parts = byOwner.split(' - ');
+            if (parts.length > 1) return parts[1];
+            return byOwner;
+          }
+          return bill?.beneficiaryName || bill?.patientName || bill?.patient?.display || bill?.patient?.name || 'Unknown Patient';
+        };
+
+        const globalBillData = {
+          globalBillId: globalBillId,
+          patientName: getPatientNameFromGlobalBill(admissionData),
+          policyNumber: admissionData?.insurancePolicy?.insuranceCardNo || '',
+          insuranceName: admissionData?.insurancePolicy?.insurance?.name || '',
+          insuranceRate: consommationsWithItems[0]?.insuranceRates?.insuranceRate || 0,
+          patientRate: consommationsWithItems[0]?.insuranceRates?.patientRate || 100,
+          admissionDate: admissionData?.admissionDate || new Date().toISOString(),
+          department: admissionData?.department?.name || '',
+          totalAmount: totalAmount,
+          paidAmount: totalPaidAmount,
+          dueAmount: totalDueAmount,
+          status: isClosedLocal ? 'CLOSED' : 'OPEN',
+          closed: isClosedLocal,
+        };
+
+        // Prepare consommations data with loaded items
+        const consommationsData = consommationsWithLoadedItems.map((consommation) => ({
+          consommationId: consommation.consommationId?.toString() || '',
+          service: getDepartmentName(consommation),
+          createdDate: consommation.createdDate || new Date().toISOString(),
+          items: consommation.items || [],
+          insuranceRates: consommation.insuranceRates || { insuranceRate: 0, patientRate: 100 },
+          totalAmount: (consommation as any).totalAmount || 0,
+          paidAmount: (consommation as any).paidAmount || 0,
+          dueAmount: ((consommation as any).totalAmount || 0) - ((consommation as any).paidAmount || 0),
+          status: consommationStatuses[consommation.consommationId?.toString() || ''] || 'UNPAID',
+        }));
+
+        // Print the global bill
+        printGlobalBill(globalBillData, consommationsData, session?.user?.display || 'System User');
+      } catch (error) {
+        console.error('Error printing global bill:', error);
+        showToast({
+          title: t('printError', 'Print Error'),
+          description: t('printErrorDescription', 'There was an error preparing the global bill for printing'),
+          kind: 'error',
+        });
+      }
+    };
+
     const openPaymentModal = () => {
       setIsPaymentModalOpen(true);
     };
@@ -982,6 +1063,15 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                 title={!isClosedLocal ? t('canOnlyRevertClosedBill', 'Can only revert a closed bill') : ''}
               >
                 {t('revertBill', 'Revert Bill')}
+              </Button>
+              <Button
+                kind="ghost"
+                renderIcon={(props) => <Printer size={16} {...props} />}
+                iconDescription={t('printGlobalBill', 'Print Global Bill')}
+                onClick={handlePrintGlobalBill}
+                title={t('printGlobalBill', 'Print Global Bill')}
+              >
+                {t('printBill', 'Print Bill')}
               </Button>
             </div>
           </div>
