@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dropdown, Form, NumberInput, TextInput, Button, InlineLoading, Tile } from '@carbon/react';
+import { Dropdown, Form, NumberInput, TextInput, Button, InlineLoading, Tile, ComboBox } from '@carbon/react';
 import { openmrsFetch, useConfig } from '@openmrs/esm-framework';
 import { errorHandler, commonErrorMessages } from '../utils/error-handler';
 import {
@@ -61,6 +61,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
 
   const [calculatorItems, setCalculatorItems] = useState([]);
   const [total, setTotal] = useState(0);
+  const quantityInputRef = useRef<HTMLInputElement>(null);
 
   // Helper function to determine if current selection is for medications/drugs
   const isDrugCategory = useCallback(() => {
@@ -244,6 +245,10 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
   };
 
   const addService = async () => {
+    const currentQuantity = quantityInputRef.current?.value ? parseInt(quantityInputRef.current.value, 10) : quantity;
+
+    const actualQuantity = currentQuantity || quantity;
+
     if (!validateInputs()) return;
 
     const service = billableServices.find((s) => s.serviceId?.toString() === serviceId);
@@ -262,7 +267,7 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
         updatedItems = [...calculatorItems];
         updatedItems[existingIndex] = {
           ...updatedItems[existingIndex],
-          quantity: updatedItems[existingIndex].quantity + quantity,
+          quantity: updatedItems[existingIndex].quantity + actualQuantity,
           drugFrequency: drugFrequency || updatedItems[existingIndex].drugFrequency,
         };
       } else {
@@ -299,13 +304,13 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
           serviceId: Number(service.serviceId),
           name: service.name,
           price: service.price,
-          totalPrice: service.price * quantity,
+          totalPrice: service.price * actualQuantity,
           departmentName: department.name,
           departmentId: department.departmentId,
           serviceCategoryId: Number(serviceCategoryId),
           serviceCategoryName: serviceCategory?.name || '',
           originalData: service.originalData,
-          quantity,
+          quantity: actualQuantity,
           drugFrequency: isDrugCategory() ? drugFrequency || '' : '',
           isDrug: isDrugCategory(),
           serviceDate: new Date().toISOString(),
@@ -354,21 +359,35 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
             <div className={styles.formRow}>
               <div className={styles.formField}>
                 <label className={styles.fieldLabel}>{t('department', 'Department')}</label>
-                <Dropdown
+                <ComboBox
                   id="department"
                   titleText=""
-                  label={isLoadingDepartments ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
-                  items={departments.map((dept) => dept.departmentId.toString())}
-                  itemToString={(id) => departments.find((d) => d.departmentId.toString() === id)?.name || ''}
+                  placeholder={isLoadingDepartments ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
+                  items={departments.map((dept) => ({
+                    id: dept.departmentId.toString(),
+                    text: dept.name,
+                    value: dept.departmentId.toString(),
+                  }))}
+                  itemToString={(item) => (item ? item.text : '')}
                   invalid={!!errors.departmentUuid}
                   invalidText={errors.departmentUuid}
                   onChange={({ selectedItem }) => {
-                    setDepartmentUuid(selectedItem);
-                    setServiceCategoryId('');
-                    setServiceId('');
-                    setDrugFrequency('');
+                    if (selectedItem) {
+                      setDepartmentUuid(selectedItem.value);
+                      setServiceCategoryId('');
+                      setServiceId('');
+                      setDrugFrequency('');
+                    }
                   }}
-                  selectedItem={departmentUuid}
+                  selectedItem={
+                    departments.find((d) => d.departmentId.toString() === departmentUuid)
+                      ? {
+                          id: departmentUuid,
+                          text: departments.find((d) => d.departmentId.toString() === departmentUuid)?.name || '',
+                          value: departmentUuid,
+                        }
+                      : null
+                  }
                   size="sm"
                   disabled={isLoadingDepartments}
                 />
@@ -377,28 +396,43 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
 
               <div className={styles.formField}>
                 <label className={styles.fieldLabel}>{t('serviceCategory', 'Service Category')}</label>
-                <Dropdown
+                <ComboBox
                   id="serviceCategory"
                   titleText=""
-                  label={isLoadingServiceCategories ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')}
+                  placeholder={
+                    isLoadingServiceCategories ? t('loading', 'Loading...') : t('pleaseSelect', 'Please select')
+                  }
                   items={serviceCategories
                     .filter((cat) => cat && cat.serviceCategoryId)
-                    .map((cat) => cat.serviceCategoryId.toString())}
-                  itemToString={(id) => {
-                    if (!id) return '';
-                    return (
-                      serviceCategories.find((cat) => cat.serviceCategoryId && cat.serviceCategoryId.toString() === id)
-                        ?.name || ''
-                    );
-                  }}
+                    .map((cat) => ({
+                      id: cat.serviceCategoryId.toString(),
+                      text: cat.name,
+                      value: cat.serviceCategoryId.toString(),
+                    }))}
+                  itemToString={(item) => (item ? item.text : '')}
                   invalid={!!errors.serviceCategoryId}
                   invalidText={errors.serviceCategoryId}
                   onChange={({ selectedItem }) => {
-                    setServiceCategoryId(selectedItem);
-                    setServiceId('');
-                    setDrugFrequency('');
+                    if (selectedItem) {
+                      setServiceCategoryId(selectedItem.value);
+                      setServiceId('');
+                      setDrugFrequency('');
+                    }
                   }}
-                  selectedItem={serviceCategoryId}
+                  selectedItem={
+                    serviceCategories.find(
+                      (cat) => cat.serviceCategoryId && cat.serviceCategoryId.toString() === serviceCategoryId,
+                    )
+                      ? {
+                          id: serviceCategoryId,
+                          text:
+                            serviceCategories.find(
+                              (cat) => cat.serviceCategoryId && cat.serviceCategoryId.toString() === serviceCategoryId,
+                            )?.name || '',
+                          value: serviceCategoryId,
+                        }
+                      : null
+                  }
                   size="sm"
                   disabled={!departmentUuid || isLoadingServiceCategories}
                 />
@@ -409,29 +443,43 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
             <div className={styles.formRow}>
               <div className={styles.formField}>
                 <label className={styles.fieldLabel}>{t('service', 'Service')}</label>
-                <Dropdown
+                <ComboBox
                   id="service"
                   titleText=""
-                  label={
+                  placeholder={
                     isLoadingBillableServices
                       ? t('loading', 'Loading...')
                       : billableServices.length === 0
                         ? t('noServicesAvailable', 'No services available')
                         : t('pleaseSelect', 'Please select')
                   }
-                  items={billableServices.map((svc) => svc.serviceId?.toString() || '')}
-                  itemToString={(id) => {
-                    if (!id) return '';
-                    const service = billableServices.find((s) => s.serviceId?.toString() === id);
-                    if (!service) return `Service ID: ${id}`;
-                    return `${service.name || 'Unnamed Service'} (${service.price || 0} ${defaultCurrency})`;
-                  }}
+                  items={billableServices.map((svc) => ({
+                    id: svc.serviceId?.toString() || '',
+                    text: `${svc.name || 'Unnamed Service'} (${svc.price || 0} ${defaultCurrency})`,
+                    value: svc.serviceId?.toString() || '',
+                  }))}
+                  itemToString={(item) => (item ? item.text : '')}
                   invalid={!!errors.serviceId}
                   invalidText={errors.serviceId}
                   onChange={({ selectedItem }) => {
-                    setServiceId(selectedItem);
+                    if (selectedItem) {
+                      setServiceId(selectedItem.value);
+                    }
                   }}
-                  selectedItem={serviceId}
+                  selectedItem={
+                    billableServices.find((s) => s.serviceId?.toString() === serviceId)
+                      ? {
+                          id: serviceId,
+                          text: (() => {
+                            const service = billableServices.find((s) => s.serviceId?.toString() === serviceId);
+                            return service
+                              ? `${service.name || 'Unnamed Service'} (${service.price || 0} ${defaultCurrency})`
+                              : '';
+                          })(),
+                          value: serviceId,
+                        }
+                      : null
+                  }
                   disabled={!serviceCategoryId || isLoadingBillableServices || billableServices.length === 0}
                   size="md"
                 />
@@ -444,7 +492,15 @@ const ServiceCalculator: React.FC<ServiceCalculatorProps> = ({ patientUuid, insu
                   label={t('quantity', 'Quantity')}
                   min={1}
                   value={quantity}
-                  onChange={(event) => setQuantity(event.target['value'] ? parseInt(event.target['value'], 10) : 1)}
+                  ref={quantityInputRef}
+                  onChange={(event) => {
+                    const newValue = event.target['value'] ? parseInt(event.target['value'], 10) : 1;
+                    setQuantity(newValue);
+                  }}
+                  onInput={(event) => {
+                    const newValue = event.target['value'] ? parseInt(event.target['value'], 10) : 1;
+                    setQuantity(newValue);
+                  }}
                   invalid={!!errors.quantity}
                   invalidText={errors.quantity}
                   size="sm"
