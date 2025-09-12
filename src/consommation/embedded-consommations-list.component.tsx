@@ -496,7 +496,8 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     useEffect(() => {
       cleanupOldPaymentData();
       fetchConsommations();
-    }, [fetchConsommations, cleanupOldPaymentData]);
+      loadAdmissionData(); // Load admission data on component mount
+    }, [fetchConsommations, cleanupOldPaymentData, loadAdmissionData]);
 
     // Ensure expanded consommations auto-load their items after any refresh
     useEffect(() => {
@@ -835,21 +836,43 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           return;
         }
 
-        // Load items for all consommations that don't have them loaded yet
+        showToast({
+          title: t('preparingPrint', 'Preparing Print'),
+          description: t('loadingBillData', 'Loading bill data for printing...'),
+          kind: 'info',
+        });
+
+        // Load items and rates for all consommations
         const consommationsWithLoadedItems = await Promise.all(
           consommationsWithItems.map(async (consommation) => {
-            if (!consommation.itemsLoaded && !consommation.isLoadingItems) {
-              await loadConsommationItems(consommation.consommationId?.toString() || '');
-              // Return the updated consommation from state
-              return consommationsWithItems.find(c => c.consommationId === consommation.consommationId) || consommation;
-            }
-            return consommation;
-          })
+            const consommationId = consommation.consommationId?.toString() || '';
+
+            const [items, rates] = await Promise.all([
+              fetchConsommationItemsCb(consommationId),
+              fetchInsuranceRates(consommationId),
+            ]);
+
+            const totalAmount = items.reduce((sum, item) => sum + (item.quantity || 1) * (item.unitPrice || 0), 0);
+            const paidAmount = items.reduce((sum, item) => sum + (item.paidAmount || 0), 0);
+            const dueAmount = totalAmount - paidAmount;
+
+            return {
+              ...consommation,
+              items: items,
+              insuranceRates: rates,
+              totalAmount: totalAmount,
+              paidAmount: paidAmount,
+              dueAmount: dueAmount,
+            };
+          }),
         );
 
         // Prepare global bill data
         const totalAmount = consommationsWithLoadedItems.reduce((total, c) => total + ((c as any).totalAmount || 0), 0);
-        const totalPaidAmount = consommationsWithLoadedItems.reduce((total, c) => total + ((c as any).paidAmount || 0), 0);
+        const totalPaidAmount = consommationsWithLoadedItems.reduce(
+          (total, c) => total + ((c as any).paidAmount || 0),
+          0,
+        );
         const totalDueAmount = totalAmount - totalPaidAmount;
 
         // Extract patient name using the same method as the API
@@ -860,7 +883,13 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
             if (parts.length > 1) return parts[1];
             return byOwner;
           }
-          return bill?.beneficiaryName || bill?.patientName || bill?.patient?.display || bill?.patient?.name || 'Unknown Patient';
+          return (
+            bill?.beneficiaryName ||
+            bill?.patientName ||
+            bill?.patient?.display ||
+            bill?.patient?.name ||
+            'Unknown Patient'
+          );
         };
 
         const globalBillData = {
@@ -886,14 +915,47 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           createdDate: consommation.createdDate || new Date().toISOString(),
           items: consommation.items || [],
           insuranceRates: consommation.insuranceRates || { insuranceRate: 0, patientRate: 100 },
-          totalAmount: (consommation as any).totalAmount || 0,
-          paidAmount: (consommation as any).paidAmount || 0,
-          dueAmount: ((consommation as any).totalAmount || 0) - ((consommation as any).paidAmount || 0),
+          totalAmount: consommation.totalAmount || 0,
+          paidAmount: consommation.paidAmount || 0,
+          dueAmount: consommation.dueAmount || 0,
           status: consommationStatuses[consommation.consommationId?.toString() || ''] || 'UNPAID',
         }));
 
-        // Print the global bill
-        printGlobalBill(globalBillData, consommationsData, session?.user?.display || 'System User');
+        const allRates = consommationsWithLoadedItems.map((c) => c.insuranceRates);
+        const mostCommonInsuranceRate =
+          allRates.length > 0
+            ? Math.round(allRates.reduce((sum, rate) => sum + rate.insuranceRate, 0) / allRates.length)
+            : 0;
+        const mostCommonPatientRate =
+          allRates.length > 0
+            ? Math.round(allRates.reduce((sum, rate) => sum + rate.patientRate, 0) / allRates.length)
+            : 100;
+
+        const paymentData = {
+          amountPaid: totalPaidAmount.toFixed(2),
+          receivedCash: '0.00',
+          change: '0.00',
+          paymentMethod: 'N/A',
+          deductedAmount: '',
+          dateReceived: new Date().toISOString().split('T')[0],
+          collectorName: session?.user?.display || 'Unknown',
+          patientName: globalBillData.patientName || 'Unknown Patient',
+          policyNumber: globalBillData.policyNumber || '',
+          thirdPartyAmount: '0.00',
+          thirdPartyProvider: globalBillData.insuranceName || '',
+          totalAmount: totalAmount.toFixed(2),
+          insuranceRate: mostCommonInsuranceRate,
+          patientRate: mostCommonPatientRate,
+          insuranceName: globalBillData.insuranceName || '',
+        };
+
+        printGlobalBill(globalBillData, consommationsData, session?.user?.display || 'System User', paymentData);
+
+        showToast({
+          title: t('printReady', 'Print Ready'),
+          description: t('billReadyForPrinting', 'Global bill is ready for printing'),
+          kind: 'success',
+        });
       } catch (error) {
         console.error('Error printing global bill:', error);
         showToast({

@@ -1,4 +1,3 @@
-// Print Global Bill functionality
 interface GlobalBillData {
   globalBillId: string;
   patientName?: string;
@@ -40,10 +39,29 @@ interface ConsommationItem {
   drugFrequency?: string;
 }
 
+interface PaymentData {
+  amountPaid: string;
+  receivedCash?: string;
+  change?: string;
+  paymentMethod: string;
+  deductedAmount?: string;
+  dateReceived: string;
+  collectorName: string;
+  patientName?: string;
+  policyNumber?: string;
+  thirdPartyAmount?: string;
+  thirdPartyProvider?: string;
+  totalAmount?: string;
+  insuranceRate?: number;
+  patientRate?: number;
+  insuranceName?: string;
+}
+
 export const printGlobalBill = (
   globalBillData: GlobalBillData,
   consommationsData: ConsommationData[],
   collectorName: string = 'System',
+  paymentData?: PaymentData,
 ) => {
   const printWindow = window.open('', '_blank', 'width=1000,height=800,scrollbars=yes');
 
@@ -519,20 +537,6 @@ export const printGlobalBill = (
                 : ''
             }
             ${
-              globalBillData.insuranceRate !== undefined
-                ? `
-            <tr>
-              <td>Insurance Coverage:</td>
-              <td><strong>${globalBillData.insuranceRate}%</strong></td>
-            </tr>
-            <tr>
-              <td>Patient Coverage:</td>
-              <td><strong>${globalBillData.patientRate || 100 - globalBillData.insuranceRate}%</strong></td>
-            </tr>
-            `
-                : ''
-            }
-            ${
               globalBillData.admissionDate
                 ? `
             <tr>
@@ -557,12 +561,8 @@ export const printGlobalBill = (
               <td>${collectorName}</td>
             </tr>
             <tr>
-              <td>Bill Status:</td>
-              <td>
-                <span class="statusBadge ${globalBillData.closed ? 'statusClosed' : 'statusUnpaid'}">
-                  ${globalBillData.closed ? 'CLOSED' : globalBillData.status || 'OPEN'}
-                </span>
-              </td>
+              <td>Total Amount:</td>
+              <td><strong>${consommationsData.reduce((sum, c) => sum + (c.totalAmount || 0), 0).toFixed(2)} RWF</strong></td>
             </tr>
           </tbody>
         </table>
@@ -575,8 +575,8 @@ export const printGlobalBill = (
             const totalAmount = consommation.totalAmount || 0;
             const paidAmount = consommation.paidAmount || 0;
             const dueAmount = consommation.dueAmount || 0;
-            const insuranceRate = consommation.insuranceRates?.insuranceRate || 0;
-            const patientRate = consommation.insuranceRates?.patientRate || 100;
+            const insuranceRate = paymentData?.insuranceRate ?? consommation.insuranceRates?.insuranceRate ?? 0;
+            const patientRate = paymentData?.patientRate ?? consommation.insuranceRates?.patientRate ?? 100;
 
             return `
             <div class="consommationSection">
@@ -584,7 +584,6 @@ export const printGlobalBill = (
                 <h4>Consommation #${consommation.consommationId} - ${consommation.service}</h4>
                 <div class="consommationMeta">
                   <span>Date: ${new Date(consommation.createdDate).toLocaleDateString()}</span>
-                  <span class="consommationStatus">${consommation.status}</span>
                 </div>
               </div>
               
@@ -599,7 +598,6 @@ export const printGlobalBill = (
                     <th>Insurance (${insuranceRate}%)</th>
                     <th>Patient (${patientRate}%)</th>
                     <th>Paid Amount</th>
-                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -611,19 +609,6 @@ export const printGlobalBill = (
                             const insuranceAmount = (itemTotal * insuranceRate) / 100;
                             const patientAmount = (itemTotal * patientRate) / 100;
                             const paidAmount = item.paidAmount || 0;
-                            const isPaid = paidAmount >= itemTotal;
-                            const isPartiallyPaid = paidAmount > 0 && paidAmount < itemTotal;
-
-                            let statusClass = 'statusUnpaid';
-                            let statusText = 'UNPAID';
-
-                            if (isPaid) {
-                              statusClass = 'statusPaid';
-                              statusText = 'PAID';
-                            } else if (isPartiallyPaid) {
-                              statusClass = 'statusPartiallyPaid';
-                              statusText = 'PARTIALLY PAID';
-                            }
 
                             return `
                       <tr>
@@ -635,16 +620,13 @@ export const printGlobalBill = (
                         <td style="text-align: right;">${insuranceAmount.toFixed(2)}</td>
                         <td style="text-align: right;">${patientAmount.toFixed(2)}</td>
                         <td style="text-align: right;"><strong>${Number(paidAmount).toFixed(2)}</strong></td>
-                        <td style="text-align: center;">
-                          <span class="statusBadge ${statusClass}">${statusText}</span>
-                        </td>
                       </tr>
                     `;
                           })
                           .join('')
                       : `
                     <tr>
-                      <td colspan="9" style="text-align: center; font-style: italic; color: #666; padding: 20px;">
+                      <td colspan="8" style="text-align: center; font-style: italic; color: #666; padding: 20px;">
                         No items available for this consommation
                       </td>
                     </tr>
@@ -658,9 +640,6 @@ export const printGlobalBill = (
                     <td style="text-align: right;"><strong>${((totalAmount * insuranceRate) / 100).toFixed(2)}</strong></td>
                     <td style="text-align: right;"><strong>${((totalAmount * patientRate) / 100).toFixed(2)}</strong></td>
                     <td style="text-align: right;"><strong>${paidAmount.toFixed(2)}</strong></td>
-                    <td style="text-align: center;">
-                      <span class="statusBadge ${consommation.status === 'PAID' ? 'statusPaid' : consommation.status === 'PARTIALLY_PAID' ? 'statusPartiallyPaid' : 'statusUnpaid'}">${consommation.status}</span>
-                    </td>
                   </tr>
                 </tfoot>
               </table>
@@ -668,40 +647,6 @@ export const printGlobalBill = (
           `;
           })
           .join('')}
-        
-        <div class="summarySection">
-          <div class="summaryHeader">
-            <h3>Global Bill Summary</h3>
-          </div>
-          <table class="summaryTable">
-            <tbody>
-              <tr>
-                <td>Total Bill Amount:</td>
-                <td>${(globalBillData.totalAmount || 0).toFixed(2)} RWF</td>
-              </tr>
-              <tr>
-                <td>Total Paid Amount:</td>
-                <td>${(globalBillData.paidAmount || 0).toFixed(2)} RWF</td>
-              </tr>
-              <tr>
-                <td>Total Due Amount:</td>
-                <td>${(globalBillData.dueAmount || 0).toFixed(2)} RWF</td>
-              </tr>
-              <tr>
-                <td>Number of Consommations:</td>
-                <td>${consommationsData.length}</td>
-              </tr>
-              <tr>
-                <td>Bill Status:</td>
-                <td>
-                  <span class="statusBadge ${globalBillData.closed ? 'statusClosed' : 'statusUnpaid'}">
-                    ${globalBillData.closed ? 'CLOSED' : 'OPEN'}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </div>
       
       <div class="signatureSection">

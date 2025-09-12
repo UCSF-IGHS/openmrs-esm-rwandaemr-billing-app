@@ -24,5 +24,9 @@
   "printGlobalBill": "Print Global Bill",
   "printBill": "Print Bill",
   "actions": "Actions",
-  "noConsommationsToPrint": "No consommations available for printing"
+  "noConsommationsToPrint": "No consommations available for printing",
+  "preparingPrint": "Preparing Print",
+  "loadingBillData": "Loading bill data for printing...",
+  "printReady": "Print Ready",
+  "billReadyForPrinting": "Global bill is ready for printing"
 }
