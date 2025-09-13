@@ -8,7 +8,8 @@ export async function fetchInsuranceFirms() {
   const params = new URLSearchParams({ report_id: 'insurance_firm_report' });
 
   try {
-    const { data } = await openmrsFetch(`${BASE_MAMBA_API}?${params.toString()}`);
+    //const { data } = await openmrsFetch(`${BASE_MAMBA_API}?${params.toString()}`);
+    const { data } = await openmrsFetch(`${BASE_API_URL}/insurance?v=full`);
 
     if (!data?.results || !Array.isArray(data.results)) {
       console.error('Unexpected API response:', data);
@@ -16,13 +17,9 @@ export async function fetchInsuranceFirms() {
     }
 
     return data.results.map((item) => {
-      const record = item.record;
-      const idObj = record.find((i) => i.column === 'insurance_id');
-      const nameObj = record.find((i) => i.column === 'name');
-
       return {
-        value: idObj?.value ?? '',
-        label: nameObj?.value ?? 'Unknown',
+        value: item?.insuranceId ?? '',
+        label: item?.name ?? 'Unknown',
       };
     });
   } catch (error) {
