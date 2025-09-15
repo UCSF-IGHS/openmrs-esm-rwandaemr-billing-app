@@ -35,6 +35,7 @@ export interface InsurancePolicy {
   insurance?: {
     uuid: string;
     name: string;
+    insuranceId: number;
     links: Link[];
   };
   owner: Owner;
@@ -213,6 +214,14 @@ export interface InsurancePolicyRecord {
   coverageStartDate: string;
   expirationDate: string;
   insuranceName?: string;
+  insuranceId?: number;
+}
+
+export interface InsurancePolicyUpdatePayload {
+  insurance?: { insuranceId: number };
+  insuranceCardNo: string;
+  coverageStartDate: string;
+  expirationDate: string;
 }
 
 export interface ExtendedConsommationItem extends ConsommationItem {

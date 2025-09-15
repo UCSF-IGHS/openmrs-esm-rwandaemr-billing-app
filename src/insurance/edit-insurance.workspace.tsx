@@ -3,7 +3,7 @@ import { Modal, TextInput } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
 import { showSnackbar } from '@openmrs/esm-framework';
 import { updateInsurancePolicy, useInsurancePolicy } from '../insurance-policy/insurance-policy.resource';
-import type { InsurancePolicyRecord } from '../types';
+import type { InsurancePolicyRecord, InsurancePolicyUpdatePayload } from '../types';
 
 interface EditInsuranceModalProps {
   record: InsurancePolicyRecord | null;
@@ -18,30 +18,20 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
   const [cardNumber, setCardNumber] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [hasThirdParty, setHasThirdParty] = useState(false);
-  const [thirdPartyProvider, setThirdPartyProvider] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [insuranceOwner, setInsuranceOwner] = useState('');
-  const [family, setFamily] = useState('');
 
   useEffect(() => {
     if (record) {
       setCardNumber(record.insuranceCardNo || '');
       setStartDate(record.coverageStartDate || '');
       setEndDate(record.expirationDate || '');
-      setHasThirdParty(record.hasThirdParty ?? false);
-      setThirdPartyProvider(record.thirdPartyProvider || '');
-      setCompanyName(record.companyName || '');
-      setInsuranceOwner(record.insuranceOwner || '');
-      setFamily(record.family || '');
     }
   }, [record]);
 
   const handleSubmit = async () => {
     if (!record) return;
 
-    const updatedRecord = {
-      ...record,
+    const updatedRecord: InsurancePolicyUpdatePayload = {
+      insurance: record.insuranceId ? { insuranceId: record.insuranceId } : undefined,
       insuranceCardNo: cardNumber,
       coverageStartDate: startDate,
       expirationDate: endDate,
@@ -102,41 +92,12 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
         onChange={(e) => setEndDate(e.target.value)}
       />
 
-      <div style={{ marginTop: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          <input type="checkbox" checked={hasThirdParty} onChange={(e) => setHasThirdParty(e.target.checked)} />{' '}
-          {t('hasThirdParty', 'Has Third Party?')}
-        </label>
+      <div style={{ marginTop: '1rem', padding: '0.5rem', backgroundColor: '#f4f4f4', borderRadius: '4px' }}>
+        <p style={{ margin: 0, fontSize: '0.875rem', color: '#666' }}>
+          <strong>Note:</strong> Only insurance card number, start date, and end date can be edited. Other fields are
+          managed by the system and cannot be modified through this interface.
+        </p>
       </div>
-
-      {hasThirdParty && (
-        <TextInput
-          id="thirdPartyProvider"
-          labelText={t('thirdPartyProvider', 'Third Party Provider')}
-          value={thirdPartyProvider}
-          onChange={(e) => setThirdPartyProvider(e.target.value)}
-        />
-      )}
-      <TextInput
-        id="companyName"
-        labelText={t('companyName', 'Company Name')}
-        value={companyName}
-        onChange={(e) => setCompanyName(e.target.value)}
-      />
-
-      <TextInput
-        id="insuranceOwner"
-        labelText={t('insuranceOwner', 'Head Household Name/Insurance Owner')}
-        value={insuranceOwner}
-        onChange={(e) => setInsuranceOwner(e.target.value)}
-      />
-
-      <TextInput
-        id="family"
-        labelText={t('family', 'Family/ Affiliation code')}
-        value={family}
-        onChange={(e) => setFamily(e.target.value)}
-      />
     </Modal>
   );
 };

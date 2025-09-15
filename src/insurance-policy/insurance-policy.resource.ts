@@ -1,6 +1,6 @@
 import { formatDate, openmrsFetch } from '@openmrs/esm-framework';
 import useSWR from 'swr';
-import type { InsurancePolicy, InsurancePolicyRecord } from '../types';
+import type { InsurancePolicy, InsurancePolicyRecord, InsurancePolicyUpdatePayload } from '../types';
 
 interface MappedInsurancePolicy {
   insuranceCardNo: string;
@@ -13,6 +13,7 @@ interface MappedInsurancePolicy {
   patientName: string;
   patientUuid: string;
   insurance: string;
+  insuranceId: number;
   birthdate: string;
   insurancePolicyNo: string;
 }
@@ -29,6 +30,7 @@ const mapInsurancePolicyProperties = (policy: InsurancePolicy): MappedInsuranceP
     gender: policy.owner.person.gender,
     age: policy.owner.person.age,
     insurance: policy.insurance.name,
+    insuranceId: policy.insurance.insuranceId,
     birthdate: formatDate(new Date(policy.owner.person.birthdate)),
     insurancePolicyNo: policy.insurancePolicyId ?? '--',
   };
@@ -64,7 +66,7 @@ export const useInsurancePolicy = (
   };
 };
 
-export const updateInsurancePolicy = async (insurancePolicy: InsurancePolicyRecord, policyId) => {
+export const updateInsurancePolicy = async (insurancePolicy: InsurancePolicyUpdatePayload, policyId) => {
   const url = `/ws/rest/v1/mohbilling/insurancePolicy/${policyId}`;
   const response = await openmrsFetch(url, {
     method: 'POST',

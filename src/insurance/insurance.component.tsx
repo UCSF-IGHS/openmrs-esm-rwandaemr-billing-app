@@ -63,6 +63,7 @@ const Insurance = ({ patientUuid }) => {
       coverageStartDate: dayjs(record.startDate).format('YYYY-MM-DD'),
       expirationDate: dayjs(record.endDate).format('YYYY-MM-DD'),
       insuranceName: record.insuranceName,
+      insuranceId: record.insuranceId,
     });
     setShowEditModal(true);
   };
@@ -70,6 +71,10 @@ const Insurance = ({ patientUuid }) => {
   const handleClose = () => {
     setShowEditModal(false);
     setSelectedRecord(null);
+  };
+
+  const handleRefresh = () => {
+    setRefreshSignal((prev) => prev + 1);
   };
 
   const filteredEntries = entries.filter((entry) =>
@@ -109,11 +114,13 @@ const Insurance = ({ patientUuid }) => {
             thirdPartyProvider: policy.thirdPartyProvider?.name ?? t('notAvailable', 'N/A'),
             insurancePolicyNo: policy.insurancePolicyId,
             insuranceName: policy.insurance?.name ?? t('notAvailable', 'N/A'),
-            status: (
-              <Tag type={new Date(policy.expirationDate) < new Date() ? 'red' : 'green'}>
-                {new Date(policy.expirationDate) < new Date() ? 'Expired' : 'Valid'}
-              </Tag>
-            ),
+            insuranceId: policy.insurance?.insuranceId ?? null,
+            status: (() => {
+              const expirationDate = new Date(policy.expirationDate);
+              const currentDate = new Date();
+              const isExpired = expirationDate < currentDate;
+              return <Tag type={isExpired ? 'red' : 'green'}>{isExpired ? 'Expired' : 'Valid'}</Tag>;
+            })(),
             companyName: policy.companyName ?? '',
             insuranceOwner: policy.insuranceOwner ?? '',
             affiliationCode: policy.family ?? '',
@@ -221,7 +228,12 @@ const Insurance = ({ patientUuid }) => {
           <div>
             {/* Pass the record & handlers to the modal */}
             {showEditModal && (
-              <EditInsuranceModal record={selectedRecord} onClose={handleClose} policyId={selectedPolicyNo} />
+              <EditInsuranceModal
+                record={selectedRecord}
+                onClose={handleClose}
+                policyId={selectedPolicyNo}
+                parentMutate={handleRefresh}
+              />
             )}
           </div>
           <Pagination
