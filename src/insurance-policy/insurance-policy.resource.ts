@@ -12,8 +12,10 @@ interface MappedInsurancePolicy {
   age: number;
   patientName: string;
   patientUuid: string;
-  insurance: string;
-  insuranceId: number;
+  insurance: {
+    name: string;
+    insuranceId: number;
+  };
   birthdate: string;
   insurancePolicyNo: string;
 }
@@ -29,8 +31,10 @@ const mapInsurancePolicyProperties = (policy: InsurancePolicy): MappedInsuranceP
     ownerUuid: policy.owner.uuid,
     gender: policy.owner.person.gender,
     age: policy.owner.person.age,
-    insurance: policy.insurance.name,
-    insuranceId: policy.insurance.insuranceId,
+    insurance: {
+      name: policy.insurance.name,
+      insuranceId: policy.insurance.insuranceId,
+    },
     birthdate: formatDate(new Date(policy.owner.person.birthdate)),
     insurancePolicyNo: policy.insurancePolicyId ?? '--',
   };
