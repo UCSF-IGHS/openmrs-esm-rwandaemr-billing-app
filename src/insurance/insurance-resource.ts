@@ -87,3 +87,37 @@ export async function loadInsurancePolicies(patientUuid: string) {
   const insurancePolicies = await fetchInsurancePolicies(patientUuid);
   return insurancePolicies;
 }
+
+export async function checkInsuranceEligibility(cardNumber: string, insuranceId: string) {
+  try {
+    const params = new URLSearchParams({
+      cardNumber,
+      insuranceId,
+    });
+
+    const response = await openmrsFetch(
+      `${BASE_API_URL}/rwandaemr/insurance/eligibility?type=${'Ubuzima Bwiza Mutual Insurance Foundation'}&identifier=${'098765'}`,
+      {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      },
+    );
+
+    if (!response.ok) {
+      try {
+        const errorData = await response.json();
+      } catch (jsonErr) {
+        const errorText = await response.text();
+        console.error('Non-JSON error response:', errorText);
+      }
+    }
+
+    const data = await response.json();
+    return { eligible: data.eligible, message: data.message };
+  } catch (err) {
+    console.error('Error checking insurance eligibility:', err);
+    throw err;
+  }
+}
