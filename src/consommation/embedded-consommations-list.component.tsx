@@ -23,6 +23,7 @@ import {
   closeGlobalBill,
   revertGlobalBill,
   getGlobalBillById,
+  fetchFacilityInfo,
 } from '../api/billing';
 import {
   isItemPaid,
@@ -814,7 +815,14 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           };
         });
 
-        printReceipt(paymentData, groupedConsommationData, itemsForReceipt);
+        // Fetch facility information for the receipt header
+        try {
+          const facilityInfo = await fetchFacilityInfo();
+          printReceipt(paymentData, groupedConsommationData, itemsForReceipt, facilityInfo);
+        } catch (facilityError) {
+          console.warn('Failed to fetch facility information, printing without facility header:', facilityError);
+          printReceipt(paymentData, groupedConsommationData, itemsForReceipt);
+        }
       } catch (error) {
         console.error('Error printing receipt for selected items:', error);
         showToast({
@@ -949,7 +957,19 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
           insuranceName: globalBillData.insuranceName || '',
         };
 
-        printGlobalBill(globalBillData, consommationsData, session?.user?.display || 'System User', paymentData);
+        try {
+          const facilityInfo = await fetchFacilityInfo();
+          printGlobalBill(
+            globalBillData,
+            consommationsData,
+            session?.user?.display || 'System User',
+            paymentData,
+            facilityInfo,
+          );
+        } catch (facilityError) {
+          console.warn('Failed to fetch facility information, printing without facility header:', facilityError);
+          printGlobalBill(globalBillData, consommationsData, session?.user?.display || 'System User', paymentData);
+        }
 
         showToast({
           title: t('printReady', 'Print Ready'),

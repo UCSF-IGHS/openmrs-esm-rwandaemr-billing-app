@@ -45,6 +45,7 @@ import {
   createDirectConsommationWithBeneficiary,
   findBeneficiaryByPolicyNumber,
   getInsurancePoliciesByPatient,
+  fetchFacilityInfo,
 } from '../api/billing';
 import { fetchGlobalBillsPage } from '../api/billing/global-bills';
 import { printGlobalBill } from '../payment-receipt/print-global-bill';
@@ -242,8 +243,13 @@ export const BillingHomeGlobalBillsTable: React.FC<{ patientQuery?: string; poli
         closed: rawData.closed,
       };
 
-      // Print the global bill
-      printGlobalBill(globalBillData, consommationsData, 'System User');
+      try {
+        const facilityInfo = await fetchFacilityInfo();
+        printGlobalBill(globalBillData, consommationsData, 'System User', undefined, facilityInfo);
+      } catch (facilityError) {
+        console.warn('Failed to fetch facility information, printing without facility header:', facilityError);
+        printGlobalBill(globalBillData, consommationsData, 'System User');
+      }
     } catch (error) {
       console.error('Error printing global bill:', error);
       showToast({
