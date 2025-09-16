@@ -91,3 +91,6 @@ export {
 
 // Report operations
 export { fetchInsuranceFirms, fetchAllInsuranceReportData, fetchInsuranceReport } from './reports';
+
+// Facility information operations
+export { fetchFacilityInfo, fetchFacilitySetting, type FacilityInfo } from './facility-info';

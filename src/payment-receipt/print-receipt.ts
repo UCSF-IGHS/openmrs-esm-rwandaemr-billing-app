@@ -32,10 +32,13 @@ interface ConsommationItem {
   drugFrequency?: string;
 }
 
+import { type FacilityInfo } from '../api/billing/facility-info';
+
 export const printReceipt = (
   paymentData: PaymentData,
   groupedConsommationData: Record<string, ConsommationInfo>,
   allConsommationItems: ConsommationItem[],
+  facilityInfo?: FacilityInfo,
 ) => {
   const printWindow = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
 
@@ -70,6 +73,85 @@ export const printReceipt = (
             background-color: white;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             border-radius: 8px;
+          }
+          
+          .facilityHeader {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px 0;
+            border-bottom: 2px solid #0056b3;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+          }
+          
+          .republicHeader {
+            margin-bottom: 15px;
+          }
+          
+          .republicHeader h1 {
+            color: #0056b3;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          
+          .facilityInfoSection {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            align-items: center;
+            gap: 20px;
+            min-height: 160px;
+            width: 100%;
+          }
+
+          .facilityLogo {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+          }
+
+          .logoImage {
+            max-height: 140px;
+            max-width: 180px;
+            height: 140px;
+            width: auto;
+            object-fit: contain;
+            border-radius: 4px;
+          }
+
+          .facilityDetails {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            grid-column: 2;
+          }
+
+          .facilitySpacer {
+            /* Empty column for balance */
+          }
+          
+          .facilityName {
+            color: #333;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            text-transform: uppercase;
+          }
+          
+          .facilityAddress,
+          .facilityEmail {
+            color: #555;
+            font-size: 14px;
+            margin: 4px 0;
+            font-weight: 500;
+          }
+          
+          .facilityEmail {
+            color: #0056b3;
+            font-weight: 600;
           }
           
           .receiptHeader {
@@ -322,6 +404,39 @@ export const printReceipt = (
               display: none;
             }
             
+            .facilityHeader {
+              background: white !important;
+              -webkit-print-color-adjust: exact;
+              color-adjust: exact;
+              margin-bottom: 15px;
+              padding: 10px 0;
+            }
+            
+            .republicHeader h1 {
+              font-size: 20px;
+            }
+            
+            .facilityInfoSection {
+              gap: 15px;
+              min-height: 120px;
+              grid-template-columns: 1fr 2fr 1fr;
+            }
+
+            .logoImage {
+              max-height: 100px;
+              max-width: 130px;
+              height: 100px;
+            }
+            
+            .facilityName {
+              font-size: 18px;
+            }
+            
+            .facilityAddress,
+            .facilityEmail {
+              font-size: 12px;
+            }
+            
             .itemsTable {
               font-size: 12px;
             }
@@ -342,6 +457,29 @@ export const printReceipt = (
 
   printWindow.document.write(`
     <div class="receiptContainer">
+      ${
+        facilityInfo
+          ? `
+      <div class="facilityHeader">
+        <div class="republicHeader">
+          <h1>REPUBLIQUE DU RWANDA</h1>
+        </div>
+        <div class="facilityInfoSection">
+          <div class="facilityLogo">
+            ${facilityInfo.logoUrl ? `<img src="${facilityInfo.logoUrl}" alt="Facility Logo" class="logoImage" onerror="console.error('Failed to load logo image')" />` : ''}
+          </div>
+          <div class="facilityDetails">
+            <h2 class="facilityName">${facilityInfo.name}</h2>
+            ${facilityInfo.physicalAddress ? `<p class="facilityAddress">${facilityInfo.physicalAddress}</p>` : ''}
+            ${facilityInfo.email ? `<p class="facilityEmail">${facilityInfo.email}</p>` : ''}
+          </div>
+          <div class="facilitySpacer"></div>
+        </div>
+      </div>
+      `
+          : ''
+      }
+      
       <div class="receiptHeader">
         <h1>Payment Receipt</h1>
         <p class="receiptDate">

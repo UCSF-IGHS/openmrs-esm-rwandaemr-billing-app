@@ -438,7 +438,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           ?.consommationId,
       }));
 
-      printReceipt(paymentData, groupedConsommationData, itemsWithConsommationInfo);
+      try {
+        const { fetchFacilityInfo } = await import('../api/billing');
+        const facilityInfo = await fetchFacilityInfo();
+        printReceipt(paymentData, groupedConsommationData, itemsWithConsommationInfo, facilityInfo);
+      } catch (facilityError) {
+        console.warn('Failed to fetch facility information, printing without facility header:', facilityError);
+        printReceipt(paymentData, groupedConsommationData, itemsWithConsommationInfo);
+      }
     } catch (error) {
       console.error('Error printing receipt:', error);
       showToast({
