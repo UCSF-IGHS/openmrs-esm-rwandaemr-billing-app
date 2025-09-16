@@ -92,8 +92,8 @@ export const InsurancePolicyTable: React.FC = () => {
       insuranceCardNo: policy.insuranceCardNo,
       coverageStartDate: dayjs(policy.coverageStartDate).format('YYYY-MM-DD'),
       expirationDate: dayjs(policy.expirationDate).format('YYYY-MM-DD'),
-      insuranceName: policy.insurance,
-      insuranceId: policy.insuranceId,
+      insuranceName: policy.insurance.name,
+      insuranceId: policy.insurance.insuranceId,
     });
     setShowEditModal(true);
   };
@@ -109,7 +109,7 @@ export const InsurancePolicyTable: React.FC = () => {
         </Tag>
       ),
     },
-    insurance: policy.insurance,
+    insurance: policy.insurance.name,
     insuranceCardNo: policy.insuranceCardNo,
     patientName: policy.patientName,
     age: policy.age || '--',
