@@ -133,3 +133,7 @@
 :global(.cds--form-item ) {
   margin-bottom: 1rem;
 }
+
+.eligibilityMessage {
+  margin: layout.$spacing-04 0 layout.$spacing-04;
+}
