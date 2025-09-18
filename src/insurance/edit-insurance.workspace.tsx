@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Modal, TextInput, Button, InlineNotification } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
 import { showSnackbar } from '@openmrs/esm-framework';
-import { updateInsurancePolicy, useInsurancePolicy } from '../insurance-policy/insurance-policy.resource';
-import { checkInsuranceEligibility } from './insurance-resource';
+import { updateInsurancePolicy } from '../insurance-policy/insurance-policy.resource';
+import { checkInsuranceEligibility, useInsuranceTypes } from './insurance-resource';
 import type { InsurancePolicyRecord, InsurancePolicyUpdatePayload } from '../types';
 
 interface EditInsuranceModalProps {
@@ -22,6 +22,9 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
   const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
   const [eligibilityMessage, setEligibilityMessage] = useState<string | null>(null);
   const [eligibilityStatus, setEligibilityStatus] = useState<'success' | 'error' | 'warning' | null>(null);
+  const [insuranceType, setInsuranceType] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { determineInsuranceType, isLoading: typesLoading } = useInsuranceTypes();
 
   useEffect(() => {
     if (record) {
@@ -31,6 +34,7 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
       // Reset eligibility state when record changes
       setEligibilityMessage(null);
       setEligibilityStatus(null);
+      setInsuranceType(null);
     }
   }, [record]);
 
@@ -38,6 +42,7 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
     if (!cardNumber || !record?.insuranceId) {
       setEligibilityMessage(t('cardNumberRequired', 'Please enter a card number before checking eligibility'));
       setEligibilityStatus('warning');
+      setInsuranceType(null);
       return;
     }
 
@@ -46,7 +51,22 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
     setEligibilityStatus(null);
 
     try {
-      const response = await checkInsuranceEligibility(cardNumber, String(record.insuranceId));
+      // Use the hook's helper function to determine insurance type
+      const detectedInsuranceType = determineInsuranceType(String(record.insuranceId));
+      setInsuranceType(detectedInsuranceType);
+
+      if (!detectedInsuranceType) {
+        setEligibilityMessage(
+          t(
+            'unableToCheckEligibilityOfSelectedInsurance',
+            'Unable to check insurance eligibility of the selected insurance',
+          ),
+        );
+        setEligibilityStatus('error');
+        return;
+      }
+
+      const response = await checkInsuranceEligibility(cardNumber, detectedInsuranceType);
 
       const message =
         response.message ||
@@ -57,9 +77,9 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
       setEligibilityMessage(message);
       setEligibilityStatus(response.eligible ? 'success' : 'error');
     } catch (error) {
-      console.error('Error checking eligibility:', error);
       setEligibilityMessage(t('unableToCheckEligibility', 'Unable to check insurance eligibility at this time'));
       setEligibilityStatus('error');
+      setInsuranceType(null);
     } finally {
       setIsCheckingEligibility(false);
     }
@@ -67,6 +87,8 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
 
   const handleSubmit = async () => {
     if (!record) return;
+
+    setIsSubmitting(true);
 
     const updatedRecord: InsurancePolicyUpdatePayload = {
       insurance: record.insuranceId ? { insuranceId: record.insuranceId } : undefined,
@@ -90,6 +112,8 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
         title: t('updateFailed', 'Failed to Updated insurance policy'),
         kind: 'error',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -97,8 +121,9 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
     <Modal
       open={Boolean(record)}
       modalHeading={t('editInsurance', 'Edit Insurance Policy')}
-      primaryButtonText={t('save', 'Save')}
+      primaryButtonText={isSubmitting ? t('saving', 'Saving...') : t('save', 'Save')}
       secondaryButtonText={t('cancel', 'Cancel')}
+      primaryButtonDisabled={isSubmitting}
       onRequestClose={onClose}
       onRequestSubmit={handleSubmit}
       passiveModal={false}
@@ -113,11 +138,13 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
         id="cardNumber"
         labelText={t('membershipNumber', 'Membership Number')}
         value={cardNumber}
+        disabled={isSubmitting}
         onChange={(e) => {
           setCardNumber(e.target.value);
           // Reset eligibility when card number changes
           setEligibilityMessage(null);
           setEligibilityStatus(null);
+          setInsuranceType(null);
         }}
       />
 
@@ -126,9 +153,9 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
           kind="secondary"
           size="sm"
           onClick={handleEligibilityCheck}
-          disabled={isCheckingEligibility || !cardNumber}
+          disabled={isCheckingEligibility || typesLoading || !cardNumber}
         >
-          {isCheckingEligibility
+          {isCheckingEligibility || typesLoading
             ? t('checkingEligibility', 'Checking eligibility...')
             : t('checkEligibility', 'Check eligibility')}
         </Button>
@@ -156,6 +183,7 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
         type="date"
         labelText={t('coverageStartDate', 'Coverage Start Date')}
         value={startDate}
+        disabled={isSubmitting}
         onChange={(e) => setStartDate(e.target.value)}
       />
       <TextInput
@@ -163,6 +191,7 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
         type="date"
         labelText={t('coverageEndDate', 'Coverage End Date')}
         value={endDate}
+        disabled={isSubmitting}
         onChange={(e) => setEndDate(e.target.value)}
       />
 

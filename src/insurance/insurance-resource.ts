@@ -1,5 +1,5 @@
-import { openmrsFetch } from '@openmrs/esm-framework';
-import { mutate } from 'swr';
+import { openmrsFetch, restBaseUrl } from '@openmrs/esm-framework';
+import useSWR, { mutate } from 'swr';
 
 const BASE_API_URL = '/ws/rest/v1/mohbilling';
 const BASE_MAMBA_API = '/ws/rest/v1/mamba/report';
@@ -90,13 +90,8 @@ export async function loadInsurancePolicies(patientUuid: string) {
 
 export async function checkInsuranceEligibility(cardNumber: string, insuranceId: string) {
   try {
-    const params = new URLSearchParams({
-      cardNumber,
-      insuranceId,
-    });
-
     const response = await openmrsFetch(
-      `${BASE_API_URL}/rwandaemr/insurance/eligibility?type=${'Ubuzima Bwiza Mutual Insurance Foundation'}&identifier=${'098765'}`,
+      `${restBaseUrl}/rwandaemr/insurance/eligibility?type=${insuranceId}&identifier=${cardNumber}`,
       {
         method: 'GET',
         headers: {
@@ -115,9 +110,68 @@ export async function checkInsuranceEligibility(cardNumber: string, insuranceId:
     }
 
     const data = await response.json();
-    return { eligible: data.eligible, message: data.message };
+
+    return { eligible: data?.responseEntity?.data, message: data?.responseEntity?.message };
   } catch (err) {
     console.error('Error checking insurance eligibility:', err);
     throw err;
   }
+}
+
+export function useCheckInsuranceType(type: string) {
+  const customRepresentation = 'custom:(uuid,value,property)';
+
+  const { data, error, isLoading } = useSWR<{ data: { results: Array<any> } }, Error>(
+    `${restBaseUrl}/systemsetting?q=rwandaemr.insuranceEligibility.${type}&v=${customRepresentation}`,
+    openmrsFetch,
+  );
+
+  return {
+    data: data?.data?.results,
+    isLoading,
+    error,
+  };
+}
+
+export function useInsuranceTypes() {
+  const cbhiSpecialCase = useCheckInsuranceType('cbhi-special-case');
+  const cbhi = useCheckInsuranceType('cbhi');
+  const rama = useCheckInsuranceType('rama');
+
+  const determineInsuranceType = (insuranceName: string): string | null => {
+    // Check cbhi-special-case
+    if (cbhiSpecialCase.data?.[0]?.value) {
+      const cbhiSpecialIds = cbhiSpecialCase.data[0].value.split(',').map((id: string) => id.trim());
+      if (cbhiSpecialIds.includes(insuranceName)) {
+        return 'cbhi-special-case';
+      }
+    }
+
+    // Check cbhi
+    if (cbhi.data?.[0]?.value) {
+      const cbhiIds = cbhi.data[0].value.split(',').map((id: string) => id.trim());
+      if (cbhiIds.includes(insuranceName)) {
+        return 'cbhi';
+      }
+    }
+
+    // Check rama
+    if (rama.data?.[0]?.value) {
+      const ramaIds = rama.data[0].value.split(',').map((id: string) => id.trim());
+      if (ramaIds.includes(insuranceName)) {
+        return 'rama';
+      }
+    }
+
+    return null;
+  };
+
+  return {
+    cbhiSpecialCase,
+    cbhi,
+    rama,
+    determineInsuranceType,
+    isLoading: cbhiSpecialCase.isLoading || cbhi.isLoading || rama.isLoading,
+    error: cbhiSpecialCase.error || cbhi.error || rama.error,
+  };
 }

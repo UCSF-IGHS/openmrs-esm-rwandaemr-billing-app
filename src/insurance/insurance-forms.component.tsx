@@ -20,7 +20,12 @@ import { closeWorkspace, ResponsiveWrapper, useLayoutType, showSnackbar } from '
 import dayjs from 'dayjs';
 import styles from './insurance.scss';
 import { getThirdParties } from '../api/billing';
-import { fetchInsuranceFirms, createInsurancePolicy, checkInsuranceEligibility } from './insurance-resource';
+import {
+  fetchInsuranceFirms,
+  createInsurancePolicy,
+  checkInsuranceEligibility,
+  useInsuranceTypes,
+} from './insurance-resource';
 
 interface InsuranceFormProps {
   patientUuid: string;
@@ -87,6 +92,8 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
   const [isLoading, setIsLoading] = useState(false);
   const [eligibilityMessage, setEligibilityMessage] = useState<string | null>(null);
   const [eligibilityStatus, setEligibilityStatus] = useState<'success' | 'error' | 'warning' | null>(null);
+  const [insuranceType, setInsuranceType] = useState<string | null>(null);
+  const { determineInsuranceType, isLoading: typesLoading } = useInsuranceTypes();
 
   const methods = useForm<InsuranceFormSchema>({
     mode: 'onChange',
@@ -227,7 +234,22 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
     setEligibilityStatus(null);
 
     try {
-      const response = await checkInsuranceEligibility(cardNumber, insuranceName);
+      // Use the hook's helper function to determine insurance type
+      const detectedInsuranceType = determineInsuranceType(insuranceName);
+      setInsuranceType(detectedInsuranceType);
+
+      if (!detectedInsuranceType) {
+        setEligibilityMessage(
+          t(
+            'unableToCheckEligibilityOfSelectedInsurance',
+            'Unable to check insurance eligibility of the selected insurance',
+          ),
+        );
+        setEligibilityStatus('error');
+        return;
+      }
+
+      const response = await checkInsuranceEligibility(cardNumber, detectedInsuranceType);
       const message =
         response.message ||
         (response.eligible
@@ -237,7 +259,6 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
       setEligibilityMessage(message);
       setEligibilityStatus(response.eligible ? 'success' : 'error');
     } catch (error) {
-      console.error('Error checking eligibility:', error);
       setEligibilityMessage(t('unableToCheckEligibility', 'Unable to check insurance eligibility at this time'));
       setEligibilityStatus('error');
     } finally {
@@ -289,9 +310,11 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                 title={
                   eligibilityStatus === 'success'
                     ? t('eligibilityConfirmed', 'Eligibility Confirmed')
-                    : eligibilityStatus === 'warning'
-                      ? t('incompleteFields', 'Incomplete Fields')
-                      : t('eligibilityCheckFailed', 'Eligibility Check Failed')
+                    : isLoading
+                      ? t('checkingEligibility', 'Checking eligibility...')
+                      : eligibilityStatus === 'warning'
+                        ? t('incompleteFields', 'Incomplete Fields')
+                        : t('eligibilityCheckFailed', 'Eligibility Check Failed')
                 }
                 subtitle={eligibilityMessage}
                 role="alert"
