@@ -100,7 +100,7 @@ export const printGlobalBill = (
           .billContainer {
             max-width: 800px;
             margin: 0 auto;
-            padding: 15px;
+            padding: 10px;
             background-color: white;
             box-shadow: 0 0 5px rgba(0,0,0,0.1);
             border-radius: 4px;
@@ -108,8 +108,8 @@ export const printGlobalBill = (
           
           .facilityHeader {
             text-align: center;
-            margin-bottom: 20px;
-            padding: 20px 0;
+            margin-bottom: 15px;
+            padding: 15px 0;
             border-bottom: 2px solid #0056b3;
             background: linear-gradient(135deg, #f8f9fa, #e9ecef);
           }
@@ -213,7 +213,7 @@ export const printGlobalBill = (
           }
           
           .billSection {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
           }
           
           .billSection h3 {
@@ -228,18 +228,19 @@ export const printGlobalBill = (
           .billTable {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            font-size: 10px;
           }
           
           .billTable td {
-            padding: 6px 8px;
+            padding: 4px 6px;
             vertical-align: top;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 11px;
+            border: 1px solid #dee2e6;
+            font-size: 10px;
           }
           
           .billTable td:first-child {
-            width: 30%;
+            width: 25%;
             font-weight: 600;
             color: #333;
             background-color: #f8f9fa;
@@ -248,25 +249,52 @@ export const printGlobalBill = (
           .billTable td:last-child {
             color: #555;
           }
+
+          .compactGrid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+            font-size: 10px;
+          }
+
+          .compactGridItem {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 8px;
+            border: 1px solid #dee2e6;
+            background-color: #f8f9fa;
+            border-radius: 3px;
+          }
+
+          .compactGridItem .label {
+            font-weight: 600;
+            color: #333;
+          }
+
+          .compactGridItem .value {
+            color: #555;
+            font-weight: 500;
+          }
           
           .consommationSection {
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             border: 1px solid #e9ecef;
-            border-radius: 4px;
+            border-radius: 3px;
             overflow: hidden;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
           }
           
           .consommationHeader {
             background: linear-gradient(135deg, #0056b3, #007bff);
             color: white;
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-bottom: 1px solid #004085;
           }
           
           .consommationHeader h4 {
-            margin: 0 0 3px 0;
-            font-size: 14px;
+            margin: 0 0 2px 0;
+            font-size: 12px;
             font-weight: 700;
           }
           
@@ -275,7 +303,7 @@ export const printGlobalBill = (
             justify-content: space-between;
             align-items: center;
             margin: 0;
-            font-size: 11px;
+            font-size: 10px;
             opacity: 0.9;
           }
           
@@ -291,13 +319,15 @@ export const printGlobalBill = (
             width: 100%;
             border-collapse: collapse;
             margin: 0;
+            font-size: 9px;
           }
           
           .itemsTable th, .itemsTable td {
-            padding: 4px 6px;
+            padding: 3px 4px;
             border: 1px solid #dee2e6;
             text-align: left;
-            font-size: 10px;
+            font-size: 9px;
+            line-height: 1.2;
           }
           
           .itemsTable th {
@@ -305,8 +335,9 @@ export const printGlobalBill = (
             font-weight: 700;
             color: #495057;
             text-transform: uppercase;
-            font-size: 9px;
+            font-size: 8px;
             border-bottom: 2px solid #dee2e6;
+            padding: 2px 3px;
           }
           
           .itemsTable tbody tr:nth-child(even) {
@@ -486,13 +517,14 @@ export const printGlobalBill = (
             body {
               background-color: white;
               padding: 0;
-              font-size: 10px;
+              font-size: 9px;
+              line-height: 1.1;
             }
             
             .billContainer {
               box-shadow: none;
               border-radius: 0;
-              padding: 10px;
+              padding: 5px;
               max-width: 100%;
             }
             
@@ -504,79 +536,80 @@ export const printGlobalBill = (
               background: white !important;
               -webkit-print-color-adjust: exact;
               color-adjust: exact;
-              margin-bottom: 15px;
-              padding: 10px 0;
+              margin-bottom: 10px;
+              padding: 8px 0;
             }
             
             .republicHeader h1 {
-              font-size: 20px;
+              font-size: 18px;
             }
             
             .facilityInfoSection {
-              gap: 15px;
-              min-height: 120px;
+              gap: 10px;
+              min-height: 100px;
               grid-template-columns: 1fr 2fr 1fr;
             }
 
             .logoImage {
-              max-height: 100px;
-              max-width: 130px;
-              height: 100px;
+              max-height: 80px;
+              max-width: 110px;
+              height: 80px;
             }
             
             .facilityName {
-              font-size: 18px;
+              font-size: 16px;
             }
             
             .facilityAddress,
             .facilityEmail {
-              font-size: 12px;
-            }
-            
-            .billHeader {
-              margin-bottom: 15px;
-              padding-bottom: 8px;
-            }
-            
-            .billHeader h1 {
-              font-size: 20px;
-            }
-            
-            .billHeader h2 {
-              font-size: 16px;
-            }
-            
-            .billSection {
-              margin-bottom: 15px;
-            }
-            
-            .billSection h3 {
-              font-size: 14px;
-              margin-bottom: 8px;
-            }
-            
-            .consommationSection {
-              margin-bottom: 0.8rem;
-            }
-            
-            .consommationHeader {
-              padding: 6px 10px;
-            }
-            
-            .consommationHeader h4 {
-              font-size: 12px;
-            }
-            
-            .consommationMeta {
               font-size: 10px;
             }
             
+            .billHeader {
+              margin-bottom: 10px;
+              padding-bottom: 6px;
+            }
+            
+            .billHeader h1 {
+              font-size: 18px;
+            }
+            
+            .billHeader h2 {
+              font-size: 14px;
+            }
+            
+            .billSection {
+              margin-bottom: 10px;
+            }
+            
+            .billSection h3 {
+              font-size: 12px;
+              margin-bottom: 6px;
+            }
+            
+            .consommationSection {
+              margin-bottom: 0.5rem;
+            }
+            
+            .consommationHeader {
+              padding: 4px 8px;
+            }
+            
+            .consommationHeader h4 {
+              font-size: 10px;
+            }
+            
+            .consommationMeta {
+              font-size: 8px;
+            }
+            
             .itemsTable {
-              font-size: 9px;
+              font-size: 8px;
             }
             
             .itemsTable th, .itemsTable td {
-              padding: 3px 4px;
+              padding: 2px 3px;
+              font-size: 8px;
             }
             
             .consommationHeader {
@@ -592,14 +625,33 @@ export const printGlobalBill = (
             }
             
             .summaryTable td {
-              padding: 8px 12px;
-              font-size: 11px;
+              padding: 6px 8px;
+              font-size: 10px;
+            }
+
+            .compactGrid {
+              gap: 4px;
+              margin-bottom: 10px;
+              font-size: 8px;
+            }
+
+            .compactGridItem {
+              padding: 3px 6px;
+            }
+
+            .billTable {
+              font-size: 8px;
+            }
+
+            .billTable td {
+              padding: 3px 4px;
+              font-size: 8px;
             }
           }
           
           @page {
             size: A4;
-            margin: 1cm;
+            margin: 0.5cm;
           }
         </style>
       </head>
@@ -646,68 +698,66 @@ export const printGlobalBill = (
       
       <div class="billSection">
         <h3>Bill Information</h3>
-        <table class="billTable">
-          <tbody>
-            ${
-              globalBillData.patientName
-                ? `
-            <tr>
-              <td>Patient Name:</td>
-              <td><strong>${globalBillData.patientName}</strong></td>
-            </tr>
-            `
-                : ''
-            }
-            ${
-              globalBillData.policyNumber
-                ? `
-            <tr>
-              <td>Policy Number:</td>
-              <td>${globalBillData.policyNumber}</td>
-            </tr>
-            `
-                : ''
-            }
-            ${
-              globalBillData.insuranceName
-                ? `
-            <tr>
-              <td>Insurance Provider:</td>
-              <td><strong>${globalBillData.insuranceName}</strong></td>
-            </tr>
-            `
-                : ''
-            }
-            ${
-              globalBillData.admissionDate
-                ? `
-            <tr>
-              <td>Admission Date:</td>
-              <td>${new Date(globalBillData.admissionDate).toLocaleDateString()}</td>
-            </tr>
-            `
-                : ''
-            }
-            ${
-              globalBillData.department
-                ? `
-            <tr>
-              <td>Department:</td>
-              <td>${globalBillData.department}</td>
-            </tr>
-            `
-                : ''
-            }
-            <tr>
-              <td>Generated By:</td>
-              <td>${collectorName}</td>
-            </tr>
-            <tr>
-              <td>Total Amount:</td>
-              <td><strong>${consommationsData.reduce((sum, c) => sum + (c.totalAmount || 0), 0).toFixed(2)} RWF</strong></td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="compactGrid">
+          ${
+            globalBillData.patientName
+              ? `
+          <div class="compactGridItem">
+            <span class="label">Patient Name:</span>
+            <span class="value"><strong>${globalBillData.patientName}</strong></span>
+          </div>
+          `
+              : ''
+          }
+          ${
+            globalBillData.policyNumber
+              ? `
+          <div class="compactGridItem">
+            <span class="label">Policy Number:</span>
+            <span class="value">${globalBillData.policyNumber}</span>
+          </div>
+          `
+              : ''
+          }
+          ${
+            globalBillData.insuranceName
+              ? `
+          <div class="compactGridItem">
+            <span class="label">Insurance Provider:</span>
+            <span class="value"><strong>${globalBillData.insuranceName}</strong></span>
+          </div>
+          `
+              : ''
+          }
+          ${
+            globalBillData.admissionDate
+              ? `
+          <div class="compactGridItem">
+            <span class="label">Admission Date:</span>
+            <span class="value">${new Date(globalBillData.admissionDate).toLocaleDateString()}</span>
+          </div>
+          `
+              : ''
+          }
+          ${
+            globalBillData.department
+              ? `
+          <div class="compactGridItem">
+            <span class="label">Department:</span>
+            <span class="value">${globalBillData.department}</span>
+          </div>
+          `
+              : ''
+          }
+          <div class="compactGridItem">
+            <span class="label">Generated By:</span>
+            <span class="value">${collectorName}</span>
+          </div>
+          <div class="compactGridItem">
+            <span class="label">Total Amount:</span>
+            <span class="value"><strong>${consommationsData.reduce((sum, c) => sum + (c.totalAmount || 0), 0).toFixed(2)} RWF</strong></span>
+          </div>
+        </div>
       </div>
       
       <div class="billSection">
