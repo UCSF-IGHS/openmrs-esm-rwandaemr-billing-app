@@ -15,12 +15,13 @@ import {
   DataTable,
   TableContainer,
 } from '@carbon/react';
-import { fetchAllInsuranceReportData, fetchInsuranceFirms, fetchInsuranceReport } from '../api/billing';
+import { fetchAllInsuranceReportData, fetchInsuranceReport } from '../api/billing';
 import dayjs from 'dayjs';
 import { exportSingleRecordToPDF, exportToExcel, formatValue } from './utils/download-utils';
 import styles from './billing-reports.scss';
 import { useTranslation } from 'react-i18next';
 import { formatToYMD } from './utils/download-utils';
+import { fetchInsuranceFirms } from '../insurance/insurance-resource';
 
 interface ReportRecord {
   column: string;
