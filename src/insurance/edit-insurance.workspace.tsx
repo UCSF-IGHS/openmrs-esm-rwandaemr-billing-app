@@ -22,6 +22,7 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
   const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
   const [eligibilityMessage, setEligibilityMessage] = useState<string | null>(null);
   const [eligibilityStatus, setEligibilityStatus] = useState<'success' | 'error' | 'warning' | null>(null);
+  const [eligibilityDetails, setEligibilityDetails] = useState<any>(null);
   const [insuranceType, setInsuranceType] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { determineInsuranceType, isLoading: typesLoading } = useInsuranceTypes();
@@ -34,6 +35,7 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
       // Reset eligibility state when record changes
       setEligibilityMessage(null);
       setEligibilityStatus(null);
+      setEligibilityDetails(null);
       setInsuranceType(null);
     }
   }, [record]);
@@ -49,6 +51,7 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
     setIsCheckingEligibility(true);
     setEligibilityMessage(null);
     setEligibilityStatus(null);
+    setEligibilityDetails(null);
 
     try {
       // Use the hook's helper function to determine insurance type
@@ -68,14 +71,16 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
 
       const response = await checkInsuranceEligibility(cardNumber, detectedInsuranceType);
 
+      // Store the full response details
+      setEligibilityDetails(response.details);
+
+      const isEligible = response?.eligible;
       const message =
-        response.message ||
-        (response.eligible
-          ? t('insuranceIsValid', 'Insurance is valid')
-          : t('insuranceIsInvalid', 'Insurance is not valid'));
+        response?.message ||
+        (isEligible ? t('insuranceIsValid', 'Insurance is valid') : t('insuranceIsInvalid', 'Insurance is not valid'));
 
       setEligibilityMessage(message);
-      setEligibilityStatus(response.eligible ? 'success' : 'error');
+      setEligibilityStatus(isEligible ? 'success' : 'error');
     } catch (error) {
       setEligibilityMessage(t('unableToCheckEligibility', 'Unable to check insurance eligibility at this time'));
       setEligibilityStatus('error');
@@ -144,6 +149,7 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
           // Reset eligibility when card number changes
           setEligibilityMessage(null);
           setEligibilityStatus(null);
+          setEligibilityDetails(null);
           setInsuranceType(null);
         }}
       />
@@ -176,6 +182,72 @@ const EditInsuranceModal: React.FC<EditInsuranceModalProps> = ({ record, onClose
             subtitle={eligibilityMessage}
             role="alert"
           />
+        </div>
+      )}
+
+      {eligibilityDetails && eligibilityStatus === 'success' && (
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '1rem',
+            backgroundColor: '#f4f4f4',
+            borderRadius: '8px',
+            border: '1px solid #e0e0e0',
+          }}
+        >
+          <h4 style={{ margin: '0 0 0.75rem 0', color: '#161616', fontSize: '1rem', fontWeight: '600' }}>
+            {t('memberDetails', 'Member Details')}
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' }}>
+            {eligibilityDetails.cardId && (
+              <div>
+                <strong style={{ color: '#525252', fontSize: '0.875rem' }}>{t('cardId', 'Card ID')}: </strong>
+                <span style={{ color: '#161616' }}>{eligibilityDetails.cardId}</span>
+              </div>
+            )}
+            {(eligibilityDetails.firstName || eligibilityDetails.lastName) && (
+              <div>
+                <strong style={{ color: '#525252', fontSize: '0.875rem' }}>{t('fullName', 'Full Name')}: </strong>
+                <span style={{ color: '#161616' }}>
+                  {[eligibilityDetails.firstName, eligibilityDetails.lastName].filter(Boolean).join(' ')}
+                </span>
+              </div>
+            )}
+            {eligibilityDetails.dateOfBirth && (
+              <div>
+                <strong style={{ color: '#525252', fontSize: '0.875rem' }}>
+                  {t('dateOfBirth', 'Date of Birth')}:{' '}
+                </strong>
+                <span style={{ color: '#161616' }}>{eligibilityDetails.dateOfBirth}</span>
+              </div>
+            )}
+            {eligibilityDetails.gender && (
+              <div>
+                <strong style={{ color: '#525252', fontSize: '0.875rem' }}>{t('gender', 'Gender')}: </strong>
+                <span style={{ color: '#161616' }}>{eligibilityDetails.gender}</span>
+              </div>
+            )}
+            {eligibilityDetails.nationalId && (
+              <div>
+                <strong style={{ color: '#525252', fontSize: '0.875rem' }}>{t('nationalId', 'National ID')}: </strong>
+                <span style={{ color: '#161616' }}>{eligibilityDetails.nationalId}</span>
+              </div>
+            )}
+            {eligibilityDetails.employerName && (
+              <div>
+                <strong style={{ color: '#525252', fontSize: '0.875rem' }}>{t('employer', 'Employer')}: </strong>
+                <span style={{ color: '#161616' }}>{eligibilityDetails.employerName}</span>
+              </div>
+            )}
+            {eligibilityDetails.mainAffiliateId && (
+              <div>
+                <strong style={{ color: '#525252', fontSize: '0.875rem' }}>
+                  {t('mainAffiliateId', 'Main Affiliate ID')}:{' '}
+                </strong>
+                <span style={{ color: '#161616' }}>{eligibilityDetails.mainAffiliateId}</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
       <TextInput
