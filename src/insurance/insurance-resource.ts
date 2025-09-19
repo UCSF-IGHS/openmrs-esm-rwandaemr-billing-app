@@ -111,7 +111,11 @@ export async function checkInsuranceEligibility(cardNumber: string, insuranceId:
 
     const data = await response.json();
 
-    return { eligible: data?.responseEntity?.data, message: data?.responseEntity?.message };
+    return {
+      eligible: data?.responseEntity?.isEligible,
+      message: data?.responseEntity?.message || null,
+      details: data?.responseEntity,
+    };
   } catch (err) {
     console.error('Error checking insurance eligibility:', err);
     throw err;
