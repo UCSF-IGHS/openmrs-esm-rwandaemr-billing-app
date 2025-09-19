@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { showToast } from '@openmrs/esm-framework';
+import { showToast, useDebounce } from '@openmrs/esm-framework';
 import {
   DataTable,
   Table,
@@ -42,6 +42,16 @@ const ConsommationSearch = () => {
   const [expandedDetails, setExpandedDetails] = useState<Record<string, any>>({});
 
   const [searchTerm, setSearchTerm] = useState('');
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
+  const MIN_ID_LENGTH = 5;
+
+  useEffect(() => {
+    if (errorMessage) {
+      setErrorMessage('');
+    }
+  }, [searchTerm, errorMessage]);
 
   const STATUS_ITEMS = [
     { id: 'all', text: t('allBills', 'All') },
@@ -156,25 +166,65 @@ const ConsommationSearch = () => {
       try {
         let data: any;
 
-        if (searchTerm && searchCategory === 'id') {
-          const c = await getConsommationById(searchTerm.trim());
-          data = { results: [c] };
-        } else if (searchTerm && searchCategory === 'name') {
-          data = await searchConsommations({
-            patientName: searchTerm.trim(),
-            limit,
-            startIndex: start,
-            orderBy: 'createdDate',
-            orderDirection: 'desc',
-          });
-        } else if (searchTerm && searchCategory === 'policy') {
-          data = await searchConsommations({
-            policyIdNumber: searchTerm.trim(),
-            limit,
-            startIndex: start,
-            orderBy: 'createdDate',
-            orderDirection: 'desc',
-          });
+        if (debouncedSearchTerm && searchCategory === 'id') {
+          if (debouncedSearchTerm.trim().length < MIN_ID_LENGTH) {
+            setRows([]);
+            setTotal(0);
+            setLoading(false);
+            return;
+          }
+          const c = await getConsommationById(debouncedSearchTerm.trim());
+          if (c) {
+            data = { results: [c] };
+          } else {
+            setErrorMessage(t('consommationIdNotFound', `Consommation ID ${debouncedSearchTerm.trim()} not found`));
+            setRows([]);
+            setTotal(0);
+            setLoading(false);
+            return;
+          }
+        } else if (debouncedSearchTerm && searchCategory === 'name') {
+          try {
+            data = await searchConsommations({
+              patientName: debouncedSearchTerm.trim(),
+              limit,
+              startIndex: start,
+              orderBy: 'createdDate',
+              orderDirection: 'desc',
+            });
+          } catch (searchError: any) {
+            if (searchError?.status === 404) {
+              setErrorMessage(
+                t('noDataFound', 'No data found for the search criteria. Please check your search terms.'),
+              );
+              setRows([]);
+              setTotal(0);
+              setLoading(false);
+              return;
+            }
+            throw searchError;
+          }
+        } else if (debouncedSearchTerm && searchCategory === 'policy') {
+          try {
+            data = await searchConsommations({
+              policyIdNumber: debouncedSearchTerm.trim(),
+              limit,
+              startIndex: start,
+              orderBy: 'createdDate',
+              orderDirection: 'desc',
+            });
+          } catch (searchError: any) {
+            if (searchError?.status === 404) {
+              setErrorMessage(
+                t('noDataFound', 'No data found for the search criteria. Please check your search terms.'),
+              );
+              setRows([]);
+              setTotal(0);
+              setLoading(false);
+              return;
+            }
+            throw searchError;
+          }
         } else {
           data = await getConsommations(limit, start, 'createdDate', 'desc');
         }
@@ -197,80 +247,32 @@ const ConsommationSearch = () => {
               filtered.length);
         setTotal(Number(usedTotal));
       } catch (e: any) {
-        setErrorMessage(t('errorFetchingData', 'An error occurred while fetching data.'));
-        showToast({ title: t('error', 'Error'), description: e?.message || String(e), kind: 'error' });
+        if (e?.status === 404) {
+          if (searchCategory === 'id' && debouncedSearchTerm) {
+            setErrorMessage(
+              t(
+                'consommationIdNotFound',
+                `Consommation ID ${debouncedSearchTerm.trim()} not found. Please check the consommation ID you have typed.`,
+              ),
+            );
+          } else {
+            setErrorMessage(t('noDataFound', 'No data found for the search criteria. Please check your search terms.'));
+          }
+        } else {
+          setErrorMessage(t('errorFetchingData', 'An error occurred while fetching data.'));
+          showToast({ title: t('error', 'Error'), description: e?.message || String(e), kind: 'error' });
+        }
       } finally {
         setLoading(false);
       }
     },
-    [pageSize, startIndex, t, searchTerm, searchCategory, statusFilter],
+    [pageSize, startIndex, t, debouncedSearchTerm, searchCategory, statusFilter],
   );
 
   useEffect(() => {
     fetchPage();
     setExpandedRowId(null);
   }, [fetchPage]);
-
-  useEffect(() => {
-    const h = setTimeout(() => {
-      setStartIndex(0);
-      const performSearch = async () => {
-        setLoading(true);
-        setErrorMessage('');
-        try {
-          let data: any;
-
-          if (searchTerm && searchCategory === 'id') {
-            const c = await getConsommationById(searchTerm.trim());
-            data = { results: [c] };
-          } else if (searchTerm && searchCategory === 'name') {
-            data = await searchConsommations({
-              patientName: searchTerm.trim(),
-              limit: pageSize,
-              startIndex: 0,
-              orderBy: 'createdDate',
-              orderDirection: 'desc',
-            });
-          } else if (searchTerm && searchCategory === 'policy') {
-            data = await searchConsommations({
-              policyIdNumber: searchTerm.trim(),
-              limit: pageSize,
-              startIndex: 0,
-              orderBy: 'createdDate',
-              orderDirection: 'desc',
-            });
-          } else {
-            data = await getConsommations(pageSize, 0, 'createdDate', 'desc');
-          }
-
-          const mapped = (data?.results || []).map(transformToRow);
-          let filtered = mapped;
-          if (statusFilter === 'open') filtered = mapped.filter((r: any) => !r.isClosed);
-          if (statusFilter === 'closed') filtered = mapped.filter((r: any) => r.isClosed);
-
-          setRows(filtered);
-
-          const usedTotal =
-            searchCategory === 'id'
-              ? filtered.length
-              : ((typeof data?.total === 'number' ? data.total : undefined) ??
-                (typeof data?.count === 'number' ? data.count : undefined) ??
-                (typeof data?.totalCount === 'number' ? data.totalCount : undefined) ??
-                (typeof data?.paging?.total === 'number' ? data.paging.total : undefined) ??
-                filtered.length);
-          setTotal(Number(usedTotal));
-        } catch (e: any) {
-          setErrorMessage(t('errorFetchingData', 'An error occurred while fetching data.'));
-          showToast({ title: t('error', 'Error'), description: e?.message || String(e), kind: 'error' });
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      performSearch();
-    }, 300);
-    return () => clearTimeout(h);
-  }, [searchTerm, statusFilter, pageSize, searchCategory, t]);
 
   const handleRowExpand = async (row: any) => {
     const id = row.id as string;
@@ -284,6 +286,11 @@ const ConsommationSearch = () => {
             row.original?.consommationId || row.cells.find((c: any) => c.info.header === 'billIdentifier').value,
           ).replace('CONS-', ''),
         );
+
+        if (!details) {
+          console.warn('Consommation not found for ID:', id);
+          return;
+        }
         setExpandedDetails((prev) => ({ ...prev, [id]: details }));
         try {
           const rates = await getConsommationRates(String(details.consommationId));
@@ -432,7 +439,9 @@ const ConsommationSearch = () => {
           <Layer level={0}>
             <Tile className={styles.filterEmptyStateTile}>
               <p className={styles.filterEmptyStateContent}>
-                {errorMessage || t('noMatchingItemsToDisplay', 'No matching items to display')}
+                {searchCategory === 'id' && searchTerm && searchTerm.length < MIN_ID_LENGTH
+                  ? t('minIdLengthMessage', `Please enter at least ${MIN_ID_LENGTH} characters to search by ID`)
+                  : errorMessage || t('noMatchingItemsToDisplay', 'No matching items to display')}
               </p>
             </Tile>
           </Layer>

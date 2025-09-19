@@ -15,11 +15,18 @@ const BASE_API_URL = API_CONFIG.BASE_BILLING_URL;
 /**
  * Fetches consommation by ID
  * @param consommationId - The consommation ID
- * @returns Promise with consommation data
+ * @returns Promise with consommation data or null if not found
  */
-export const getConsommationById = async (consommationId: string): Promise<Consommation> => {
-  const response = await openmrsFetch<Consommation>(`${BASE_API_URL}/consommation/${consommationId}`);
-  return response.data;
+export const getConsommationById = async (consommationId: string): Promise<Consommation | null> => {
+  try {
+    const response = await openmrsFetch<Consommation>(`${BASE_API_URL}/consommation/${consommationId}`);
+    return response.data;
+  } catch (error: any) {
+    if (error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 };
 
 /**

@@ -69,9 +69,25 @@ export const BillingHomeGlobalBillsTable: React.FC<{ patientQuery?: string; poli
   const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedGlobalBillId, setSelectedGlobalBillId] = useState<string | null>(null);
+  const [calculatorItems, setCalculatorItems] = useState<any[]>([]);
+  const [fullGlobalBillData, setFullGlobalBillData] = useState<any>(null);
 
   const formatAmt = (v: any) =>
     v === null || typeof v === 'undefined' || v === '' ? '--' : Number(v).toLocaleString();
+
+  const fetchFullGlobalBillData = useCallback(async (globalBillId: string) => {
+    try {
+      const { openmrsFetch } = await import('@openmrs/esm-framework');
+      const response = await openmrsFetch(`/ws/rest/v1/mohbilling/globalBill/${globalBillId}?v=full`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching full global bill data:', error);
+      throw error;
+    }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -160,6 +176,191 @@ export const BillingHomeGlobalBillsTable: React.FC<{ patientQuery?: string; poli
     const isExpanding = expandedRowId !== row.id;
     setExpandedRowId(isExpanding ? row.id : null);
   };
+
+  const createNewInvoice = useCallback(
+    async (globalBillId: string) => {
+      const currentBill = rows.find((item: any) => item.globalBillId?.toString() === globalBillId.toString());
+      const isGlobalBillClosed = currentBill?.closed === true;
+      if (isGlobalBillClosed) {
+        showToast({
+          title: t('closedBill', 'Closed Bill'),
+          description: t('cannotAddToClosedBill', 'Cannot add items to a closed bill'),
+          kind: 'error',
+        });
+        return;
+      }
+
+      try {
+        const fullData = await fetchFullGlobalBillData(globalBillId);
+        setFullGlobalBillData(fullData);
+        setSelectedGlobalBillId(globalBillId.toString());
+        setIsCalculatorOpen(true);
+        setCalculatorItems([]);
+      } catch (error) {
+        console.error('Error fetching global bill data for calculator:', error);
+        showToast({
+          title: t('error', 'Error'),
+          description: t('failedToLoadBillData', 'Failed to load bill data. Please try again.'),
+          kind: 'error',
+        });
+      }
+    },
+    [rows, t, fetchFullGlobalBillData],
+  );
+
+  const handleCalculatorClose = useCallback(() => {
+    setIsCalculatorOpen(false);
+    setIsSaving(false);
+    setFullGlobalBillData(null);
+  }, []);
+
+  const handleCalculatorSave = useCallback(async () => {
+    if (!calculatorItems || calculatorItems.length === 0) {
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const globalBillId = selectedGlobalBillId;
+      if (!globalBillId) {
+        throw new Error('No global bill ID found. Please create a global bill first.');
+      }
+
+      const currentBill = rows.find((item: any) => item.globalBillId?.toString() === globalBillId.toString());
+      if (currentBill?.closed === true) {
+        throw new Error('Cannot add items to a closed global bill.');
+      }
+
+      let patientUuid: string | undefined;
+      let insuranceCardNo: string | undefined;
+
+      if (fullGlobalBillData) {
+        // Extract patient UUID from the full global bill data
+        patientUuid = fullGlobalBillData?.admission?.insurancePolicy?.owner?.uuid;
+
+        // Extract insurance card number from the full global bill data
+        insuranceCardNo = fullGlobalBillData?.admission?.insurancePolicy?.insuranceCardNo;
+      }
+
+      if (!patientUuid && !insuranceCardNo) {
+        throw new Error('Could not determine patient or insurance information from the global bill data.');
+      }
+
+      let policyNumber = insuranceCardNo;
+      if (!policyNumber && patientUuid) {
+        const policies = await getInsurancePoliciesByPatient(patientUuid);
+        if (policies.length > 0 && policies[0].insuranceCardNo) {
+          policyNumber = policies[0].insuranceCardNo;
+        }
+      }
+      let beneficiaryId: any;
+      if (policyNumber) {
+        beneficiaryId = await findBeneficiaryByPolicyNumber(policyNumber);
+      }
+      if (!beneficiaryId) {
+        throw new Error('Could not determine beneficiary ID. Please verify patient insurance details.');
+      }
+
+      const itemsByDepartment: Record<string, any> = {};
+      calculatorItems.forEach((item: any) => {
+        if (!itemsByDepartment[item.departmentId]) {
+          itemsByDepartment[item.departmentId] = {
+            departmentId: item.departmentId,
+            departmentName: item.departmentName,
+            items: [],
+          };
+        }
+        let serviceIdForPayload;
+        if (item.billableServiceId) serviceIdForPayload = item.billableServiceId;
+        else if (item.originalData?.serviceId) serviceIdForPayload = item.originalData.serviceId;
+        else if (item.facilityServicePriceId) serviceIdForPayload = item.facilityServicePriceId;
+        else serviceIdForPayload = item.serviceId;
+
+        itemsByDepartment[item.departmentId].items.push({
+          serviceId: serviceIdForPayload,
+          price: item.price,
+          quantity: item.quantity,
+          drugFrequency: item.drugFrequency || '',
+          hopServiceId: item.hopServiceId || item.departmentId,
+        });
+      });
+
+      let successCount = 0;
+      let totalItemsCreated = 0;
+      const errors: string[] = [];
+      for (const deptId in itemsByDepartment) {
+        const dept = itemsByDepartment[deptId];
+        const deptIdNumber = parseInt(deptId, 10);
+        if (isNaN(deptIdNumber)) {
+          errorHandler.handleWarning(`Skipping department with invalid ID: ${deptId}`, null, {
+            component: 'invoice-table',
+            action: 'handleSaveItems',
+          });
+          continue;
+        }
+        try {
+          const response = await createDirectConsommationWithBeneficiary(
+            parseInt(globalBillId, 10),
+            deptIdNumber,
+            beneficiaryId,
+            dept.items,
+          );
+          if (response && response.consommationId) {
+            const expectedItems = response._itemsCount || dept.items.length;
+            const actualItems = response._actualItemsReturned || (response.billItems ? response.billItems.length : 0);
+            totalItemsCreated += expectedItems;
+            successCount++;
+            if (actualItems !== expectedItems) {
+              errorHandler.handleWarning(
+                `Note: All ${expectedItems} items were saved in the database, but only ${actualItems} were returned in the response. This is due to an API limitation.`,
+                { expectedItems, actualItems },
+                { component: 'invoice-table', action: 'handleSaveItems' },
+              );
+            }
+          } else {
+            throw new Error('Unexpected response format');
+          }
+        } catch (error: any) {
+          const errorMsg = `Failed to create consommation for department ${dept.departmentName}: ${error.message}`;
+          errorHandler.handleError(error, {
+            component: 'invoice-table',
+            action: 'handleSaveItems',
+            metadata: { departmentName: dept.departmentName },
+          });
+          errors.push(errorMsg);
+        }
+      }
+
+      if (successCount === 0) {
+        if (errors.length > 0) throw new Error(`Failed to create consommations: ${errors.join('. ')}`);
+        else throw new Error('Failed to create any consommations. Please check the console for details.');
+      } else {
+        const successMessage =
+          totalItemsCreated === 1 ? `Added 1 item to the bill.` : `Added ${totalItemsCreated} items to the bill.`;
+        let finalMessage = successMessage;
+        if (errors.length > 0)
+          finalMessage += ` Note: Some items could not be added. Please check the console for details.`;
+        showToast({
+          title: t('itemsAdded', 'Items Added'),
+          description: finalMessage,
+          kind: errors.length > 0 ? 'warning' : 'success',
+        });
+        load(); // Refresh the global bills list
+        setIsCalculatorOpen(false);
+      }
+    } catch (error: any) {
+      errorHandler.handleError(
+        error,
+        { component: 'invoice-table', action: 'handleSaveItems' },
+        { title: 'Save Failed', subtitle: 'Unable to save bill items. Please try again.', kind: 'error' },
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }, [calculatorItems, selectedGlobalBillId, fullGlobalBillData, rows, t, load]);
+
+  const handleCalculatorUpdate = useCallback((items: any[]) => {
+    setCalculatorItems(items);
+  }, []);
 
   const handlePrintGlobalBill = async (globalBillId: string, rawData: any) => {
     try {
@@ -363,6 +564,7 @@ export const BillingHomeGlobalBillsTable: React.FC<{ patientQuery?: string; poli
                           <EmbeddedConsommationsList
                             globalBillId={row.id}
                             isGlobalBillClosed={tableRows.find((r) => r.id === row.id)?.closed}
+                            onAddNewInvoice={createNewInvoice}
                             onBillClosed={() => {
                               showToast({
                                 title: t('billClosed', 'Bill closed'),
@@ -393,6 +595,27 @@ export const BillingHomeGlobalBillsTable: React.FC<{ patientQuery?: string; poli
           setPage(p);
         }}
       />
+
+      {isCalculatorOpen && selectedGlobalBillId && (
+        <Modal
+          open={isCalculatorOpen}
+          modalHeading={t('addNewInvoice', 'Patient Bill Calculations')}
+          primaryButtonText={isSaving ? t('saving', 'Saving...') : t('save', 'Save')}
+          secondaryButtonText={t('cancel', 'Cancel')}
+          onRequestClose={handleCalculatorClose}
+          onRequestSubmit={handleCalculatorSave}
+          size="lg"
+          preventCloseOnClickOutside
+          primaryButtonDisabled={isSaving || calculatorItems.length === 0}
+        >
+          <ServiceCalculator
+            patientUuid={fullGlobalBillData?.admission?.insurancePolicy?.owner?.uuid}
+            insuranceCardNo={fullGlobalBillData?.admission?.insurancePolicy?.insuranceCardNo}
+            onClose={handleCalculatorClose}
+            onSave={handleCalculatorUpdate}
+          />
+        </Modal>
+      )}
     </div>
   );
 };
