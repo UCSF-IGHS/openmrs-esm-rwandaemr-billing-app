@@ -37,7 +37,7 @@ import styles from './embedded-consommations-list.scss';
 import PaymentForm from '../payment-form/payment-form.component';
 import { printReceipt } from '../payment-receipt/print-receipt';
 import { printGlobalBill } from '../payment-receipt/print-global-bill';
-import { Add, Printer, Close, Undo } from '@carbon/react/icons';
+import { Add, Printer, Close, Undo, Renew } from '@carbon/react/icons';
 import GlobalBillInsuranceInfo from '../invoice/global-bill-insurance-info.component';
 import RevertGlobalBillModal from './revert-global-bill-modal.component';
 
@@ -98,6 +98,7 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
     const [isClosedLocal, setIsClosedLocal] = useState<boolean>(Boolean(isGlobalBillClosed));
     const [lastReceivedCashAmount, setLastReceivedCashAmount] = useState<string>('');
     const [paidItemsWithReceivedCash, setPaidItemsWithReceivedCash] = useState<Set<number>>(new Set());
+    const [refreshingConsommations, setRefreshingConsommations] = useState<Set<string>>(new Set());
     const ratesCacheRef = React.useRef<Record<string, { insuranceRate: number; patientRate: number }>>({});
     const loadAdmissionData = useCallback(async () => {
       try {
@@ -476,6 +477,44 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
         lastReceivedCashAmount,
         paidItemsWithReceivedCash,
       ],
+    );
+
+    const refreshConsommation = useCallback(
+      async (consommationId: string) => {
+        if (refreshingConsommations.has(consommationId)) return; // Prevent multiple simultaneous refreshes
+
+        setRefreshingConsommations((prev) => new Set([...prev, consommationId]));
+
+        try {
+          // Refresh consommation status
+          await updateConsommationStatusImmediately(consommationId);
+
+          // If the consommation is expanded, reload its items
+          if (expandedConsommations.has(consommationId)) {
+            await loadConsommationItems(consommationId);
+          }
+
+          showToast({
+            title: t('refreshSuccess', 'Refresh Successful'),
+            description: t('consommationRefreshed', 'Consommation status updated successfully'),
+            kind: 'success',
+          });
+        } catch (error) {
+          console.error(`Error refreshing consommation ${consommationId}:`, error);
+          showToast({
+            title: t('refreshError', 'Refresh Error'),
+            description: t('consommationRefreshFailed', 'Failed to refresh consommation status'),
+            kind: 'error',
+          });
+        } finally {
+          setRefreshingConsommations((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(consommationId);
+            return newSet;
+          });
+        }
+      },
+      [refreshingConsommations, updateConsommationStatusImmediately, expandedConsommations, loadConsommationItems, t],
     );
 
     const handleAccordionChange = useCallback(
@@ -1186,6 +1225,21 @@ const EmbeddedConsommationsList = forwardRef<any, EmbeddedConsommationsListProps
                             </span>
                           </div>
                           <div className={styles.consommationStatus}>
+                            {statusText === 'UNPAID' && (
+                              <Button
+                                kind="ghost"
+                                size="sm"
+                                renderIcon={(props) => <Renew size={12} {...props} />}
+                                iconDescription={t('refreshConsommation', 'Refresh consommation status')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  refreshConsommation(consommationId);
+                                }}
+                                disabled={refreshingConsommations.has(consommationId)}
+                                className={styles.refreshButton}
+                                title={t('refreshConsommation', 'Refresh consommation status')}
+                              />
+                            )}
                             <Tag
                               type={getPaymentStatusTagType(statusText)}
                               className={getPaymentStatusClass(statusText, styles)}

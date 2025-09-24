@@ -36,6 +36,8 @@ export const getConsommationById = async (consommationId: string): Promise<Conso
  */
 export const getConsommationsByGlobalBillId = async (globalBillId: string): Promise<ConsommationListResponse> => {
   const response = await openmrsFetch<ConsommationListResponse>(
+    //we can have it like this in the future for sorting consommations by created date
+    // consommation?globalBillId=${globalBillId}&orderBy=createdDate&orderDirection=desc
     `${BASE_API_URL}/consommation?globalBillId=${globalBillId}`,
   );
   return response.data;
