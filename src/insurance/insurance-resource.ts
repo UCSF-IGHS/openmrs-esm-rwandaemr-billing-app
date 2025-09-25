@@ -111,10 +111,25 @@ export async function checkInsuranceEligibility(cardNumber: string, insuranceId:
 
     const data = await response.json();
 
+    // Support both old and new API response structures
+    const responseEntity = data?.responseEntity;
+    const eligible = responseEntity?.isEligible ?? responseEntity?.status === 'ELIGIBLE';
+    const message = responseEntity?.message || data?.errorMessage || responseEntity?.status || null;
+
     return {
-      eligible: data?.responseEntity?.isEligible,
-      message: data?.responseEntity?.message || null,
-      details: data?.responseEntity,
+      eligible,
+      message,
+      details: responseEntity,
+      enabled: data?.enabled,
+      endpointAccessible: data?.endpointAccessible,
+      responseCode: data?.responseCode,
+      errorMessage: data?.errorMessage,
+      // Expose new fields for consumers who need them
+      status: responseEntity?.status,
+      totalMembers: responseEntity?.totalMembers,
+      members: responseEntity?.members,
+      headOfHouseholdId: responseEntity?.headOfHouseholdId,
+      isGovermentSponsored: responseEntity?.isGovermentSponsored,
     };
   } catch (err) {
     console.error('Error checking insurance eligibility:', err);
