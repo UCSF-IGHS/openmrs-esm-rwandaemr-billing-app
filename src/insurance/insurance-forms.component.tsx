@@ -16,7 +16,14 @@ import {
   SelectItem,
 } from '@carbon/react';
 import classNames from 'classnames';
-import { closeWorkspace, ResponsiveWrapper, useLayoutType, showSnackbar } from '@openmrs/esm-framework';
+import {
+  closeWorkspace,
+  ResponsiveWrapper,
+  useLayoutType,
+  showSnackbar,
+  parseDate,
+  formatDate,
+} from '@openmrs/esm-framework';
 import dayjs from 'dayjs';
 import styles from './insurance.scss';
 import { getThirdParties } from '../api/billing';
@@ -367,7 +374,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                   {eligibilityDetails.dateOfBirth && (
                     <div>
                       <strong style={{ color: '#525252', fontSize: '0.875rem' }}>
-                        {t('dateOfBirth', 'Date of Birth')}:{' '}
+                        {t('dateOfBirth', 'Date of Birth')}:
                       </strong>
                       <span style={{ color: '#161616' }}>{eligibilityDetails.dateOfBirth}</span>
                     </div>
@@ -381,7 +388,7 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                   {eligibilityDetails.nationalId && (
                     <div>
                       <strong style={{ color: '#525252', fontSize: '0.875rem' }}>
-                        {t('nationalId', 'National ID')}:{' '}
+                        {t('nationalId', 'National ID')}:
                       </strong>
                       <span style={{ color: '#161616' }}>{eligibilityDetails.nationalId}</span>
                     </div>
@@ -395,12 +402,61 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
                   {eligibilityDetails.mainAffiliateId && (
                     <div>
                       <strong style={{ color: '#525252', fontSize: '0.875rem' }}>
-                        {t('mainAffiliateId', 'Main Affiliate ID')}:{' '}
+                        {t('mainAffiliateId', 'Main Affiliate ID')}:
                       </strong>
                       <span style={{ color: '#161616' }}>{eligibilityDetails.mainAffiliateId}</span>
                     </div>
                   )}
                 </div>
+                {/* Show members info if insuranceType is cbhi and members exist */}
+                {insuranceType === 'cbhi' &&
+                  Array.isArray(eligibilityDetails.members) &&
+                  eligibilityDetails.members.length > 0 && (
+                    <div style={{ marginTop: '1.5rem' }}>
+                      <h5 style={{ margin: '0 0 0.5rem 0', color: '#0f62fe', fontSize: '0.95rem', fontWeight: '600' }}>
+                        {t('householdMembers', 'Household Members')}
+                      </h5>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {eligibilityDetails.members.map((member, idx) => (
+                          <div
+                            key={member.memberId || idx}
+                            style={{
+                              background: '#fff',
+                              border: '1px solid #e0e0e0',
+                              borderRadius: 6,
+                              padding: '0.75rem',
+                            }}
+                          >
+                            <div style={{ padding: '0.25rem 0' }}>
+                              <strong>{t('name', 'Name')}:</strong> {member.firstName} {member.lastName}
+                            </div>
+                            <div style={{ padding: '0.25rem 0' }}>
+                              <strong>{t('gender', 'Gender')}:</strong> {member.gender}
+                            </div>
+                            <div style={{ padding: '0.25rem 0' }}>
+                              <strong>{t('dateOfBirth', 'Date of Birth')}:</strong> {member.dateOfBirth}
+                            </div>
+                            <div style={{ padding: '0.25rem 0' }}>
+                              <strong>{t('type', 'Type')}:</strong> {member.type}
+                            </div>
+                            <div style={{ padding: '0.25rem 0' }}>
+                              <strong>{t('documentNumber', 'Document Number')}:</strong> {member.documentNumber}
+                            </div>
+                            <div style={{ padding: '0.25rem 0' }}>
+                              <strong>{t('isEligible', 'Is Eligible')}:</strong>{' '}
+                              {member.isEligible ? t('yes', 'Yes') : t('no', 'No')}
+                            </div>
+                            {member.eligibilityStartDate && (
+                              <div style={{ padding: '0.25rem 0' }}>
+                                <strong>{t('eligibilityStartDate', 'Eligibility Start Date')}:</strong>{' '}
+                                {formatDate(parseDate(member.eligibilityStartDate))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
               </div>
             )}
             <Controller
