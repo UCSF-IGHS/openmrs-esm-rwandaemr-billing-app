@@ -373,6 +373,7 @@
   "paymentForm": "Payment Form",
   "paymentId": "Payment Id",
   "paymentMethod": "Payment Method",
+  "paymentMethodRequired": "Please select at least one payment method",
   "paymentProcessed": "Payment has been processed successfully",
   "paymentProcessedSuccessfully": "Your payment has been processed successfully.",
   "paymentReceipt": "Payment Receipt",
