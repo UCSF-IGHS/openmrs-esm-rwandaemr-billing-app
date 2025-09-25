@@ -24,6 +24,9 @@ export type {
   ConsommationStatusResponse,
   ApiResponse,
   PaginatedResponse,
+  IremboPayRequest,
+  IremboPayResponse,
+  IremboPayTransaction,
 } from '../types';
 
 // Department operations
@@ -61,6 +64,9 @@ export {
 // Payment operations
 export { getPatientBills, submitBillPayment, type PatientBillResponse } from './payments';
 
+// Irembo Pay operations
+// export { initiateIremboPayTransaction } from './irembopay';
+
 // Global Bill operations
 export {
   getGlobalBillByIdentifier,
@@ -94,3 +100,6 @@ export { fetchInsuranceFirms, fetchAllInsuranceReportData, fetchInsuranceReport 
 
 // Facility information operations
 export { fetchFacilityInfo, fetchFacilitySetting, type FacilityInfo } from './facility-info';
+
+// Patient operations
+export { fetchPatientPhoneNumber, fetchPatientInfo, type PatientPhoneNumber } from '../patient.resource';

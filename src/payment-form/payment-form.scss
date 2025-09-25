@@ -931,3 +931,38 @@ tbody tr:hover {
   background-color: #fff1f1;
   color: #da1e28;
 }
+
+.initiateButton {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.paymentStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background-color: #defbe6;
+  border: 1px solid #0e6027;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.statusText {
+  color: #0e6027;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.transactionRef {
+  color: #525252;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.selectedPaymentMethods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}

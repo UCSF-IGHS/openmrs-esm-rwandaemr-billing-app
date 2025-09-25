@@ -421,3 +421,36 @@ export interface ConsommationRates {
   patientRate: number;
   insuranceName?: string;
 }
+
+// Irembo Pay interfaces
+export interface IremboPayRequest {
+  accountIdentifier: string; // Phone number
+  paymentProvider: 'MTN' | 'AIRTEL';
+  consommationId: string;
+}
+
+export interface IremboPayResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    accountIdentifier: string;
+    paymentProvider: string;
+    invoiceNumber: string;
+    amount: number;
+    referenceId: string;
+  };
+  errors?: Array<{
+    code: string;
+    detail: string;
+  }>;
+}
+
+export interface IremboPayTransaction {
+  referenceId: string;
+  invoiceNumber: string;
+  amount: number;
+  paymentProvider: string;
+  accountIdentifier: string;
+  status: 'PENDING' | 'SUCCESS' | 'FAILED';
+  createdAt: string;
+}
