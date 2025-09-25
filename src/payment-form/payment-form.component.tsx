@@ -133,7 +133,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const session = useSession();
   const collectorUuid = session?.user?.uuid;
 
-  const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>(['cash']);
+  const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [depositBalance, setDepositBalance] = useState('1100.00'); // TODO: wire to real deposit balance if you have it
@@ -294,7 +294,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       formInitializedRef.current = false;
       userModifiedFormRef.current = false;
 
-      setSelectedPaymentMethods(['cash']);
+      setSelectedPaymentMethods([]);
       setPaymentError('');
       setIsFormReady(false);
 
@@ -487,6 +487,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         }
       }
 
+      if (selectedPaymentMethods.length === 0) {
+        errorMessage = t('selectPaymentMethod', 'Please select at least one payment method');
+      }
+
       setPaymentError(errorMessage);
     }
   }, [
@@ -593,10 +597,62 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   };
 
   const removePaymentMethod = (method: string) => {
-    if (selectedPaymentMethods.length > 1) {
-      setSelectedPaymentMethods(selectedPaymentMethods.filter((m) => m !== method));
-    }
+    setSelectedPaymentMethods(selectedPaymentMethods.filter((m) => m !== method));
   };
+
+  const autoFillPaymentAmounts = useCallback(() => {
+    if (!isFormReady || !paymentAmount) return;
+
+    const amountToFill = paymentAmount;
+
+    if (hasPaymentMethod('cash') && !receivedCash) {
+      setValue('receivedCash', amountToFill, { shouldValidate: false });
+    }
+
+    if (hasPaymentMethod('deposit') && !deductedAmount) {
+      setValue('deductedAmount', amountToFill, { shouldValidate: false });
+    }
+
+    if (hasPaymentMethod('irembopay') && !iremboPayAmount) {
+      setValue('iremboPayAmount', amountToFill, { shouldValidate: false });
+    }
+
+    if (hasPaymentMethod('mixed')) {
+      if (!mixedIremboPayAmount && !mixedCashAmount && !mixedDepositAmount) {
+        const availableMethods = [];
+        if (hasPaymentMethod('irembopay')) availableMethods.push('irembopay');
+        if (hasPaymentMethod('cash')) availableMethods.push('cash');
+        if (hasPaymentMethod('deposit')) availableMethods.push('deposit');
+
+        if (availableMethods.length === 1) {
+          if (availableMethods[0] === 'irembopay') setMixedIremboPayAmount(amountToFill);
+          else if (availableMethods[0] === 'cash') setMixedCashAmount(amountToFill);
+          else if (availableMethods[0] === 'deposit') setMixedDepositAmount(amountToFill);
+        } else {
+          if (availableMethods.includes('irembopay')) setMixedIremboPayAmount(amountToFill);
+          else if (availableMethods.includes('cash')) setMixedCashAmount(amountToFill);
+          else if (availableMethods.includes('deposit')) setMixedDepositAmount(amountToFill);
+        }
+      }
+    }
+  }, [
+    isFormReady,
+    paymentAmount,
+    hasPaymentMethod,
+    receivedCash,
+    deductedAmount,
+    iremboPayAmount,
+    mixedIremboPayAmount,
+    mixedCashAmount,
+    mixedDepositAmount,
+    setValue,
+  ]);
+
+  useEffect(() => {
+    if (selectedPaymentMethods.length > 0 && isFormReady && paymentAmount) {
+      autoFillPaymentAmounts();
+    }
+  }, [selectedPaymentMethods, isFormReady, paymentAmount, autoFillPaymentAmounts]);
 
   const handleInitiateIremboPayment = async () => {
     if (!phoneNumber || !/^07\d{8}$/.test(phoneNumber)) {
@@ -664,6 +720,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const isFormValid = () => {
     if (!isValid || paymentError || paymentSuccess || insuranceInfo.isLoading || !isFormReady) return false;
     const hasSelectedItems = localSelectedItems.some((s) => s.item.selected === true);
+    const hasPaymentMethodSelected = selectedPaymentMethods.length > 0;
+
+    if (!hasPaymentMethodSelected) return false;
 
     if (hasPaymentMethod('irembopay')) {
       if (!phoneNumber || !/^07\d{8}$/.test(phoneNumber)) return false;
@@ -1156,6 +1215,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                         }}
                         selectedItem={null}
                         itemToString={(item) => (item ? item.text : '')}
+                        helperText={
+                          selectedPaymentMethods.length === 0
+                            ? t('paymentMethodRequired', 'Please select at least one payment method')
+                            : ''
+                        }
+                        invalid={selectedPaymentMethods.length === 0}
+                        invalidText={
+                          selectedPaymentMethods.length === 0
+                            ? t('selectPaymentMethod', 'Please select at least one payment method')
+                            : ''
+                        }
                       />
 
                       <div className={styles.selectedPaymentMethods}>

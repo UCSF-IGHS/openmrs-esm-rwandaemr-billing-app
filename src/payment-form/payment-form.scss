@@ -966,3 +966,17 @@ tbody tr:hover {
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
+
+.formRow .formInput {
+  .cds--dropdown {
+    width: 100%;
+  }
+  
+  .cds--dropdown__wrapper {
+    width: 100%;
+  }
+  
+  .cds--list-box {
+    width: 100%;
+  }
+}
