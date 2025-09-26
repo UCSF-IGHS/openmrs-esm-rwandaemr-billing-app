@@ -1,0 +1,290 @@
+
+[31m  [error] [39mConfig file does not exist: ./i18next-parser.config.js
+
+[36m  i18next Parser[39m
+[36m  --------------[39m
+[36m  Input:  [39msrc/**/*.component.tsx
+[36m  Output: [39mlocales/$LOCALE/$NAMESPACE.json
+
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/admission-information/admission-history.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/bill-list/card.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/bill-list/global-bill-list.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/bill-tabs/bill-confirmation.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/bill-tabs/consommation-search.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/bill-tabs/global-bill-search.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/bill-tabs/search-insurance.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-admin-card-link.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-admin/billing-admin-header/billing-admin-header.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-admin/billing-admin-header/billing-illustration.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-admin/patientbills.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-reports/billing-reports.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-reports/cashier-report.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-reports/consommation-report.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-reports/deposits-report.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-reports/insurance-report.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-reports/payment-refund-report.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-reports/report-filter-form.component.tsx
+[33m  [warning] [39mKey is not a string literal: field
+[33m  [warning] [39mKey is not a string literal: field
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-reports/service-revenue-report.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing-reports/third-party-report.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/billing.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/consommation/bill-items-table.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/consommation/consommation-view.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/consommation/consommations-list.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/consommation/embedded-consommations-list.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/consommation/revert-global-bill-modal.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/insurance-policy/insurance-policy-table.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/insurance-policy/insurance-policy.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/insurance-root.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/insurance/insurance-forms.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/insurance/insurance.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/invoice/global-bill-insurance-info.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/invoice/invoice-table.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/invoice/service-calculator.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/left-panel-link.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/metrics/card.component.tsx
+[33m  [warning] [39mKey is not a string literal
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/metrics/metrics-cards.component.tsx
+[33m  [warning] [39mKey is not a string literal
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/patient-insurance-tag/patient-insurance-tag.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/patientbillpayment.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/payment-form/payment-form.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/payment-receipt/printable-receipt.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/recent-bills/bill-list-table.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/resources/resources.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/root.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/visit-attributes/patient-admission-form.component.tsx
+[32m  [read]    [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/src/visit-attributes/visit-form-admission-section.component.tsx
+[33m  [warning] [39mFound same keys with different values: loading
+[33m  [warning] [39mFound same keys with different values: policyNumber
+[33m  [warning] [39mFound same keys with different values: policyId
+[33m  [warning] [39mFound same keys with different values: insuranceName
+[33m  [warning] [39mFound same keys with different values: total
+[33m  [warning] [39mFound same keys with different values: noDataFound
+[33m  [warning] [39mFound same keys with different values: patientName
+[33m  [warning] [39mFound same keys with different values: errorFetchingReport
+[33m  [warning] [39mFound same keys with different values: insuranceDue
+[33m  [warning] [39mFound same keys with different values: noResults
+[33m  [warning] [39mFound same keys with different values: allFieldsRequired
+[33m  [warning] [39mFound same keys with different values: noDataForCriteria
+[33m  [warning] [39mFound same keys with different values: errorFetchingReport
+[33m  [warning] [39mFound same keys with different values: amount
+[33m  [warning] [39mFound same keys with different values: exportComplete
+[33m  [warning] [39mFound same keys with different values: exportFailed
+[33m  [warning] [39mFound same keys with different values: expandRowsHint
+[33m  [warning] [39mFound same keys with different values: errorFetchingReport
+[33m  [warning] [39mFound same keys with different values: admissionDate
+[33m  [warning] [39mFound same keys with different values: beneficiaryName
+[33m  [warning] [39mFound same keys with different values: cardNumber
+[33m  [warning] [39mFound same keys with different values: medicaments
+[33m  [warning] [39mFound same keys with different values: hospitalisation
+[33m  [warning] [39mFound same keys with different values: noResults
+[33m  [warning] [39mFound same keys with different values: noResults
+[33m  [warning] [39mFound same keys with different values: unitPrice
+[33m  [warning] [39mFound same keys with different values: refundReason
+[33m  [warning] [39mFound same keys with different values: hospitalisation
+[33m  [warning] [39mFound same keys with different values: laboratoire
+[33m  [warning] [39mFound same keys with different values: chirurgie
+[33m  [warning] [39mFound same keys with different values: echographie
+[33m  [warning] [39mFound same keys with different values: formalitesAdministratives
+[33m  [warning] [39mFound same keys with different values: maternite
+[33m  [warning] [39mFound same keys with different values: medicaments
+[33m  [warning] [39mFound same keys with different values: ophtalmologie
+[33m  [warning] [39mFound same keys with different values: radiologie
+[33m  [warning] [39mFound same keys with different values: soinsInfirmiers
+[33m  [warning] [39mFound same keys with different values: stomatologie
+[33m  [warning] [39mFound same keys with different values: loading
+[33m  [warning] [39mFound same keys with different values: totalRecords
+[33m  [warning] [39mFound same keys with different values: expandRowsHint
+[33m  [warning] [39mFound same keys with different values: allFieldsRequired
+[33m  [warning] [39mFound same keys with different values: noDataForCriteria
+[33m  [warning] [39mFound same keys with different values: errorFetchingReport
+[33m  [warning] [39mFound same keys with different values: cardNumber
+[33m  [warning] [39mFound same keys with different values: formalitesAdministratives
+[33m  [warning] [39mFound same keys with different values: exportComplete
+[33m  [warning] [39mFound same keys with different values: exportFailed
+[33m  [warning] [39mFound same keys with different values: totalRecords
+[33m  [warning] [39mFound same keys with different values: expandRowsHint
+[33m  [warning] [39mFound same keys with different values: no
+[33m  [warning] [39mFound same keys with different values: unitPrice
+[33m  [warning] [39mFound same keys with different values: total
+[33m  [warning] [39mFound same keys with different values: total
+[33m  [warning] [39mFound same keys with different values: cardNo
+[33m  [warning] [39mFound same keys with different values: printErrorDescription
+[33m  [warning] [39mFound same keys with different values: closeBill
+[33m  [warning] [39mFound same keys with different values: revertBill
+[33m  [warning] [39mFound same keys with different values: serviceDate
+[33m  [warning] [39mFound same keys with different values: unitPrice
+[33m  [warning] [39mFound same keys with different values: noItemsSelected
+[33m  [warning] [39mFound same keys with different values: noPaidItems
+[33m  [warning] [39mFound same keys with different values: policyNo
+[33m  [warning] [39mFound same keys with different values: cardNumber
+[33m  [warning] [39mFound same keys with different values: searchThisTable
+[33m  [warning] [39mFound same keys with different values: birthdate
+[33m  [warning] [39mFound same keys with different values: cardNumber
+[33m  [warning] [39mFound same keys with different values: type
+[33m  [warning] [39mFound same keys with different values: no
+[33m  [warning] [39mFound same keys with different values: insurancePolicy
+[33m  [warning] [39mFound same keys with different values: insurance
+[33m  [warning] [39mFound same keys with different values: insurance
+[33m  [warning] [39mFound same keys with different values: insuranceDetails
+[33m  [warning] [39mFound same keys with different values: policyNumber
+[33m  [warning] [39mFound same keys with different values: loading
+[33m  [warning] [39mFound same keys with different values: policyNo
+[33m  [warning] [39mFound same keys with different values: saving
+[33m  [warning] [39mFound same keys with different values: createdBy
+[33m  [warning] [39mFound same keys with different values: policyId
+[33m  [warning] [39mFound same keys with different values: billIdentifier
+[33m  [warning] [39mFound same keys with different values: paidAmount
+[33m  [warning] [39mFound same keys with different values: searchThisTable
+[33m  [warning] [39mFound same keys with different values: loading
+[33m  [warning] [39mFound same keys with different values: quantity
+[33m  [warning] [39mFound same keys with different values: insufficientBalance
+[33m  [warning] [39mFound same keys with different values: printErrorDescription
+[33m  [warning] [39mFound same keys with different values: noItemsSelected
+[33m  [warning] [39mFound same keys with different values: insufficientBalance
+[33m  [warning] [39mFound same keys with different values: insufficientBalance
+[33m  [warning] [39mFound same keys with different values: phoneNumber
+[33m  [warning] [39mFound same keys with different values: selectPaymentMethod
+[33m  [warning] [39mFound same keys with different values: selectPaymentMethod
+[33m  [warning] [39mFound same keys with different values: partialPaymentsAllowed
+[33m  [warning] [39mFound same keys with different values: partialPaymentsAllowed
+[33m  [warning] [39mFound same keys with different values: partialPaymentsAllowed
+[33m  [warning] [39mFound same keys with different values: partialPaymentsAllowed
+[33m  [warning] [39mFound same keys with different values: partialPaymentsAllowed
+[33m  [warning] [39mFound same keys with different values: selectedItems
+[33m  [warning] [39mFound same keys with different values: itemsSelected
+[33m  [warning] [39mFound same keys with different values: quantity
+[33m  [warning] [39mFound same keys with different values: noItemsSelected
+[33m  [warning] [39mFound same keys with different values: patient
+[33m  [warning] [39mFound same keys with different values: amountPaid
+[33m  [warning] [39mFound same keys with different values: totalAmount
+[33m  [warning] [39mFound same keys with different values: paidAmount
+[33m  [warning] [39mFound same keys with different values: refId
+[33m  [warning] [39mFound same keys with different values: allBills
+[33m  [warning] [39mFound same keys with different values: paidBills
+[33m  [warning] [39mFound same keys with different values: pendingBills
+[33m  [warning] [39mFound same keys with different values: beneficiaryName
+[33m  [warning] [39mFound same keys with different values: billedItems
+[33m  [warning] [39mFound same keys with different values: loading
+[33m  [warning] [39mFound same keys with different values: saving
+[32m  [write]   [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/locales/en/translation.json
+[33m  [warning] [39mFound same keys with different values: loading
+[33m  [warning] [39mFound same keys with different values: policyNumber
+[33m  [warning] [39mFound same keys with different values: policyId
+[33m  [warning] [39mFound same keys with different values: insuranceName
+[33m  [warning] [39mFound same keys with different values: total
+[33m  [warning] [39mFound same keys with different values: noDataFound
+[33m  [warning] [39mFound same keys with different values: patientName
+[33m  [warning] [39mFound same keys with different values: errorFetchingReport
+[33m  [warning] [39mFound same keys with different values: insuranceDue
+[33m  [warning] [39mFound same keys with different values: noResults
+[33m  [warning] [39mFound same keys with different values: allFieldsRequired
+[33m  [warning] [39mFound same keys with different values: noDataForCriteria
+[33m  [warning] [39mFound same keys with different values: errorFetchingReport
+[33m  [warning] [39mFound same keys with different values: amount
+[33m  [warning] [39mFound same keys with different values: exportComplete
+[33m  [warning] [39mFound same keys with different values: exportFailed
+[33m  [warning] [39mFound same keys with different values: expandRowsHint
+[33m  [warning] [39mFound same keys with different values: errorFetchingReport
+[33m  [warning] [39mFound same keys with different values: admissionDate
+[33m  [warning] [39mFound same keys with different values: beneficiaryName
+[33m  [warning] [39mFound same keys with different values: cardNumber
+[33m  [warning] [39mFound same keys with different values: medicaments
+[33m  [warning] [39mFound same keys with different values: hospitalisation
+[33m  [warning] [39mFound same keys with different values: noResults
+[33m  [warning] [39mFound same keys with different values: noResults
+[33m  [warning] [39mFound same keys with different values: unitPrice
+[33m  [warning] [39mFound same keys with different values: refundReason
+[33m  [warning] [39mFound same keys with different values: hospitalisation
+[33m  [warning] [39mFound same keys with different values: laboratoire
+[33m  [warning] [39mFound same keys with different values: chirurgie
+[33m  [warning] [39mFound same keys with different values: echographie
+[33m  [warning] [39mFound same keys with different values: formalitesAdministratives
+[33m  [warning] [39mFound same keys with different values: maternite
+[33m  [warning] [39mFound same keys with different values: medicaments
+[33m  [warning] [39mFound same keys with different values: ophtalmologie
+[33m  [warning] [39mFound same keys with different values: radiologie
+[33m  [warning] [39mFound same keys with different values: soinsInfirmiers
+[33m  [warning] [39mFound same keys with different values: stomatologie
+[33m  [warning] [39mFound same keys with different values: loading
+[33m  [warning] [39mFound same keys with different values: totalRecords
+[33m  [warning] [39mFound same keys with different values: expandRowsHint
+[33m  [warning] [39mFound same keys with different values: allFieldsRequired
+[33m  [warning] [39mFound same keys with different values: noDataForCriteria
+[33m  [warning] [39mFound same keys with different values: errorFetchingReport
+[33m  [warning] [39mFound same keys with different values: cardNumber
+[33m  [warning] [39mFound same keys with different values: formalitesAdministratives
+[33m  [warning] [39mFound same keys with different values: exportComplete
+[33m  [warning] [39mFound same keys with different values: exportFailed
+[33m  [warning] [39mFound same keys with different values: totalRecords
+[33m  [warning] [39mFound same keys with different values: expandRowsHint
+[33m  [warning] [39mFound same keys with different values: no
+[33m  [warning] [39mFound same keys with different values: unitPrice
+[33m  [warning] [39mFound same keys with different values: total
+[33m  [warning] [39mFound same keys with different values: total
+[33m  [warning] [39mFound same keys with different values: cardNo
+[33m  [warning] [39mFound same keys with different values: printErrorDescription
+[33m  [warning] [39mFound same keys with different values: closeBill
+[33m  [warning] [39mFound same keys with different values: revertBill
+[33m  [warning] [39mFound same keys with different values: serviceDate
+[33m  [warning] [39mFound same keys with different values: unitPrice
+[33m  [warning] [39mFound same keys with different values: noItemsSelected
+[33m  [warning] [39mFound same keys with different values: noPaidItems
+[33m  [warning] [39mFound same keys with different values: policyNo
+[33m  [warning] [39mFound same keys with different values: cardNumber
+[33m  [warning] [39mFound same keys with different values: searchThisTable
+[33m  [warning] [39mFound same keys with different values: birthdate
+[33m  [warning] [39mFound same keys with different values: cardNumber
+[33m  [warning] [39mFound same keys with different values: type
+[33m  [warning] [39mFound same keys with different values: no
+[33m  [warning] [39mFound same keys with different values: insurancePolicy
+[33m  [warning] [39mFound same keys with different values: insurance
+[33m  [warning] [39mFound same keys with different values: insurance
+[33m  [warning] [39mFound same keys with different values: insuranceDetails
+[33m  [warning] [39mFound same keys with different values: policyNumber
+[33m  [warning] [39mFound same keys with different values: loading
+[33m  [warning] [39mFound same keys with different values: policyNo
+[33m  [warning] [39mFound same keys with different values: saving
+[33m  [warning] [39mFound same keys with different values: createdBy
+[33m  [warning] [39mFound same keys with different values: policyId
+[33m  [warning] [39mFound same keys with different values: billIdentifier
+[33m  [warning] [39mFound same keys with different values: paidAmount
+[33m  [warning] [39mFound same keys with different values: searchThisTable
+[33m  [warning] [39mFound same keys with different values: loading
+[33m  [warning] [39mFound same keys with different values: quantity
+[33m  [warning] [39mFound same keys with different values: insufficientBalance
+[33m  [warning] [39mFound same keys with different values: printErrorDescription
+[33m  [warning] [39mFound same keys with different values: noItemsSelected
+[33m  [warning] [39mFound same keys with different values: insufficientBalance
+[33m  [warning] [39mFound same keys with different values: insufficientBalance
+[33m  [warning] [39mFound same keys with different values: phoneNumber
+[33m  [warning] [39mFound same keys with different values: selectPaymentMethod
+[33m  [warning] [39mFound same keys with different values: selectPaymentMethod
+[33m  [warning] [39mFound same keys with different values: partialPaymentsAllowed
+[33m  [warning] [39mFound same keys with different values: partialPaymentsAllowed
+[33m  [warning] [39mFound same keys with different values: partialPaymentsAllowed
+[33m  [warning] [39mFound same keys with different values: partialPaymentsAllowed
+[33m  [warning] [39mFound same keys with different values: partialPaymentsAllowed
+[33m  [warning] [39mFound same keys with different values: selectedItems
+[33m  [warning] [39mFound same keys with different values: itemsSelected
+[33m  [warning] [39mFound same keys with different values: quantity
+[33m  [warning] [39mFound same keys with different values: noItemsSelected
+[33m  [warning] [39mFound same keys with different values: patient
+[33m  [warning] [39mFound same keys with different values: amountPaid
+[33m  [warning] [39mFound same keys with different values: totalAmount
+[33m  [warning] [39mFound same keys with different values: paidAmount
+[33m  [warning] [39mFound same keys with different values: refId
+[33m  [warning] [39mFound same keys with different values: allBills
+[33m  [warning] [39mFound same keys with different values: paidBills
+[33m  [warning] [39mFound same keys with different values: pendingBills
+[33m  [warning] [39mFound same keys with different values: beneficiaryName
+[33m  [warning] [39mFound same keys with different values: billedItems
+[33m  [warning] [39mFound same keys with different values: loading
+[33m  [warning] [39mFound same keys with different values: saving
+[32m  [write]   [39m/Users/cynthiakamau/Desktop/JSProjects/rwandaemr-esm-3/packages/esm-billing-app/locales/fr/translation.json
+(node:77350) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+[36m  Stats:  [39m46 files were parsed

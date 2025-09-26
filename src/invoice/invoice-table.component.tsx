@@ -38,7 +38,7 @@ import {
 import { CardHeader, EmptyState, usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import styles from './invoice-table.scss';
 import { usePatientBill, useInsuranceCardBill } from './invoice.resource';
-import GlobalBillHeader from '.././bill-list/global-bill-list.component';
+import GlobalBillHeader from '../bill-list/global-bill-list.component';
 import EmbeddedConsommationsList from '../consommation/embedded-consommations-list.component';
 import ServiceCalculator from './service-calculator.component';
 import {
@@ -166,8 +166,9 @@ export const BillingHomeGlobalBillsTable: React.FC<{ patientQuery?: string; poli
     const term = (searchTerm || '').trim().toLowerCase();
     if (!term) return rows;
     return rows.filter((r) => {
-      const hay =
-        `${r.patientName || ''} ${r.policyNumber || ''} ${r.globalBillId || ''} ${r.billIdentifier || ''}`.toLowerCase();
+      const hay = `${r.patientName || ''} ${r.policyNumber || ''} ${r.globalBillId || ''} ${
+        r.billIdentifier || ''
+      }`.toLowerCase();
       return hay.includes(term);
     });
   }, [rows, searchTerm]);
@@ -534,8 +535,8 @@ export const BillingHomeGlobalBillsTable: React.FC<{ patientQuery?: string; poli
                                 cell.value === 'CLOSED'
                                   ? 'cool-gray'
                                   : cell.value === 'FULLY PAID' || cell.value === 'PAID'
-                                    ? 'green'
-                                    : 'red'
+                                  ? 'green'
+                                  : 'red'
                               }
                             >
                               {cell.value}
@@ -701,15 +702,15 @@ const InvoiceTableWithIdentifiers: React.FC<InvoiceTableWithIdentifiersProps> = 
   const isLoading = usePatientData
     ? patientBillResponse.isLoading
     : useInsuranceData
-      ? insuranceBillResponse.isLoading
-      : false;
+    ? insuranceBillResponse.isLoading
+    : false;
 
   const error = usePatientData ? patientBillResponse.error : useInsuranceData ? insuranceBillResponse.error : null;
   const isValidating = usePatientData
     ? patientBillResponse.isValidating
     : useInsuranceData
-      ? insuranceBillResponse.isValidating
-      : false;
+    ? insuranceBillResponse.isValidating
+    : false;
 
   const mutate = useMemo(
     () => (usePatientData ? patientBillResponse.mutate : useInsuranceData ? insuranceBillResponse.mutate : () => {}),
@@ -753,8 +754,9 @@ const InvoiceTableWithIdentifiers: React.FC<InvoiceTableWithIdentifiersProps> = 
     if (!debouncedSearchTerm) return results || [];
     const term = String(debouncedSearchTerm).toLowerCase().trim();
     return (results || []).filter((lineItem: any) => {
-      const hay =
-        `${lineItem?.item || ''} ${lineItem?.globalBillId || ''} ${lineItem?.billIdentifier || ''}`.toLowerCase();
+      const hay = `${lineItem?.item || ''} ${lineItem?.globalBillId || ''} ${
+        lineItem?.billIdentifier || ''
+      }`.toLowerCase();
       return hay.includes(term);
     });
   }, [debouncedSearchTerm, results]);
@@ -784,14 +786,14 @@ const InvoiceTableWithIdentifiers: React.FC<InvoiceTableWithIdentifiersProps> = 
                 status === 'PAID'
                   ? 'green'
                   : status === 'PARTIALLY_PAID' || status === 'PARTIALLY PAID'
-                    ? 'cyan'
-                    : 'red';
+                  ? 'cyan'
+                  : 'red';
               const className =
                 status === 'PAID'
                   ? styles.paidStatus
                   : status === 'PARTIALLY_PAID' || status === 'PARTIALLY PAID'
-                    ? styles.partiallyPaidStatus
-                    : styles.unpaidStatus;
+                  ? styles.partiallyPaidStatus
+                  : styles.unpaidStatus;
 
               return (
                 <Tag type={tagType} className={className}>
@@ -1079,8 +1081,17 @@ const InvoiceTableWithIdentifiers: React.FC<InvoiceTableWithIdentifiersProps> = 
                         onExpand={() => handleRowExpand(row)}
                       >
                         {row.cells.map((cell) => {
-                          const cellClassName =
-                            `${cell.info.header === 'billIdentifier' ? styles.colBillId : ''} ${cell.info.header === 'globalBillId' ? styles.colGlobalBillId : ''} ${cell.info.header === 'date' ? styles.colDate : ''} ${cell.info.header === 'createdBy' ? styles.colCreatedBy : ''} ${cell.info.header === 'policyId' ? styles.colBillId : ''} ${cell.info.header === 'admissionDate' ? styles.colAdmissionDate : ''} ${cell.info.header === 'dischargeDate' ? styles.colDischargeDate : ''} ${cell.info.header === 'patientDueAmount' ? styles.colAmount : ''} ${cell.info.header === 'paidAmount' ? styles.colPaid : ''} ${cell.info.header === 'paymentStatus' ? styles.colStatus : ''}`.trim();
+                          const cellClassName = `${cell.info.header === 'billIdentifier' ? styles.colBillId : ''} ${
+                            cell.info.header === 'globalBillId' ? styles.colGlobalBillId : ''
+                          } ${cell.info.header === 'date' ? styles.colDate : ''} ${
+                            cell.info.header === 'createdBy' ? styles.colCreatedBy : ''
+                          } ${cell.info.header === 'policyId' ? styles.colBillId : ''} ${
+                            cell.info.header === 'admissionDate' ? styles.colAdmissionDate : ''
+                          } ${cell.info.header === 'dischargeDate' ? styles.colDischargeDate : ''} ${
+                            cell.info.header === 'patientDueAmount' ? styles.colAmount : ''
+                          } ${cell.info.header === 'paidAmount' ? styles.colPaid : ''} ${
+                            cell.info.header === 'paymentStatus' ? styles.colStatus : ''
+                          }`.trim();
                           return (
                             <TableCell key={cell.id} className={cellClassName}>
                               {cell.value?.content ?? cell.value}

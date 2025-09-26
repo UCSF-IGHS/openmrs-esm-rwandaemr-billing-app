@@ -1,6 +1,6 @@
 import { openmrsFetch } from '@openmrs/esm-framework';
 
-import { formatToYMD } from '../../billing-reports/utils/download-utils';
+import { formatToYMD } from '../utils/download-utils';
 import type { ReportRow } from '../payment-refund-report.component';
 const BASE_MAMBA_API = '/ws/rest/v1/mamba/report';
 
@@ -185,12 +185,7 @@ export interface ServiceRevenueRow {
   total: number;
 }
 
-export async function fetchServiceRevenueReport(
-  startDate: string,
-  endDate: string,
-  page_number = 1,
-  page_size = 50,
-) {
+export async function fetchServiceRevenueReport(startDate: string, endDate: string, page_number = 1, page_size = 50) {
   const formattedStart = formatToYMD(startDate);
   const formattedEnd = formatToYMD(endDate);
 
@@ -213,41 +208,42 @@ export async function fetchServiceRevenueReport(
       };
     }
 
-    const transformedResults = data.results?.map((item: any) => {
-      const record: any = {};
-      
-      item.record?.forEach((field: any) => {
-        record[field.column] = field.value;
-      });
+    const transformedResults =
+      data.results?.map((item: any) => {
+        const record: any = {};
 
-      return {
-        id: item.serialId?.toString() || Math.random().toString(),
-        service: record.service || '',
-        chirurgie: record.CHIRURGIE || record.SURGERY || 0,
-        consommables: record.CONSOMMABLES || 0,
-        dermatologie: record.DERMATOLOGY || 0,
-        echographie: record.ECHOGRAPHIE || 0,
-        formalitesAdministratives: record.FORMALITES_ADMINISTRATIVES || 0,
-        hospitalisation: record.HOSPITALISATION || 0,
-        kinestherapie: record.KINESTHERAPIE || 0,
-        laboratoire: record.LABORATOIRE || 0,
-        maternite: record.MATERNITE || record.OBSTETRICS_GYNECOLOGY || 0,
-        medecineInterne: record.MEDECINE_INTERNE || record.INTERNAL_MEDECINE || 0,
-        medicaments: record.MEDICAMENTS || 0,
-        ophtalmologie: record.OPHTALMOLOGIE || record.OPHTHALMOLOGY || 0,
-        orl: record.ORL || record.OTORHINOLARYNGOLOGIE || 0,
-        oxygenotherapie: record.OXYGENOTHERAPIE || 0,
-        pediatrie: record.PEDIATRIE || record.PEDIATRICS || 0,
-        radiologie: record.RADIOLOGIE || 0,
-        soinsInfirmiers: record.SOINS_INFIRMIERS || 0,
-        soinsTherapeutiques: record.SOINS_THERAPEUTIQUES || 0,
-        stomatologie: record.STOMATOLOGIE || record.STOMATOLOGY || 0,
-        autres: record.AUTRES || record.APPAREILLAGE_ORTHOPEDIQUE || 0,
-        consultation: record.CONSULTATION || 0,
-        ambulance: record.AMBULANCE || 0,
-        total: calculateRowTotal(record),
-      };
-    }) || [];
+        item.record?.forEach((field: any) => {
+          record[field.column] = field.value;
+        });
+
+        return {
+          id: item.serialId?.toString() || Math.random().toString(),
+          service: record.service || '',
+          chirurgie: record.CHIRURGIE || record.SURGERY || 0,
+          consommables: record.CONSOMMABLES || 0,
+          dermatologie: record.DERMATOLOGY || 0,
+          echographie: record.ECHOGRAPHIE || 0,
+          formalitesAdministratives: record.FORMALITES_ADMINISTRATIVES || 0,
+          hospitalisation: record.HOSPITALISATION || 0,
+          kinestherapie: record.KINESTHERAPIE || 0,
+          laboratoire: record.LABORATOIRE || 0,
+          maternite: record.MATERNITE || record.OBSTETRICS_GYNECOLOGY || 0,
+          medecineInterne: record.MEDECINE_INTERNE || record.INTERNAL_MEDECINE || 0,
+          medicaments: record.MEDICAMENTS || 0,
+          ophtalmologie: record.OPHTALMOLOGIE || record.OPHTHALMOLOGY || 0,
+          orl: record.ORL || record.OTORHINOLARYNGOLOGIE || 0,
+          oxygenotherapie: record.OXYGENOTHERAPIE || 0,
+          pediatrie: record.PEDIATRIE || record.PEDIATRICS || 0,
+          radiologie: record.RADIOLOGIE || 0,
+          soinsInfirmiers: record.SOINS_INFIRMIERS || 0,
+          soinsTherapeutiques: record.SOINS_THERAPEUTIQUES || 0,
+          stomatologie: record.STOMATOLOGIE || record.STOMATOLOGY || 0,
+          autres: record.AUTRES || record.APPAREILLAGE_ORTHOPEDIQUE || 0,
+          consultation: record.CONSULTATION || 0,
+          ambulance: record.AMBULANCE || 0,
+          total: calculateRowTotal(record),
+        };
+      }) || [];
 
     return {
       results: transformedResults,
@@ -265,14 +261,37 @@ export async function fetchServiceRevenueReport(
 // Helper function to calculate total for each row
 function calculateRowTotal(record: any): number {
   const columns = [
-    'CHIRURGIE', 'SURGERY', 'CONSOMMABLES', 'DERMATOLOGY', 'ECHOGRAPHIE',
-    'FORMALITES_ADMINISTRATIVES', 'HOSPITALISATION', 'KINESTHERAPIE',
-    'LABORATOIRE', 'MATERNITE', 'OBSTETRICS_GYNECOLOGY', 'MEDECINE_INTERNE',
-    'INTERNAL_MEDECINE', 'MEDICAMENTS', 'OPHTALMOLOGIE', 'OPHTHALMOLOGY',
-    'ORL', 'OTORHINOLARYNGOLOGIE', 'OXYGENOTHERAPIE', 'PEDIATRIE', 'PEDIATRICS',
-    'RADIOLOGIE', 'SOINS_INFIRMIERS', 'SOINS_THERAPEUTIQUES', 'STOMATOLOGIE',
-    'STOMATOLOGY', 'AUTRES', 'APPAREILLAGE_ORTHOPEDIQUE', 'CONSULTATION',
-    'AMBULANCE', 'ANESTHESIE'
+    'CHIRURGIE',
+    'SURGERY',
+    'CONSOMMABLES',
+    'DERMATOLOGY',
+    'ECHOGRAPHIE',
+    'FORMALITES_ADMINISTRATIVES',
+    'HOSPITALISATION',
+    'KINESTHERAPIE',
+    'LABORATOIRE',
+    'MATERNITE',
+    'OBSTETRICS_GYNECOLOGY',
+    'MEDECINE_INTERNE',
+    'INTERNAL_MEDECINE',
+    'MEDICAMENTS',
+    'OPHTALMOLOGIE',
+    'OPHTHALMOLOGY',
+    'ORL',
+    'OTORHINOLARYNGOLOGIE',
+    'OXYGENOTHERAPIE',
+    'PEDIATRIE',
+    'PEDIATRICS',
+    'RADIOLOGIE',
+    'SOINS_INFIRMIERS',
+    'SOINS_THERAPEUTIQUES',
+    'STOMATOLOGIE',
+    'STOMATOLOGY',
+    'AUTRES',
+    'APPAREILLAGE_ORTHOPEDIQUE',
+    'CONSULTATION',
+    'AMBULANCE',
+    'ANESTHESIE',
   ];
 
   return columns.reduce((sum, column) => {
@@ -292,12 +311,7 @@ export async function fetchAllServiceRevenueReport(
   let done = false;
 
   while (!done) {
-    const { results, total: newTotal } = await fetchServiceRevenueReport(
-      startDate,
-      endDate,
-      currentPage,
-      pageSize,
-    );
+    const { results, total: newTotal } = await fetchServiceRevenueReport(startDate, endDate, currentPage, pageSize);
 
     if (currentPage === 1) {
       total = newTotal;
@@ -373,42 +387,43 @@ export async function fetchThirdPartyReport(
       };
     }
 
-    const transformedResults = data.results?.map((item: any, index: number) => {
-      const record: any = {};
-      
-      item.record?.forEach((field: any) => {
-        record[field.column] = field.value;
-      });
+    const transformedResults =
+      data.results?.map((item: any, index: number) => {
+        const record: any = {};
 
-      return {
-        id: item.serialId?.toString() || Math.random().toString(),
-        no: index + 1 + (page_number - 1) * page_size,
-        date: record.admission_date ? formatDateFromArray(record.admission_date) : '',
-        cardNumber: record.card_number || '',
-        age: record.age?.toString() || '',
-        gender: record.gender || '',
-        beneficiaryName: record.beneficiary_name || '',
-        insurance: record.company_name || insuranceName,
-        consultation: parseFloat(record.CONSULTATION || 0),
-        hospitalization: parseFloat(record.HOSPITALISATION || 0),
-        pharmacy: parseFloat(record.MEDICAMENTS || 0),
-        laboratory: parseFloat(record.LABORATOIRE || 0),
-        radiology: parseFloat(record.IMAGING || 0),
-        consommables: parseFloat(record.CONSOMMABLES || 0),
-        formalitesAdministratives: parseFloat(record.FORMALITES_ADMINISTRATIVES || 0),
-        ambulance: parseFloat(record.AMBULANCE || 0),
-        oxygenotherapie: parseFloat(record.OXYGENOTHERAPIE || 0),
-        proced: parseFloat(record.PROCED || 0),
-        medicine: parseFloat(record.MEDICAMENTS || 0),
-        totalAmount: parseFloat(record.amount_100_percent || 0),
-        paidAmount: parseFloat(record.insurance_amount || 0),
-        balance: parseFloat(record.third_party_amount || 0),
-        // Financial detail columns
-        amount100Percent: parseFloat(record.amount_100_percent || 0),
-        insuranceAmount: parseFloat(record.insurance_amount || 0),
-        thirdPartyAmount: parseFloat(record.third_party_amount || 0),
-      };
-    }) || [];
+        item.record?.forEach((field: any) => {
+          record[field.column] = field.value;
+        });
+
+        return {
+          id: item.serialId?.toString() || Math.random().toString(),
+          no: index + 1 + (page_number - 1) * page_size,
+          date: record.admission_date ? formatDateFromArray(record.admission_date) : '',
+          cardNumber: record.card_number || '',
+          age: record.age?.toString() || '',
+          gender: record.gender || '',
+          beneficiaryName: record.beneficiary_name || '',
+          insurance: record.company_name || insuranceName,
+          consultation: parseFloat(record.CONSULTATION || 0),
+          hospitalization: parseFloat(record.HOSPITALISATION || 0),
+          pharmacy: parseFloat(record.MEDICAMENTS || 0),
+          laboratory: parseFloat(record.LABORATOIRE || 0),
+          radiology: parseFloat(record.IMAGING || 0),
+          consommables: parseFloat(record.CONSOMMABLES || 0),
+          formalitesAdministratives: parseFloat(record.FORMALITES_ADMINISTRATIVES || 0),
+          ambulance: parseFloat(record.AMBULANCE || 0),
+          oxygenotherapie: parseFloat(record.OXYGENOTHERAPIE || 0),
+          proced: parseFloat(record.PROCED || 0),
+          medicine: parseFloat(record.MEDICAMENTS || 0),
+          totalAmount: parseFloat(record.amount_100_percent || 0),
+          paidAmount: parseFloat(record.insurance_amount || 0),
+          balance: parseFloat(record.third_party_amount || 0),
+          // Financial detail columns
+          amount100Percent: parseFloat(record.amount_100_percent || 0),
+          insuranceAmount: parseFloat(record.insurance_amount || 0),
+          thirdPartyAmount: parseFloat(record.third_party_amount || 0),
+        };
+      }) || [];
 
     return {
       results: transformedResults,
@@ -426,12 +441,12 @@ export async function fetchThirdPartyReport(
 // Helper function to format date from array format [year, month, day, hour, minute, second]
 function formatDateFromArray(dateArray: number[]): string {
   if (!Array.isArray(dateArray) || dateArray.length < 3) return '';
-  
+
   try {
     const [year, month, day] = dateArray;
     const date = new Date(year, month - 1, day);
     if (!isNaN(date.getTime())) {
-      return date.toLocaleDateString('en-GB'); 
+      return date.toLocaleDateString('en-GB');
     }
     return '';
   } catch (error) {
@@ -503,12 +518,7 @@ export interface CashierReportRow {
   totalAmount: number;
 }
 
-export async function fetchCashierReport(
-  startDate: string,
-  endDate: string,
-  page_number = 1,
-  page_size = 50,
-) {
+export async function fetchCashierReport(startDate: string, endDate: string, page_number = 1, page_size = 50) {
   const formattedStart = formatToYMD(startDate);
   const formattedEnd = formatToYMD(endDate);
 
@@ -559,7 +569,7 @@ export async function fetchCashierReport(
       return {
         id: item.serialId?.toString() || Math.random().toString(),
         firstDateId: Number(record.first_date_id || record.firstDateId || 0) || undefined,
-        date: Array.isArray(record.date) ? formatDateFromArray(record.date) : (record.date || ''),
+        date: Array.isArray(record.date) ? formatDateFromArray(record.date) : record.date || '',
         billPaymentId: Number(record.bill_payment_id || 0),
         patientBillId: Number(record.patient_bill_id || 0),
         patientName: record.patient_name || '',
@@ -590,12 +600,7 @@ export async function fetchAllCashierReport(
   let done = false;
 
   while (!done) {
-    const { results, total: newTotal } = await fetchCashierReport(
-      startDate,
-      endDate,
-      currentPage,
-      pageSize,
-    );
+    const { results, total: newTotal } = await fetchCashierReport(startDate, endDate, currentPage, pageSize);
 
     if (currentPage === 1) total = newTotal;
     allResults = allResults.concat(results);
@@ -606,7 +611,6 @@ export async function fetchAllCashierReport(
 
   return allResults;
 }
-
 
 // Deposits Report API functions
 export interface DepositReportRow {
@@ -653,7 +657,7 @@ export async function fetchDepositsReport(
 
       return {
         id: item.serialId?.toString() || Math.random().toString(),
-        date: Array.isArray(record.date) ? formatDateFromArray(record.date) : (record.date || ''),
+        date: Array.isArray(record.date) ? formatDateFromArray(record.date) : record.date || '',
         collector: record.collector || '',
         personNameShort: record.person_name_short || '',
         amount: Number(record.amount || 0),

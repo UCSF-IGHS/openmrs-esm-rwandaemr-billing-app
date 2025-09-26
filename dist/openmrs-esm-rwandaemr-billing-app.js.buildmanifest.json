@@ -1,0 +1,696 @@
+{
+  "chunks": [
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 7120,
+      "sizes": {
+        "javascript": 7120
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "41.js"
+      ],
+      "auxiliaryFiles": [
+        "41.js.map"
+      ],
+      "hash": "9bd8a29ec4e78a60",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 1965,
+      "sizes": {
+        "javascript": 1965
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "55.js"
+      ],
+      "auxiliaryFiles": [],
+      "hash": "88fe974a6ee5ebe4",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": false,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "reason": "reused as split chunk (cache group: default)",
+      "size": 210,
+      "sizes": {
+        "consume-shared": 210
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [],
+      "auxiliaryFiles": [],
+      "hash": "6913cb12f6ea39bf",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 1914,
+      "sizes": {
+        "javascript": 1914
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "99.js"
+      ],
+      "auxiliaryFiles": [],
+      "hash": "718338e4fb7cdf8f",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "reason": "split chunk (cache group: defaultVendors)",
+      "size": 137481,
+      "sizes": {
+        "javascript": 137481
+      },
+      "names": [],
+      "idHints": [
+        "vendors"
+      ],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "144.js"
+      ],
+      "auxiliaryFiles": [
+        "144.js.map"
+      ],
+      "hash": "6fc080d31d4d2072",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 1244,
+      "sizes": {
+        "javascript": 1244
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "197.js"
+      ],
+      "auxiliaryFiles": [],
+      "hash": "7a3b498df38cd01c",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 2139047,
+      "sizes": {
+        "javascript": 2137448,
+        "asset": 1599
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app"
+      ],
+      "files": [
+        "271.js"
+      ],
+      "auxiliaryFiles": [
+        "271.js.map",
+        "ac0144db15e08842.svg"
+      ],
+      "hash": "c6302e801ff93231",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 20675,
+      "sizes": {
+        "javascript": 20675
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "300.js"
+      ],
+      "auxiliaryFiles": [],
+      "hash": "12aa90267727f144",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "reason": "reused as split chunk (cache group: defaultVendors)",
+      "size": 441542,
+      "sizes": {
+        "javascript": 441542
+      },
+      "names": [],
+      "idHints": [
+        "vendors"
+      ],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "317.js"
+      ],
+      "auxiliaryFiles": [
+        "317.js.map"
+      ],
+      "hash": "3913d06df74da3d4",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 1603,
+      "sizes": {
+        "javascript": 1603
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "335.js"
+      ],
+      "auxiliaryFiles": [],
+      "hash": "e50e24204e938c46",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": false,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "reason": "reused as split chunk (cache group: default)",
+      "size": 42,
+      "sizes": {
+        "consume-shared": 42
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [],
+      "auxiliaryFiles": [],
+      "hash": "6dceea81b9cfca7b",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "reason": "split chunk (cache group: defaultVendors)",
+      "size": 2922913,
+      "sizes": {
+        "javascript": 2922913
+      },
+      "names": [],
+      "idHints": [
+        "vendors"
+      ],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app"
+      ],
+      "files": [
+        "368.js"
+      ],
+      "auxiliaryFiles": [
+        "368.js.map"
+      ],
+      "hash": "a3ed86dca2094bc2",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "reason": "split chunk (cache group: defaultVendors)",
+      "size": 7098854,
+      "sizes": {
+        "javascript": 7098854
+      },
+      "names": [],
+      "idHints": [
+        "vendors"
+      ],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "437.js"
+      ],
+      "auxiliaryFiles": [
+        "437.js.map"
+      ],
+      "hash": "9299c4454e796b00",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "reason": "reused as split chunk (cache group: defaultVendors)",
+      "size": 163792,
+      "sizes": {
+        "javascript": 163792
+      },
+      "names": [],
+      "idHints": [
+        "vendors"
+      ],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "457.js"
+      ],
+      "auxiliaryFiles": [
+        "457.js.map"
+      ],
+      "hash": "f810b7e4cfccc79b",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 7160,
+      "sizes": {
+        "javascript": 7160
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "464.js"
+      ],
+      "auxiliaryFiles": [
+        "464.js.map"
+      ],
+      "hash": "4c9fd0de1209a4da",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 233376,
+      "sizes": {
+        "asset": 1936,
+        "javascript": 231440
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "499.js"
+      ],
+      "auxiliaryFiles": [
+        "499.js.map",
+        "cef4c47acbe7638a.svg"
+      ],
+      "hash": "fc532358c7ea6528",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "reason": "reused as split chunk (cache group: defaultVendors)",
+      "size": 63035,
+      "sizes": {
+        "javascript": 63035
+      },
+      "names": [],
+      "idHints": [
+        "vendors"
+      ],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "519.js"
+      ],
+      "auxiliaryFiles": [
+        "519.js.map"
+      ],
+      "hash": "3243c35af48fce74",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 39684,
+      "sizes": {
+        "javascript": 39684
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "537.js"
+      ],
+      "auxiliaryFiles": [
+        "537.js.map"
+      ],
+      "hash": "4a1c84756195967a",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 1385,
+      "sizes": {
+        "javascript": 1385
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "652.js"
+      ],
+      "auxiliaryFiles": [],
+      "hash": "414a58f490d1e173",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "reason": "reused as split chunk (cache group: defaultVendors)",
+      "size": 99434,
+      "sizes": {
+        "javascript": 99434
+      },
+      "names": [],
+      "idHints": [
+        "vendors"
+      ],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "717.js"
+      ],
+      "auxiliaryFiles": [
+        "717.js.map"
+      ],
+      "hash": "8a13c899858c8591",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": true,
+      "entry": true,
+      "recorded": false,
+      "size": 12319580,
+      "sizes": {
+        "consume-shared": 252,
+        "javascript": 12296696,
+        "asset": 1599,
+        "share-init": 252,
+        "runtime": 20781
+      },
+      "names": [
+        "main"
+      ],
+      "idHints": [],
+      "runtime": [
+        "main"
+      ],
+      "files": [
+        "main.js"
+      ],
+      "auxiliaryFiles": [
+        "ac0144db15e08842.svg",
+        "main.js.map"
+      ],
+      "hash": "ddb30e7d5cbb3429",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 701,
+      "sizes": {
+        "javascript": 701
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "852.js"
+      ],
+      "auxiliaryFiles": [
+        "852.js.map"
+      ],
+      "hash": "fa455bfe676755ab",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 82673,
+      "sizes": {
+        "javascript": 82673
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "882.js"
+      ],
+      "auxiliaryFiles": [
+        "882.js.map"
+      ],
+      "hash": "8570f1e7504f3913",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "reason": "reused as split chunk (cache group: defaultVendors)",
+      "size": 314795,
+      "sizes": {
+        "javascript": 314795
+      },
+      "names": [],
+      "idHints": [
+        "vendors"
+      ],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "913.js"
+      ],
+      "auxiliaryFiles": [
+        "913.js.map"
+      ],
+      "hash": "932fed26c55f5bed",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 37465,
+      "sizes": {
+        "javascript": 37465
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "918.js"
+      ],
+      "auxiliaryFiles": [
+        "918.js.map"
+      ],
+      "hash": "7d66a751b6a6463b",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": true,
+      "entry": true,
+      "recorded": false,
+      "size": 20549,
+      "sizes": {
+        "javascript": 42,
+        "share-init": 252,
+        "runtime": 20255
+      },
+      "names": [
+        "@ohri/esm-rwandaemr-billing-app"
+      ],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app"
+      ],
+      "files": [
+        "openmrs-esm-rwandaemr-billing-app.js"
+      ],
+      "auxiliaryFiles": [
+        "openmrs-esm-rwandaemr-billing-app.js.map"
+      ],
+      "hash": "ea7ef1182058ce56",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "reason": "reused as split chunk (cache group: defaultVendors)",
+      "size": 373039,
+      "sizes": {
+        "javascript": 373039
+      },
+      "names": [],
+      "idHints": [
+        "vendors"
+      ],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "974.js"
+      ],
+      "auxiliaryFiles": [
+        "974.js.map"
+      ],
+      "hash": "2c2ee6ab5511d13d",
+      "childrenByOrder": {}
+    },
+    {
+      "rendered": true,
+      "initial": false,
+      "entry": false,
+      "recorded": false,
+      "size": 68419,
+      "sizes": {
+        "javascript": 68419
+      },
+      "names": [],
+      "idHints": [],
+      "runtime": [
+        "@ohri/esm-rwandaemr-billing-app",
+        "main"
+      ],
+      "files": [
+        "981.js"
+      ],
+      "auxiliaryFiles": [
+        "981.js.map"
+      ],
+      "hash": "1b95faa995681d9e",
+      "childrenByOrder": {}
+    }
+  ]
+}
