@@ -266,6 +266,18 @@ const InsuranceForm: React.FC<InsuranceFormProps> = ({ patientUuid, closeFormWit
       // Store the full response details
       setEligibilityDetails(response.details);
 
+      // Pre-populate coverage dates based on insurance type
+      if (detectedInsuranceType === 'cbhi' || detectedInsuranceType === 'cbhi-special-case') {
+        const today = dayjs();
+        methods.setValue('coverageStartDate', today.toDate());
+        methods.setValue('coverageEndDate', today.add(1, 'year').toDate());
+      } else if (detectedInsuranceType === 'rama') {
+        // For RAMA, use current date as start and one month after as end
+        const today = dayjs();
+        methods.setValue('coverageStartDate', today.toDate());
+        methods.setValue('coverageEndDate', today.add(1, 'month').toDate());
+      }
+
       const isEligible = response?.eligible;
       const message =
         response?.message ||
